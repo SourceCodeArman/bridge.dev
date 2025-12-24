@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '@/lib/api';
 import { STORAGE_KEYS, getItem, setItem, removeItem } from '@/lib/utils/storage';
 import type { User, LoginRequest, RegisterRequest, ApiError } from '@/types';
@@ -15,6 +15,16 @@ interface AuthContextType {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Custom hook to use the auth context
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -34,12 +44,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const currentUser = await authService.getCurrentUser();
                     setUser(currentUser);
                     setItem(STORAGE_KEYS.USER, currentUser);
-                } catch {
-                    // Token invalid, clear auth
-                    removeItem(STORAGE_KEYS.AUTH_TOKEN);
-                    removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-                    removeItem(STORAGE_KEYS.USER);
-                    setUser(null);
+                } catch (err) {
+                    const apiError = err as ApiError;
+                    // Only clear auth on 401/403 errors
+                    if (apiError.status === 401 || apiError.status === 403) {
+                        // Token invalid, clear auth
+                        removeItem(STORAGE_KEYS.AUTH_TOKEN);
+                        removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+                        removeItem(STORAGE_KEYS.USER);
+                        setUser(null);
+                    } else {
+                        console.error('Error fetching current user:', err);
+                        // Don't clear auth for other errors (network issues, 500s, etc)
+                    }
                 }
             }
             setLoading(false);

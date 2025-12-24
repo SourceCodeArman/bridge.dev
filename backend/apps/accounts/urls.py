@@ -9,6 +9,7 @@ from .views import (
     register,
     request_password_reset,
     reset_password,
+    me,
 )
 
 app_name = "accounts"
@@ -22,4 +23,5 @@ urlpatterns = [
     path("password-reset/confirm/", reset_password, name="reset_password"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
+    path("me/", me, name="me"),
 ]

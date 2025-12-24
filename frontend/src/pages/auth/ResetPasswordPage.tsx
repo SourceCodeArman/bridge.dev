@@ -77,7 +77,7 @@ export default function ResetPasswordPage() {
             setTimeout(() => {
                 navigate(ROUTES.LOGIN);
             }, 2000);
-        } catch (err) {
+        } catch {
             setError('Failed to reset password. The link may have expired.');
         } finally {
             setLoading(false);
