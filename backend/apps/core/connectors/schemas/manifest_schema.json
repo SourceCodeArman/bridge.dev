@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Connector Manifest Schema",
+  "description": "Schema for validating connector manifests",
+  "type": "object",
+  "required": ["id", "name", "version", "connector_type"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$",
+      "description": "Unique connector identifier (lowercase, alphanumeric, underscores, hyphens)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Human-readable connector name"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version (e.g., 1.0.0)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Connector description"
+    },
+    "author": {
+      "type": "string",
+      "description": "Connector author"
+    },
+    "connector_type": {
+      "type": "string",
+      "enum": ["action", "trigger", "both"],
+      "description": "Type of connector"
+    },
+    "auth_config": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["api_key", "oauth", "basic_auth", "custom"],
+          "description": "Authentication type"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+              "name": {"type": "string"},
+              "type": {"type": "string", "enum": ["string", "password", "number", "boolean"]},
+              "required": {"type": "boolean", "default": false},
+              "description": {"type": "string"}
+            }
+          }
+        }
+      },
+      "required": ["type"]
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "input_schema": {"type": "object"},
+          "output_schema": {"type": "object"},
+          "required_fields": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "output_schema": {"type": "object"}
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
+

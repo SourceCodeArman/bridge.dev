@@ -205,10 +205,7 @@ def execute_run_step(self, run_step_id: str):
 
 def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
     """
-    Execute the actual step logic.
-    
-    This is a placeholder - in Phase 2, this will be replaced with
-    connector SDK execution.
+    Execute the actual step logic using connector SDK.
     
     Args:
         run_step: The RunStep instance
@@ -216,11 +213,9 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
     Returns:
         Dict containing step outputs
     """
-    # Placeholder implementation
-    # In Phase 2, this will:
-    # 1. Load the appropriate connector
-    # 2. Execute the step based on step_type
-    # 3. Return outputs
+    from .connectors.base import ConnectorRegistry
+    from .models import Credential
+    from .encryption import get_encryption_service
     
     logger.info(
         f"Executing step logic for {run_step.step_id} (type: {run_step.step_type})",
@@ -231,12 +226,89 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
         }
     )
     
-    # For now, return a placeholder output
-    return {
-        'status': 'completed',
-        'message': f"Step {run_step.step_id} executed (placeholder)",
-        'step_type': run_step.step_type
-    }
+    # Get connector from registry
+    registry = ConnectorRegistry()
+    connector_class = registry.get(run_step.step_type)
+    
+    if not connector_class:
+        # Fallback to placeholder if connector not found
+        logger.warning(
+            f"Connector {run_step.step_type} not found in registry, using placeholder",
+            extra={'step_type': run_step.step_type}
+        )
+        return {
+            'status': 'completed',
+            'message': f"Step {run_step.step_id} executed (connector not found, placeholder)",
+            'step_type': run_step.step_type
+        }
+    
+    # Get credential from step inputs or workflow definition
+    credential_id = run_step.inputs.get('credential_id')
+    config = {}
+    
+    if credential_id:
+        try:
+            # Get credential and decrypt
+            credential = Credential.objects.get(id=credential_id)
+            encryption_service = get_encryption_service()
+            credential_data = encryption_service.decrypt_dict(credential.encrypted_data)
+            
+            # Add credential data to config
+            config.update(credential_data)
+            
+            # Track credential usage
+            from .models import CredentialUsage
+            usage, created = CredentialUsage.objects.get_or_create(
+                credential=credential,
+                workflow=run_step.run.workflow_version.workflow
+            )
+            usage.usage_count += 1
+            from django.utils import timezone
+            usage.last_used_at = timezone.now()
+            usage.save()
+            
+        except Credential.DoesNotExist:
+            logger.warning(
+                f"Credential {credential_id} not found for step {run_step.step_id}",
+                extra={'credential_id': credential_id, 'step_id': run_step.step_id}
+            )
+        except Exception as e:
+            logger.error(
+                f"Error loading credential {credential_id}: {str(e)}",
+                exc_info=e,
+                extra={'credential_id': credential_id}
+            )
+    
+    # Add other step inputs to config
+    config.update(run_step.inputs)
+    
+    # Create connector instance
+    connector = registry.create_instance(run_step.step_type, config)
+    
+    # Get action_id from inputs (default to first action if not specified)
+    action_id = run_step.inputs.get('action_id')
+    if not action_id and connector.manifest.get('actions'):
+        action_id = connector.manifest['actions'][0]['id']
+    
+    # Prepare inputs for action (exclude connector-specific fields)
+    action_inputs = {k: v for k, v in run_step.inputs.items() 
+                     if k not in ['credential_id', 'action_id']}
+    
+    # Execute connector action
+    try:
+        outputs = connector.execute(action_id, action_inputs)
+        return outputs
+    except Exception as e:
+        logger.error(
+            f"Error executing connector {run_step.step_type}: {str(e)}",
+            exc_info=e,
+            extra={
+                'step_type': run_step.step_type,
+                'action_id': action_id,
+                'step_id': run_step.step_id
+            }
+        )
+        raise
 
 
 @shared_task(
@@ -398,4 +470,45 @@ def check_and_trigger_cron_workflows():
     )
     
     return triggered_count
+
+
+@shared_task
+def aggregate_run_trace(run_id: str):
+    """
+    Aggregate trace for a workflow run.
+    
+    This task builds/updates the trace structure for a run,
+    typically called after step completion or run completion.
+    
+    Args:
+        run_id: UUID string of the Run instance
+        
+    Returns:
+        str: Success message
+    """
+    from .models import Run
+    from .trace_aggregator import TraceAggregator
+    
+    try:
+        run = Run.objects.get(id=run_id)
+        aggregator = TraceAggregator()
+        aggregator.update_trace(run)
+        
+        logger.info(
+            f"Aggregated trace for run {run_id}",
+            extra={'run_id': run_id}
+        )
+        
+        return f"Trace aggregated for run {run_id}"
+        
+    except Run.DoesNotExist:
+        logger.error(f"Run {run_id} not found for trace aggregation")
+        raise
+    except Exception as exc:
+        logger.error(
+            f"Error aggregating trace for run {run_id}: {str(exc)}",
+            exc_info=exc,
+            extra={'run_id': run_id}
+        )
+        raise
 

@@ -36,6 +36,12 @@ class Command(BaseCommand):
             # User/Team permissions
             ('user.view', 'View users'),
             ('user.manage', 'Manage users and roles'),
+            
+            # Credential permissions
+            ('credential.create', 'Create credentials'),
+            ('credential.read', 'View credentials'),
+            ('credential.update', 'Update credentials'),
+            ('credential.delete', 'Delete credentials'),
         ]
         
         # Create permissions
@@ -63,6 +69,7 @@ class Command(BaseCommand):
                     'run.view', 'run.manage',
                     'connector.view', 'connector.manage',
                     'user.view', 'user.manage',
+                    'credential.create', 'credential.read', 'credential.update', 'credential.delete',
                 ],
             },
             {
@@ -75,6 +82,7 @@ class Command(BaseCommand):
                     'run.view',
                     'connector.view',
                     'user.view',
+                    'credential.create', 'credential.read', 'credential.update',
                 ],
             },
             {
@@ -87,6 +95,7 @@ class Command(BaseCommand):
                     'run.view',
                     'connector.view',
                     'user.view',
+                    'credential.read',
                 ],
             },
         ]

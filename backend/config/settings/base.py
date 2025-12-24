@@ -192,3 +192,19 @@ WORKFLOW_MAX_CONCURRENT_RUNS_DEFAULT = int(os.environ.get('WORKFLOW_MAX_CONCURRE
 WORKFLOW_RATE_LIMIT_RUNS_PER_MINUTE_DEFAULT = int(os.environ.get('WORKFLOW_RATE_LIMIT_RUNS_PER_MINUTE_DEFAULT', '60'))
 WORKFLOW_QUEUE_MAX_WAIT_SECONDS = int(os.environ.get('WORKFLOW_QUEUE_MAX_WAIT_SECONDS', '300'))
 
+# Credential encryption configuration
+CREDENTIAL_ENCRYPTION_KEY = os.environ.get('CREDENTIAL_ENCRYPTION_KEY', '')
+if not CREDENTIAL_ENCRYPTION_KEY:
+    import warnings
+    warnings.warn(
+        'CREDENTIAL_ENCRYPTION_KEY not set. Credential encryption will fail. '
+        'Generate a key using: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+    )
+
+# Connector configuration
+CONNECTOR_REGISTRY_PATH = os.environ.get('CONNECTOR_REGISTRY_PATH', '')
+
+# Logging and tracing configuration
+LOG_RETENTION_DAYS = int(os.environ.get('LOG_RETENTION_DAYS', '30'))
+TRACE_AGGREGATION_ENABLED = os.environ.get('TRACE_AGGREGATION_ENABLED', 'True').lower() == 'true'
+

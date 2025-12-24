@@ -16,6 +16,7 @@ from .models import Run, RunStep, WorkflowVersion
 from .state_machine import RunStateMachine, RunStepStateMachine, log_state_transition
 from .concurrency import ConcurrencyManager
 from .rate_limiter import RateLimiter
+from .logging import RunLogger
 
 logger = get_logger(__name__)
 
@@ -159,6 +160,13 @@ class RunOrchestrator:
             
             log_state_transition(run, from_status, 'running')
             
+            # Log with RunLogger
+            run_logger = RunLogger(run)
+            run_logger.info(
+                f"Started run {run.id}",
+                extra={'from_status': from_status, 'to_status': 'running'}
+            )
+            
             logger.info(
                 f"Started run {run.id}",
                 extra={'run_id': str(run.id)}
@@ -191,6 +199,18 @@ class RunOrchestrator:
             run_step.save(update_fields=['status', 'started_at', 'updated_at'])
             
             log_state_transition(run_step, from_status, 'running')
+            
+            # Log with RunLogger
+            run_logger = RunLogger(run_step.run, run_step)
+            run_logger.info(
+                f"Started step {run_step.step_id}",
+                extra={
+                    'from_status': from_status,
+                    'to_status': 'running',
+                    'step_type': run_step.step_type
+                },
+                step_level=True
+            )
             
             logger.info(
                 f"Started step {run_step.step_id} for run {run_step.run.id}",
@@ -247,6 +267,20 @@ class RunOrchestrator:
             
             log_state_transition(run_step, from_status, 'completed', {'outputs_keys': list(outputs.keys())})
             
+            # Log with RunLogger
+            run_logger = RunLogger(run_step.run, run_step)
+            duration = (run_step.completed_at - run_step.started_at).total_seconds() if run_step.started_at else None
+            run_logger.info(
+                f"Completed step {run_step.step_id}",
+                extra={
+                    'from_status': from_status,
+                    'to_status': 'completed',
+                    'outputs_keys': list(outputs.keys()),
+                    'duration_seconds': duration
+                },
+                step_level=True
+            )
+            
             logger.info(
                 f"Completed step {run_step.step_id} for run {run_step.run.id}",
                 extra={
@@ -258,6 +292,11 @@ class RunOrchestrator:
             
             # Check if all steps are completed
             self._check_run_completion(run_step.run)
+            
+            # Trigger trace aggregation
+            if getattr(settings, 'TRACE_AGGREGATION_ENABLED', True):
+                from .tasks import aggregate_run_trace
+                aggregate_run_trace.delay(str(run_step.run.id))
         
         return run_step
     
@@ -289,6 +328,18 @@ class RunOrchestrator:
             run_step.save(update_fields=['status', 'error_message', 'completed_at', 'updated_at'])
             
             log_state_transition(run_step, from_status, 'failed', {'error_message': error_message})
+            
+            # Log with RunLogger
+            run_logger = RunLogger(run_step.run, run_step)
+            run_logger.error(
+                f"Failed step {run_step.step_id}: {error_message}",
+                extra={
+                    'from_status': from_status,
+                    'to_status': 'failed',
+                    'error_message': error_message
+                },
+                step_level=True
+            )
             
             logger.error(
                 f"Failed step {run_step.step_id} for run {run_step.run.id}: {error_message}",
@@ -352,10 +403,27 @@ class RunOrchestrator:
             
             log_state_transition(run, from_status, 'completed')
             
+            # Log with RunLogger
+            run_logger = RunLogger(run)
+            duration = run.duration
+            run_logger.info(
+                f"Completed run {run.id}",
+                extra={
+                    'from_status': from_status,
+                    'to_status': 'completed',
+                    'duration_seconds': duration
+                }
+            )
+            
             logger.info(
                 f"Completed run {run.id}",
                 extra={'run_id': str(run.id)}
             )
+            
+            # Trigger trace aggregation
+            if getattr(settings, 'TRACE_AGGREGATION_ENABLED', True):
+                from .tasks import aggregate_run_trace
+                aggregate_run_trace.delay(str(run.id))
         
         return run
     
@@ -383,10 +451,26 @@ class RunOrchestrator:
             
             log_state_transition(run, from_status, 'failed', {'error_message': error_message})
             
+            # Log with RunLogger
+            run_logger = RunLogger(run)
+            run_logger.error(
+                f"Failed run {run.id}: {error_message}",
+                extra={
+                    'from_status': from_status,
+                    'to_status': 'failed',
+                    'error_message': error_message
+                }
+            )
+            
             logger.error(
                 f"Failed run {run.id}: {error_message}",
                 extra={'run_id': str(run.id), 'error_message': error_message}
             )
+            
+            # Trigger trace aggregation even on failure
+            if getattr(settings, 'TRACE_AGGREGATION_ENABLED', True):
+                from .tasks import aggregate_run_trace
+                aggregate_run_trace.delay(str(run.id))
         
         return run
     

@@ -302,3 +302,177 @@ class Trigger(models.Model):
     def __str__(self):
         return f"{self.workflow.name} - {self.get_trigger_type_display()}"
 
+
+class Credential(models.Model):
+    """
+    Credential model for storing encrypted API keys and authentication tokens.
+    
+    Credentials are scoped to workspaces and encrypted at rest.
+    """
+    CREDENTIAL_TYPE_CHOICES = [
+        ('api_key', 'API Key'),
+        ('oauth_token', 'OAuth Token'),
+        ('basic_auth', 'Basic Auth'),
+        ('custom', 'Custom'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200, help_text='Human-readable name for the credential')
+    credential_type = models.CharField(
+        max_length=50,
+        choices=CREDENTIAL_TYPE_CHOICES,
+        db_index=True,
+        help_text='Type of credential'
+    )
+    workspace = models.ForeignKey(
+        'accounts.Workspace',
+        on_delete=models.CASCADE,
+        related_name='credentials',
+        help_text='Workspace this credential belongs to'
+    )
+    created_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_credentials'
+    )
+    encrypted_data = models.TextField(help_text='Encrypted credential data (JSON)')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'core_credential'
+        verbose_name = 'Credential'
+        verbose_name_plural = 'Credentials'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['workspace', 'credential_type']),
+            models.Index(fields=['workspace', 'created_at']),
+            models.Index(fields=['workspace', 'name']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_credential_type_display()}) - {self.workspace}"
+
+
+class CredentialUsage(models.Model):
+    """
+    Track which workflows use which credentials.
+    
+    This helps with credential management and auditing.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    credential = models.ForeignKey(
+        Credential,
+        on_delete=models.CASCADE,
+        related_name='usage_records'
+    )
+    workflow = models.ForeignKey(
+        Workflow,
+        on_delete=models.CASCADE,
+        related_name='credential_usage'
+    )
+    last_used_at = models.DateTimeField(null=True, blank=True, help_text='Last time this credential was used')
+    usage_count = models.PositiveIntegerField(default=0, help_text='Number of times this credential has been used')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'core_credentialusage'
+        verbose_name = 'Credential Usage'
+        verbose_name_plural = 'Credential Usages'
+        unique_together = [['credential', 'workflow']]
+        indexes = [
+            models.Index(fields=['credential', 'workflow']),
+            models.Index(fields=['workflow', 'last_used_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.credential.name} used by {self.workflow.name}"
+
+
+class RunLog(models.Model):
+    """
+    Structured log entries for workflow runs and steps.
+    
+    Stores logs with correlation IDs for efficient querying and tracing.
+    """
+    LEVEL_CHOICES = [
+        ('DEBUG', 'Debug'),
+        ('INFO', 'Info'),
+        ('WARNING', 'Warning'),
+        ('ERROR', 'Error'),
+        ('CRITICAL', 'Critical'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(
+        Run,
+        on_delete=models.CASCADE,
+        related_name='logs',
+        help_text='Workflow run this log belongs to'
+    )
+    step = models.ForeignKey(
+        RunStep,
+        on_delete=models.CASCADE,
+        related_name='logs',
+        null=True,
+        blank=True,
+        help_text='Step this log belongs to (null for run-level logs)'
+    )
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, db_index=True)
+    message = models.TextField(help_text='Log message')
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True, help_text='Log timestamp')
+    correlation_id = models.CharField(max_length=255, blank=True, db_index=True, help_text='Correlation ID for tracing')
+    extra_data = models.JSONField(default=dict, blank=True, help_text='Additional log data (JSON)')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'core_runlog'
+        verbose_name = 'Run Log'
+        verbose_name_plural = 'Run Logs'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['run', 'timestamp']),
+            models.Index(fields=['step', 'timestamp']),
+            models.Index(fields=['run', 'level']),
+            models.Index(fields=['correlation_id', 'timestamp']),
+            models.Index(fields=['run', 'step', 'timestamp']),
+        ]
+    
+    def __str__(self):
+        step_info = f" (step: {self.step.step_id})" if self.step else ""
+        return f"{self.level} - {self.run.id}{step_info} - {self.message[:50]}"
+
+
+class RunTrace(models.Model):
+    """
+    Aggregated trace data for workflow runs.
+    
+    Stores complete trace structure for fast retrieval and visualization.
+    Updated incrementally as the run progresses.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.OneToOneField(
+        Run,
+        on_delete=models.CASCADE,
+        related_name='trace',
+        help_text='Workflow run this trace belongs to'
+    )
+    trace_data = models.JSONField(default=dict, help_text='Complete trace structure (JSON)')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'core_runtrace'
+        verbose_name = 'Run Trace'
+        verbose_name_plural = 'Run Traces'
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['run']),
+            models.Index(fields=['updated_at']),
+        ]
+    
+    def __str__(self):
+        return f"Trace for Run {self.run.id}"
+

@@ -184,3 +184,107 @@ class IsWorkspaceAdmin(permissions.BasePermission):
         except UserRole.DoesNotExist:
             return False
 
+
+class HasCredentialPermission(permissions.BasePermission):
+    """
+    Permission to check if user has credential-related permissions in the workspace.
+    
+    Checks for credential.create, credential.read, credential.update, credential.delete
+    permissions based on the action being performed.
+    """
+    
+    def has_permission(self, request, view):
+        """
+        Check if user has the required credential permission in the workspace.
+        """
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Get workspace from request
+        workspace = getattr(request, 'workspace', None)
+        if not workspace:
+            return False
+        
+        # Map view actions to permission codenames
+        action_permissions = {
+            'list': 'credential.read',
+            'retrieve': 'credential.read',
+            'create': 'credential.create',
+            'update': 'credential.update',
+            'partial_update': 'credential.update',
+            'destroy': 'credential.delete',
+        }
+        
+        # Get the action from view
+        action = getattr(view, 'action', None)
+        if action is None:
+            # For ViewSet, check method
+            if request.method == 'GET':
+                action = 'retrieve' if view.kwargs.get('pk') else 'list'
+            elif request.method == 'POST':
+                action = 'create'
+            elif request.method in ['PUT', 'PATCH']:
+                action = 'update'
+            elif request.method == 'DELETE':
+                action = 'destroy'
+        
+        required_permission = action_permissions.get(action)
+        if not required_permission:
+            # Unknown action, default to read permission
+            required_permission = 'credential.read'
+        
+        # Check if user has the permission via their role
+        try:
+            user_role = UserRole.objects.get(
+                user=request.user,
+                workspace=workspace,
+                is_active=True
+            )
+            
+            # Check if role has the required permission
+            return user_role.role.permissions.filter(
+                codename=required_permission
+            ).exists()
+        except UserRole.DoesNotExist:
+            return False
+    
+    def has_object_permission(self, request, view, obj):
+        """
+        Check permission for a specific credential object.
+        """
+        # Get workspace from credential
+        workspace = getattr(obj, 'workspace', None)
+        if not workspace:
+            return self.has_permission(request, view)
+        
+        # Map view actions to permission codenames
+        action_permissions = {
+            'retrieve': 'credential.read',
+            'update': 'credential.update',
+            'partial_update': 'credential.update',
+            'destroy': 'credential.delete',
+        }
+        
+        action = getattr(view, 'action', None)
+        if action is None:
+            if request.method == 'GET':
+                action = 'retrieve'
+            elif request.method in ['PUT', 'PATCH']:
+                action = 'update'
+            elif request.method == 'DELETE':
+                action = 'destroy'
+        
+        required_permission = action_permissions.get(action, 'credential.read')
+        
+        try:
+            user_role = UserRole.objects.get(
+                user=request.user,
+                workspace=workspace,
+                is_active=True
+            )
+            return user_role.role.permissions.filter(
+                codename=required_permission
+            ).exists()
+        except UserRole.DoesNotExist:
+            return False
+

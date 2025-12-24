@@ -1,0 +1,80 @@
+{
+  "id": "http",
+  "name": "HTTP Request",
+  "version": "1.0.0",
+  "description": "Make HTTP requests to any endpoint",
+  "author": "Bridge.dev",
+  "connector_type": "action",
+  "auth_config": {
+    "type": "custom",
+    "fields": [
+      {
+        "name": "headers",
+        "type": "object",
+        "required": false,
+        "description": "Custom headers to include in requests"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "request",
+      "name": "HTTP Request",
+      "description": "Make an HTTP request",
+      "input_schema": {
+        "type": "object",
+        "required": ["url", "method"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to request"
+          },
+          "method": {
+            "type": "string",
+            "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+            "description": "HTTP method"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+            "description": "HTTP headers"
+          },
+          "body": {
+            "type": ["object", "string", "null"],
+            "description": "Request body (for POST, PUT, PATCH)"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+            "description": "URL query parameters"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "Request timeout in seconds (default: 30)"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+            "description": "Response headers"
+          },
+          "body": {
+            "type": ["object", "string", "null"],
+            "description": "Response body"
+          }
+        }
+      },
+      "required_fields": ["url", "method"]
+    }
+  ]
+}
+

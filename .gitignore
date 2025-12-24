@@ -231,3 +231,5 @@ node_modules/
 tasks.json
 tasks/ 
 .taskmaster/
+taskman/
+TASKS.md

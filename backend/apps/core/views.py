@@ -10,13 +10,16 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
-from apps.accounts.permissions import IsWorkspaceMember
+from apps.accounts.permissions import IsWorkspaceMember, HasCredentialPermission
 from apps.common.logging_utils import get_logger
-from .models import Workflow, WorkflowVersion, Run, RunStep, Trigger
+from .models import Workflow, WorkflowVersion, Run, RunStep, Trigger, Credential, CredentialUsage, RunLog, RunTrace
 from .serializers import (
     WorkflowSerializer, WorkflowVersionSerializer,
     RunSerializer, RunStepSerializer, TriggerSerializer,
-    WebhookTriggerSerializer, ManualTriggerSerializer
+    WebhookTriggerSerializer, ManualTriggerSerializer,
+    CredentialListSerializer, CredentialCreateSerializer,
+    CredentialUpdateSerializer, CredentialDetailSerializer,
+    CredentialUsageSerializer, RunLogSerializer, RunTraceSerializer
 )
 from .orchestrator import RunOrchestrator
 from .utils import generate_idempotency_key, validate_webhook_signature
@@ -404,5 +407,316 @@ class WebhookTriggerView(APIView):
                     'message': 'An error occurred while processing the webhook'
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CredentialViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing credentials.
+    
+    Provides CRUD operations for credentials with workspace scoping and RBAC.
+    """
+    permission_classes = [IsAuthenticated, IsWorkspaceMember, HasCredentialPermission]
+    
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action"""
+        if self.action == 'list':
+            return CredentialListSerializer
+        elif self.action == 'create':
+            return CredentialCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return CredentialUpdateSerializer
+        elif self.action == 'retrieve':
+            return CredentialDetailSerializer
+        return CredentialListSerializer
+    
+    def get_queryset(self):
+        """Filter credentials by workspace"""
+        workspace = getattr(self.request, 'workspace', None)
+        if workspace:
+            return Credential.objects.filter(workspace=workspace)
+        return Credential.objects.none()
+    
+    def perform_create(self, serializer):
+        """Set workspace from request context"""
+        workspace = getattr(self.request, 'workspace', None)
+        if workspace:
+            serializer.save(workspace=workspace)
+        else:
+            raise ValidationError('Workspace context required')
+    
+    @action(detail=True, methods=['get'])
+    def usage_history(self, request, pk=None):
+        """Get usage history for a credential"""
+        credential = self.get_object()
+        usage_records = credential.usage_records.all()
+        serializer = CredentialUsageSerializer(usage_records, many=True)
+        return Response({
+            'status': 'success',
+            'data': serializer.data,
+            'message': 'Usage history retrieved successfully'
+        })
+    
+    @action(detail=True, methods=['post'])
+    def test_connection(self, request, pk=None):
+        """
+        Test credential connection (placeholder for future implementation).
+        
+        This would validate the credential by attempting to authenticate
+        with the target service. Not implemented in MVP.
+        """
+        credential = self.get_object()
+        
+        # TODO: Implement actual connection testing based on credential_type
+        # For now, return a placeholder response
+        
+        return Response({
+            'status': 'success',
+            'data': {
+                'credential_id': str(credential.id),
+                'credential_name': credential.name,
+                'credential_type': credential.credential_type,
+                'test_status': 'not_implemented',
+                'message': 'Connection testing not yet implemented'
+            },
+            'message': 'Connection test initiated (not implemented)'
+        })
+
+
+class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only ViewSet for listing available connectors.
+    
+    Provides information about registered connectors and their capabilities.
+    """
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
+    
+    def list(self, request, *args, **kwargs):
+        """List all available connectors"""
+        from .connectors.base import ConnectorRegistry
+        
+        registry = ConnectorRegistry()
+        connector_ids = registry.list_all()
+        
+        connectors = []
+        for connector_id in connector_ids:
+            try:
+                connector_class = registry.get(connector_id)
+                # Create temporary instance to get manifest
+                temp_instance = connector_class({})
+                manifest = temp_instance.get_manifest()
+                
+                # Return safe manifest (without sensitive data)
+                connectors.append({
+                    'id': manifest.get('id'),
+                    'name': manifest.get('name'),
+                    'version': manifest.get('version'),
+                    'description': manifest.get('description'),
+                    'author': manifest.get('author'),
+                    'connector_type': manifest.get('connector_type'),
+                    'actions': [
+                        {
+                            'id': action.get('id'),
+                            'name': action.get('name'),
+                            'description': action.get('description'),
+                            'input_schema': action.get('input_schema'),
+                            'output_schema': action.get('output_schema'),
+                            'required_fields': action.get('required_fields', [])
+                        }
+                        for action in manifest.get('actions', [])
+                    ],
+                    'triggers': [
+                        {
+                            'id': trigger.get('id'),
+                            'name': trigger.get('name'),
+                            'description': trigger.get('description'),
+                            'output_schema': trigger.get('output_schema')
+                        }
+                        for trigger in manifest.get('triggers', [])
+                    ],
+                    'auth_config': {
+                        'type': manifest.get('auth_config', {}).get('type'),
+                        'fields': manifest.get('auth_config', {}).get('fields', [])
+                    }
+                })
+            except Exception as e:
+                logger.warning(
+                    f"Error getting manifest for connector {connector_id}: {str(e)}",
+                    exc_info=e,
+                    extra={'connector_id': connector_id}
+                )
+        
+        return Response({
+            'status': 'success',
+            'data': {
+                'connectors': connectors,
+                'count': len(connectors)
+            },
+            'message': 'Connectors retrieved successfully'
+        })
+    
+    def retrieve(self, request, pk=None):
+        """Get detailed information about a specific connector"""
+        from .connectors.base import ConnectorRegistry
+        
+        registry = ConnectorRegistry()
+        connector_class = registry.get(pk)
+        
+        if not connector_class:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': f'Connector {pk} not found'
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            # Create temporary instance to get manifest
+            temp_instance = connector_class({})
+            manifest = temp_instance.get_manifest()
+            
+            return Response({
+                'status': 'success',
+                'data': manifest,
+                'message': 'Connector retrieved successfully'
+            })
+        except Exception as e:
+            logger.error(
+                f"Error getting connector {pk}: {str(e)}",
+                exc_info=e,
+                extra={'connector_id': pk}
+            )
+            return Response(
+                {
+                    'status': 'error',
+                    'message': f'Error retrieving connector: {str(e)}'
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class RunLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for querying run logs.
+    
+    Supports filtering by run, step, level, time range, and correlation_id.
+    """
+    serializer_class = RunLogSerializer
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
+    
+    def get_queryset(self):
+        """Filter logs by workspace and query parameters"""
+        workspace = getattr(self.request, 'workspace', None)
+        if not workspace:
+            return RunLog.objects.none()
+        
+        # Base queryset filtered by workspace via run
+        queryset = RunLog.objects.filter(
+            run__workflow_version__workflow__workspace=workspace
+        )
+        
+        # Filter by run_id
+        run_id = self.request.query_params.get('run_id')
+        if run_id:
+            queryset = queryset.filter(run_id=run_id)
+        
+        # Filter by step_id
+        step_id = self.request.query_params.get('step_id')
+        if step_id:
+            queryset = queryset.filter(step__step_id=step_id)
+        
+        # Filter by level
+        level = self.request.query_params.get('level')
+        if level:
+            queryset = queryset.filter(level=level.upper())
+        
+        # Filter by correlation_id
+        correlation_id = self.request.query_params.get('correlation_id')
+        if correlation_id:
+            queryset = queryset.filter(correlation_id=correlation_id)
+        
+        # Filter by time range
+        start_time = self.request.query_params.get('start_time')
+        if start_time:
+            try:
+                from django.utils.dateparse import parse_datetime
+                start_dt = parse_datetime(start_time)
+                if start_dt:
+                    queryset = queryset.filter(timestamp__gte=start_dt)
+            except Exception:
+                pass
+        
+        end_time = self.request.query_params.get('end_time')
+        if end_time:
+            try:
+                from django.utils.dateparse import parse_datetime
+                end_dt = parse_datetime(end_time)
+                if end_dt:
+                    queryset = queryset.filter(timestamp__lte=end_dt)
+            except Exception:
+                pass
+        
+        return queryset.order_by('-timestamp')
+
+
+class RunTraceViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for retrieving run traces.
+    
+    Provides complete trace structure for workflow runs.
+    """
+    serializer_class = RunTraceSerializer
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
+    
+    def get_queryset(self):
+        """Filter traces by workspace"""
+        workspace = getattr(self.request, 'workspace', None)
+        if workspace:
+            return RunTrace.objects.filter(
+                run__workflow_version__workflow__workspace=workspace
+            )
+        return RunTrace.objects.none()
+    
+    def retrieve(self, request, pk=None):
+        """Get trace for a run, building it if it doesn't exist"""
+        from .trace_aggregator import TraceAggregator
+        
+        try:
+            run = Run.objects.get(id=pk)
+            
+            # Check workspace access
+            workspace = getattr(request, 'workspace', None)
+            if workspace and run.workflow_version.workflow.workspace != workspace:
+                return Response(
+                    {
+                        'status': 'error',
+                        'message': 'Run not found in workspace'
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get or build trace
+            try:
+                trace = RunTrace.objects.get(run=run)
+            except RunTrace.DoesNotExist:
+                # Build trace if it doesn't exist
+                aggregator = TraceAggregator()
+                trace = aggregator.update_trace(run)
+            
+            serializer = self.get_serializer(trace)
+            return Response({
+                'status': 'success',
+                'data': serializer.data,
+                'message': 'Trace retrieved successfully'
+            })
+            
+        except Run.DoesNotExist:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Run not found'
+                },
+                status=status.HTTP_404_NOT_FOUND
             )
 

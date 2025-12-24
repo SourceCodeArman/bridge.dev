@@ -4,39 +4,126 @@ Logging utilities for Bridge.dev
 Provides helper functions and context managers for structured logging.
 """
 import logging
+import re
 from contextvars import ContextVar
 from functools import wraps
+from django.conf import settings
 
-# Context variable for correlation ID
+# Context variables for correlation IDs
 correlation_id_context: ContextVar[str] = ContextVar('correlation_id', default=None)
+run_id_context: ContextVar[str] = ContextVar('run_id', default=None)
+step_id_context: ContextVar[str] = ContextVar('step_id', default=None)
+
+
+class SecretMaskingFilter(logging.Filter):
+    """
+    Logging filter that masks secrets and sensitive data in log messages.
+    
+    Scans log messages for patterns matching API keys, tokens, and other secrets,
+    replacing them with ***REDACTED*** before logging.
+    """
+    
+    # Common secret patterns
+    SECRET_PATTERNS = [
+        # API keys (e.g., sk_live_..., api_key_..., etc.)
+        (r'(?i)(api[_-]?key|apikey)\s*[:=]\s*["\']?([a-zA-Z0-9_\-]{20,})["\']?', r'\1: ***REDACTED***'),
+        # Bearer tokens
+        (r'(?i)(bearer|token|authorization)\s*[:=]\s*["\']?([a-zA-Z0-9_\-\.]{20,})["\']?', r'\1: ***REDACTED***'),
+        # OAuth tokens
+        (r'(?i)(oauth[_-]?token|access[_-]?token)\s*[:=]\s*["\']?([a-zA-Z0-9_\-\.]{20,})["\']?', r'\1: ***REDACTED***'),
+        # Passwords
+        (r'(?i)(password|passwd|pwd)\s*[:=]\s*["\']?([^"\'\s]+)["\']?', r'\1: ***REDACTED***'),
+        # Secret keys
+        (r'(?i)(secret[_-]?key|secret)\s*[:=]\s*["\']?([a-zA-Z0-9_\-]{20,})["\']?', r'\1: ***REDACTED***'),
+        # Private keys (PEM format)
+        (r'-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----', '***REDACTED PRIVATE KEY***'),
+    ]
+    
+    def __init__(self, name=''):
+        super().__init__(name)
+        # Allow custom patterns from settings
+        custom_patterns = getattr(settings, 'LOG_SECRET_PATTERNS', [])
+        if custom_patterns:
+            self.SECRET_PATTERNS.extend(custom_patterns)
+    
+    def filter(self, record):
+        """
+        Filter log record by masking secrets in the message.
+        
+        Args:
+            record: LogRecord instance
+            
+        Returns:
+            True (always passes, but modifies the record)
+        """
+        if hasattr(record, 'msg') and record.msg:
+            # Convert to string if not already
+            msg = str(record.msg)
+            
+            # Apply all secret patterns
+            for pattern, replacement in self.SECRET_PATTERNS:
+                if isinstance(replacement, str):
+                    msg = re.sub(pattern, replacement, msg)
+                else:
+                    # Replacement is a callable
+                    msg = re.sub(pattern, replacement, msg)
+            
+            record.msg = msg
+        
+        # Also mask secrets in extra fields
+        if hasattr(record, 'extra') and record.extra:
+            for key, value in record.extra.items():
+                if isinstance(value, str) and len(value) > 20:
+                    # Check if value looks like a secret
+                    for pattern, _ in self.SECRET_PATTERNS:
+                        if re.search(pattern, value):
+                            record.extra[key] = '***REDACTED***'
+                            break
+        
+        return True
 
 
 class CorrelationIDAdapter(logging.LoggerAdapter):
     """
-    Logger adapter that automatically adds correlation ID to log records.
+    Logger adapter that automatically adds correlation ID to log records
+    and applies secret masking.
     """
+    
+    def __init__(self, logger, extra):
+        super().__init__(logger, extra)
+        # Add secret masking filter
+        self.logger.addFilter(SecretMaskingFilter())
     
     def process(self, msg, kwargs):
         """
-        Add correlation ID to log record.
+        Add correlation IDs (correlation_id, run_id, step_id) to log record.
         """
-        # Get correlation ID from context or request
+        # Get correlation IDs from context
         correlation_id = correlation_id_context.get()
+        run_id = run_id_context.get()
+        step_id = step_id_context.get()
         
-        if correlation_id:
+        if correlation_id or run_id or step_id:
             kwargs['extra'] = kwargs.get('extra', {})
-            kwargs['extra']['correlation_id'] = correlation_id
+            if correlation_id:
+                kwargs['extra']['correlation_id'] = correlation_id
+            if run_id:
+                kwargs['extra']['run_id'] = run_id
+            if step_id:
+                kwargs['extra']['step_id'] = step_id
         
         return msg, kwargs
 
 
-def get_logger(name, correlation_id=None):
+def get_logger(name, correlation_id=None, run_id=None, step_id=None):
     """
     Get a logger instance with correlation ID support.
     
     Args:
         name: Logger name (typically __name__)
         correlation_id: Optional correlation ID to set in context
+        run_id: Optional run ID to set in context
+        step_id: Optional step ID to set in context
     
     Returns:
         LoggerAdapter instance
@@ -45,8 +132,35 @@ def get_logger(name, correlation_id=None):
     
     if correlation_id:
         correlation_id_context.set(correlation_id)
+    if run_id:
+        run_id_context.set(run_id)
+    if step_id:
+        step_id_context.set(step_id)
     
     return CorrelationIDAdapter(logger, {})
+
+
+def with_run_context(run_id, step_id=None):
+    """
+    Context manager to set run_id and step_id in logging context.
+    
+    Usage:
+        with with_run_context('run-123', 'step-456'):
+            logger.info('This log will have run_id and step_id')
+    """
+    class RunContext:
+        def __enter__(self):
+            if run_id:
+                run_id_context.set(run_id)
+            if step_id:
+                step_id_context.set(step_id)
+            return self
+        
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            run_id_context.set(None)
+            step_id_context.set(None)
+    
+    return RunContext()
 
 
 def log_request(logger, request, level=logging.INFO):
