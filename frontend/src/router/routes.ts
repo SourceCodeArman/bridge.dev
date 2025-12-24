@@ -1,0 +1,17 @@
+export const ROUTES = {
+    HOME: '/',
+    LOGIN: '/login',
+    REGISTER: '/register',
+    DASHBOARD: '/dashboard',
+    WORKFLOWS: '/workflows',
+    WORKFLOWS_CREATE: '/workflows/new',
+    WORKFLOWS_EDIT: (id: string) => `/workflows/${id}/edit`,
+    WORKFLOWS_DETAIL: (id: string) => `/workflows/${id}`,
+    RUNS: '/runs',
+    RUNS_DETAIL: (id: string) => `/runs/${id}`,
+    TEMPLATES: '/templates',
+    CONNECTORS: '/connectors',
+    CREDENTIALS: '/credentials',
+    SETTINGS: '/settings',
+    NOT_FOUND: '/404',
+} as const;
