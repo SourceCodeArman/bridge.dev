@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'django_celery_beat',
     
     # Local apps
     'apps.accounts',
@@ -160,4 +161,34 @@ SIMPLE_JWT = {
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
 SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
+
+# Celery configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+REDIS_URL = os.environ.get('REDIS_URL', CELERY_BROKER_URL)  # Fallback to broker URL if not set
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True
+
+# Celery task retry configuration
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_DEFAULT_MAX_RETRIES = 3
+CELERY_TASK_DEFAULT_RETRY_DELAY = 60  # seconds
+
+# Celery Beat configuration for periodic tasks
+CELERY_BEAT_SCHEDULE = {
+    'check-cron-triggers': {
+        'task': 'apps.core.tasks.check_and_trigger_cron_workflows',
+        'schedule': 60.0,  # Run every minute
+    },
+}
+
+# Workflow orchestration configuration
+WORKFLOW_MAX_CONCURRENT_RUNS_DEFAULT = int(os.environ.get('WORKFLOW_MAX_CONCURRENT_RUNS_DEFAULT', '10'))
+WORKFLOW_RATE_LIMIT_RUNS_PER_MINUTE_DEFAULT = int(os.environ.get('WORKFLOW_RATE_LIMIT_RUNS_PER_MINUTE_DEFAULT', '60'))
+WORKFLOW_QUEUE_MAX_WAIT_SECONDS = int(os.environ.get('WORKFLOW_QUEUE_MAX_WAIT_SECONDS', '300'))
 

@@ -30,6 +30,12 @@ class Workflow(models.Model):
         related_name='workflows'
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
+    max_concurrent_runs = models.PositiveIntegerField(
+        default=None,
+        null=True,
+        blank=True,
+        help_text='Maximum concurrent runs for this workflow (uses default from settings if not set)'
+    )
     created_by = models.ForeignKey(
         'accounts.User',
         on_delete=models.SET_NULL,
@@ -171,6 +177,16 @@ class Run(models.Model):
         if self.started_at and self.completed_at:
             return (self.completed_at - self.started_at).total_seconds()
         return None
+    
+    def can_transition_to(self, to_status: str) -> bool:
+        """Check if run can transition to the given status"""
+        from .state_machine import RunStateMachine
+        return RunStateMachine.can_transition(self.status, to_status)
+    
+    def get_valid_transitions(self) -> list:
+        """Get list of valid next statuses"""
+        from .state_machine import RunStateMachine
+        return RunStateMachine.get_valid_transitions(self.status)
 
 
 class RunStep(models.Model):
@@ -218,6 +234,34 @@ class RunStep(models.Model):
     
     def __str__(self):
         return f"Step {self.step_id} in Run {self.run.id} ({self.status})"
+    
+    def can_transition_to(self, to_status: str) -> bool:
+        """Check if step can transition to the given status"""
+        from .state_machine import RunStepStateMachine
+        return RunStepStateMachine.can_transition(self.status, to_status)
+    
+    def get_valid_transitions(self) -> list:
+        """Get list of valid next statuses"""
+        from .state_machine import RunStepStateMachine
+        return RunStepStateMachine.get_valid_transitions(self.status)
+    
+    def validate_input_schema(self) -> bool:
+        """Validate step inputs against schema"""
+        from .validators import validate_step_inputs
+        try:
+            validate_step_inputs(self.step_type, self.inputs)
+            return True
+        except Exception:
+            return False
+    
+    def validate_output_schema(self) -> bool:
+        """Validate step outputs against schema"""
+        from .validators import validate_step_outputs
+        try:
+            validate_step_outputs(self.step_type, self.outputs)
+            return True
+        except Exception:
+            return False
 
 
 class Trigger(models.Model):

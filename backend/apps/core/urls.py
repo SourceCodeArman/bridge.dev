@@ -5,8 +5,10 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     WorkflowViewSet, WorkflowVersionViewSet,
-    RunViewSet, RunStepViewSet, TriggerViewSet
+    RunViewSet, RunStepViewSet, TriggerViewSet,
+    WebhookTriggerView
 )
+from .health import health_check
 
 router = DefaultRouter()
 router.register(r'workflows', WorkflowViewSet, basename='workflow')
@@ -19,5 +21,7 @@ app_name = 'core'
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('triggers/webhook/<uuid:trigger_id>/', WebhookTriggerView.as_view(), name='webhook-trigger'),
+    path('health/', health_check, name='health-check'),
 ]
 

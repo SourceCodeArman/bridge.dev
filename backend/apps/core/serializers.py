@@ -82,3 +82,31 @@ class TriggerSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
 
+
+class WebhookTriggerSerializer(serializers.Serializer):
+    """Serializer for webhook trigger payload"""
+    # Allow any JSON data - validation will be done by the workflow definition
+    def to_internal_value(self, data):
+        # Accept any JSON structure
+        if isinstance(data, dict):
+            return data
+        return super().to_internal_value(data)
+    
+    def to_representation(self, instance):
+        return instance
+
+
+class ManualTriggerSerializer(serializers.Serializer):
+    """Serializer for manual trigger request"""
+    input_data = serializers.DictField(
+        required=False,
+        default=dict,
+        help_text='Input data for the workflow run'
+    )
+    
+    def validate_input_data(self, value):
+        """Validate input_data is a dictionary"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('input_data must be a dictionary')
+        return value
+
