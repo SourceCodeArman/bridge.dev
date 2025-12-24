@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 
@@ -96,7 +96,7 @@ def request_password_reset(request):
         
         # Generate password reset token
         token_generator = PasswordResetTokenGenerator()
-        token = token_generator.make_token(user)
+        token_generator.make_token(user)
         
         # TODO: Send email with reset link
         # For now, just return success

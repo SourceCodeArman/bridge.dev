@@ -1,8 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { ROUTES } from './routes';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
@@ -11,7 +9,10 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 export const router = createBrowserRouter([
-    // Public routes
+    {
+        path: ROUTES.HOME,
+        element: <Navigate to={ROUTES.DASHBOARD} replace />,
+    },
     {
         path: ROUTES.LOGIN,
         element: <LoginPage />,
@@ -28,33 +29,16 @@ export const router = createBrowserRouter([
         path: '/reset-password',
         element: <ResetPasswordPage />,
     },
-
-    // Protected routes with layout
     {
+        path: ROUTES.DASHBOARD,
         element: (
             <ProtectedRoute>
-                <ErrorBoundary>
-                    <AppLayout />
-                </ErrorBoundary>
+                <DashboardPage />
             </ProtectedRoute>
         ),
-        children: [
-            {
-                path: ROUTES.HOME,
-                element: <Navigate to={ROUTES.DASHBOARD} replace />,
-            },
-            {
-                path: ROUTES.DASHBOARD,
-                element: <DashboardPage />,
-            },
-            // Future routes will be added here in subsequent tasks
-        ],
     },
-
-    // 404 route
     {
         path: '*',
         element: <NotFoundPage />,
     },
 ]);
-

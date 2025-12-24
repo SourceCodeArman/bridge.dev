@@ -1,95 +1,119 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import {
-    LayoutDashboard,
-    Workflow,
-    PlayCircle,
-    LayoutTemplate,
-    Plug,
-    Key,
-    Bell,
-    Settings,
-} from 'lucide-react';
+
 import {
     Sidebar,
     SidebarContent,
-    SidebarFooter,
     SidebarGroup,
     SidebarGroupContent,
     SidebarGroupLabel,
-    SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"
+import { Home, Settings, Inbox, Calendar, Search, Link2, Plug, FileText } from "lucide-react"
 
-const navigationItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Workflows', href: '/workflows', icon: Workflow },
-    { name: 'Runs', href: '/runs', icon: PlayCircle },
-    { name: 'Templates', href: '/templates', icon: LayoutTemplate },
-    { name: 'Connectors', href: '/connectors', icon: Plug },
-    { name: 'Credentials', href: '/credentials', icon: Key },
-    { name: 'Alerts', href: '/alerts', icon: Bell },
-    { name: 'Settings', href: '/settings', icon: Settings },
-];
+// Menu items.
+const items = [
+    {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: Home,
+    },
+    {
+        title: "Inbox",
+        url: "#",
+        icon: Inbox,
+    },
+    {
+        title: "Calendar",
+        url: "#",
+        icon: Calendar,
+    },
+    {
+        title: "Search",
+        url: "#",
+        icon: Search,
+    },
+    {
+        title: "Settings",
+        url: "#",
+        icon: Settings,
+    },
+]
 
 export function AppSidebar() {
-    const location = useLocation();
-
     return (
-        <Sidebar collapsible="icon" variant="sidebar">
-            <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <div>
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-blue-500">
-                                    <Workflow className="h-5 w-5 text-white" />
-                                </div>
-                                <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold">Bridge.dev</span>
-                                    <span className="truncate text-xs text-muted-foreground">
-                                        No-code integration
-                                    </span>
-                                </div>
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarHeader>
-
-            <SidebarContent>
+        <Sidebar collapsible="icon">
+            <SidebarContent className="bg-gradient-to-b from-blue-600 to-blue-800 text-white">
                 <SidebarGroup>
-                    <SidebarGroupLabel>Application</SidebarGroupLabel>
+                    <div className="px-4 py-6 mb-4">
+                        <h1 className="text-xl font-bold tracking-tight text-white group-data-[collapsible=icon]:hidden">
+                            Bridge.dev
+                        </h1>
+                        <div className="hidden group-data-[collapsible=icon]:block font-bold text-xl text-white text-center">
+                            B
+                        </div>
+                    </div>
+
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {navigationItems.map((item) => {
-                                const Icon = item.icon;
-                                const isActive = location.pathname === item.href;
-                                return (
-                                    <SidebarMenuItem key={item.name}>
-                                        <SidebarMenuButton asChild tooltip={item.name} isActive={isActive}>
-                                            <NavLink to={item.href}>
-                                                <Icon />
-                                                <span>{item.name}</span>
-                                            </NavLink>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                );
-                            })}
+                            {/* Dashboard */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild tooltip="Dashboard" className="text-blue-50 hover:bg-white/10 hover:text-white active:bg-white/20 data-[active=true]:bg-white/20 data-[active=true]:text-white">
+                                    <a href="/dashboard">
+                                        <Home className="text-white opacity-90" />
+                                        <span>Dashboard</span>
+                                    </a>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+
+                            {/* Integrations */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild tooltip="Integrations" className="text-blue-50 hover:bg-white/10 hover:text-white active:bg-white/20">
+                                    <a href="#">
+                                        <Link2 className="text-white opacity-90" />
+                                        <span>Integrations</span>
+                                    </a>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+
+                            {/* Connectors */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild tooltip="Connectors" className="text-blue-50 hover:bg-white/10 hover:text-white active:bg-white/20">
+                                    <a href="#">
+                                        <Plug className="text-white opacity-90" />
+                                        <span>Connectors</span>
+                                    </a>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+
+                            {/* Activity Logs */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild tooltip="Activity Logs" className="text-blue-50 hover:bg-white/10 hover:text-white active:bg-white/20">
+                                    <a href="#">
+                                        <FileText className="text-white opacity-90" />
+                                        <span>Activity Logs</span>
+                                    </a>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup className="mt-auto">
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild tooltip="Settings" className="text-blue-50 hover:bg-white/10 hover:text-white active:bg-white/20">
+                                    <a href="#">
+                                        <Settings className="text-white opacity-90" />
+                                        <span>Settings</span>
+                                    </a>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
-
-            <SidebarFooter>
-                <div className="text-xs text-muted-foreground px-2">
-                    v1.0.0
-                </div>
-            </SidebarFooter>
-
-            <SidebarRail />
         </Sidebar>
-    );
+    )
 }
