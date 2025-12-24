@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '@/lib/api';
 import { STORAGE_KEYS, getItem, setItem, removeItem } from '@/lib/utils/storage';
 import type { User, LoginRequest, RegisterRequest, ApiError } from '@/types';
@@ -73,10 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setError(null);
             const response = await authService.register(data);
 
-            setItem(STORAGE_KEYS.AUTH_TOKEN, response.access);
-            setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh);
-            setItem(STORAGE_KEYS.USER, response.user);
-            setUser(response.user);
+            // Backend returns nested structure: {status, data: {user, tokens}, message}
+            const { user, tokens } = response.data;
+
+            setItem(STORAGE_KEYS.AUTH_TOKEN, tokens.access);
+            setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refresh);
+            setItem(STORAGE_KEYS.USER, user);
+            setUser(user);
         } catch (err) {
             const apiError = err as ApiError;
             setError(apiError);

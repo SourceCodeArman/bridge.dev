@@ -3,6 +3,8 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { ROUTES } from './routes';
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
@@ -18,6 +20,14 @@ export const router = createBrowserRouter([
     {
         path: ROUTES.REGISTER,
         element: <RegisterPage />,
+    },
+    {
+        path: '/forgot-password',
+        element: <ForgotPasswordPage />,
+    },
+    {
+        path: '/reset-password',
+        element: <ResetPasswordPage />,
     },
     {
         path: ROUTES.DASHBOARD,

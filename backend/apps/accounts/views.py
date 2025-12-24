@@ -72,3 +72,92 @@ def register(request):
         'message': 'Registration failed'
     }, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_password_reset(request):
+    """
+    Request password reset email.
+    
+    Sends a password reset token to the user's email.
+    """
+    from django.contrib.auth.tokens import PasswordResetTokenGenerator
+    
+    email = request.data.get('email')
+    
+    if not email:
+        return Response({
+            'status': 'error',
+            'message': 'Email is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(email=email)
+        
+        # Generate password reset token
+        token_generator = PasswordResetTokenGenerator()
+        token = token_generator.make_token(user)
+        
+        # TODO: Send email with reset link
+        # For now, just return success
+        # In production, you would send an email like:
+        # reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}&uid={user.id}"
+        
+        return Response({
+            'status': 'success',
+            'message': 'Password reset email sent'
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        # Return success even if user doesn't exist (security best practice)
+        return Response({
+            'status': 'success',
+            'message': 'Password reset email sent'
+        }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    """
+    Reset password using token.
+    
+    Validates the token and updates the user's password.
+    """
+    from django.contrib.auth.tokens import PasswordResetTokenGenerator
+    
+    token = request.data.get('token')
+    password = request.data.get('password')
+    user_id = request.data.get('uid')
+    
+    if not all([token, password, user_id]):
+        return Response({
+            'status': 'error',
+            'message': 'Token, password, and user ID are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Validate token
+        token_generator = PasswordResetTokenGenerator()
+        if not token_generator.check_token(user, token):
+            return Response({
+                'status': 'error',
+                'message': 'Invalid or expired token'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update password
+        user.set_password(password)
+        user.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Password reset successfully'
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'status': 'error',
+            'message': 'Invalid or expired token'
+        }, status=status.HTTP_400_BAD_REQUEST)

@@ -33,15 +33,23 @@ export interface LoginResponse {
 export interface RegisterRequest {
     email: string;
     password: string;
+    password_confirm: string;
     first_name?: string;
     last_name?: string;
 }
 
 export interface RegisterResponse {
-    user: User;
-    access: string;
-    refresh: string;
+    status: 'success' | 'error';
+    data: {
+        user: User;
+        tokens: {
+            access: string;
+            refresh: string;
+        };
+    };
+    message: string;
 }
+
 
 export interface RefreshTokenRequest {
     refresh: string;
