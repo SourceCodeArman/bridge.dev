@@ -1,0 +1,225 @@
+{
+  "id": "gmail",
+  "name": "Gmail",
+  "version": "1.0.0",
+  "description": "Send and read emails via Gmail API with OAuth authentication",
+  "author": "Bridge.dev",
+  "connector_type": "action",
+  "auth_config": {
+    "type": "oauth",
+    "fields": [
+      {
+        "name": "access_token",
+        "type": "password",
+        "required": true,
+        "description": "OAuth access token"
+      },
+      {
+        "name": "refresh_token",
+        "type": "password",
+        "required": true,
+        "description": "OAuth refresh token"
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "required": false,
+        "description": "OAuth client ID (required for token refresh)"
+      },
+      {
+        "name": "client_secret",
+        "type": "password",
+        "required": false,
+        "description": "OAuth client secret (required for token refresh)"
+      },
+      {
+        "name": "service_account_key",
+        "type": "object",
+        "required": false,
+        "description": "Service account key JSON (alternative to OAuth)"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "send_email",
+      "name": "Send Email",
+      "description": "Send an email via Gmail",
+      "input_schema": {
+        "type": "object",
+        "required": ["to", "subject", "body"],
+        "properties": {
+          "to": {
+            "type": "string",
+            "format": "email",
+            "description": "Recipient email address"
+          },
+          "subject": {
+            "type": "string",
+            "description": "Email subject"
+          },
+          "body": {
+            "type": "string",
+            "description": "Email body (plain text or HTML)"
+          },
+          "cc": {
+            "type": "string",
+            "format": "email",
+            "description": "CC email address (optional)"
+          },
+          "bcc": {
+            "type": "string",
+            "format": "email",
+            "description": "BCC email address (optional)"
+          },
+          "is_html": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether body is HTML"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Message ID"
+          },
+          "thread_id": {
+            "type": "string",
+            "description": "Thread ID"
+          }
+        }
+      },
+      "required_fields": ["to", "subject", "body"]
+    },
+    {
+      "id": "read_emails",
+      "name": "Read Emails",
+      "description": "Read/search emails from Gmail",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Gmail search query (e.g., 'from:example@gmail.com', 'subject:test')"
+          },
+          "max_results": {
+            "type": "integer",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximum number of emails to return"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "emails": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Message ID"
+                },
+                "thread_id": {
+                  "type": "string",
+                  "description": "Thread ID"
+                },
+                "subject": {
+                  "type": "string",
+                  "description": "Email subject"
+                },
+                "from": {
+                  "type": "string",
+                  "description": "Sender email"
+                },
+                "to": {
+                  "type": "string",
+                  "description": "Recipient email"
+                },
+                "date": {
+                  "type": "string",
+                  "description": "Email date"
+                },
+                "snippet": {
+                  "type": "string",
+                  "description": "Email snippet"
+                },
+                "body": {
+                  "type": "string",
+                  "description": "Email body"
+                }
+              }
+            },
+            "description": "List of emails"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of emails returned"
+          }
+        }
+      },
+      "required_fields": []
+    },
+    {
+      "id": "get_email",
+      "name": "Get Email",
+      "description": "Get a specific email by ID",
+      "input_schema": {
+        "type": "object",
+        "required": ["message_id"],
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "description": "Gmail message ID"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Message ID"
+          },
+          "thread_id": {
+            "type": "string",
+            "description": "Thread ID"
+          },
+          "subject": {
+            "type": "string",
+            "description": "Email subject"
+          },
+          "from": {
+            "type": "string",
+            "description": "Sender email"
+          },
+          "to": {
+            "type": "string",
+            "description": "Recipient email"
+          },
+          "date": {
+            "type": "string",
+            "description": "Email date"
+          },
+          "snippet": {
+            "type": "string",
+            "description": "Email snippet"
+          },
+          "body": {
+            "type": "string",
+            "description": "Email body"
+          }
+        }
+      },
+      "required_fields": ["message_id"]
+    }
+  ]
+}
+
+

@@ -1,0 +1,96 @@
+{
+  "id": "http",
+  "name": "HTTP Request",
+  "version": "1.0.0",
+  "description": "Make HTTP requests to any endpoint with URL templating and response parsing",
+  "author": "Bridge.dev",
+  "connector_type": "action",
+  "auth_config": {
+    "type": "custom",
+    "fields": [
+      {
+        "name": "headers",
+        "type": "object",
+        "required": false,
+        "description": "Custom headers to include in all requests"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "request",
+      "name": "HTTP Request",
+      "description": "Make an HTTP request with support for templating and response parsing",
+      "input_schema": {
+        "type": "object",
+        "required": ["url", "method"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to request (supports Jinja2 templating with {{step1.output.field}} syntax)"
+          },
+          "method": {
+            "type": "string",
+            "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+            "description": "HTTP method"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP headers (supports templating)"
+          },
+          "body": {
+            "type": ["object", "string", "null"],
+            "description": "Request body (for POST, PUT, PATCH). Supports templating if string."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "URL query parameters (supports templating)"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "Request timeout in seconds (default: 30)",
+            "default": 30
+          },
+          "step_context": {
+            "type": "object",
+            "description": "Context from previous steps for templating (automatically provided by orchestrator)"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Response headers"
+          },
+          "body": {
+            "type": ["object", "string", "null"],
+            "description": "Response body (parsed if JSON/XML, otherwise raw text)"
+          },
+          "raw_body": {
+            "type": "string",
+            "description": "Raw response body as string"
+          }
+        }
+      },
+      "required_fields": ["url", "method"]
+    }
+  ]
+}
+
+

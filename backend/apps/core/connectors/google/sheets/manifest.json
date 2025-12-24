@@ -1,0 +1,201 @@
+{
+  "id": "google_sheets",
+  "name": "Google Sheets",
+  "version": "1.0.0",
+  "description": "Read and write data to Google Sheets with OAuth authentication",
+  "author": "Bridge.dev",
+  "connector_type": "action",
+  "auth_config": {
+    "type": "oauth",
+    "fields": [
+      {
+        "name": "access_token",
+        "type": "password",
+        "required": true,
+        "description": "OAuth access token"
+      },
+      {
+        "name": "refresh_token",
+        "type": "password",
+        "required": true,
+        "description": "OAuth refresh token"
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "required": false,
+        "description": "OAuth client ID (required for token refresh)"
+      },
+      {
+        "name": "client_secret",
+        "type": "password",
+        "required": false,
+        "description": "OAuth client secret (required for token refresh)"
+      },
+      {
+        "name": "service_account_key",
+        "type": "object",
+        "required": false,
+        "description": "Service account key JSON (alternative to OAuth)"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "read_range",
+      "name": "Read Range",
+      "description": "Read data from a sheet range",
+      "input_schema": {
+        "type": "object",
+        "required": ["spreadsheet_id", "range"],
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "description": "Google Sheets spreadsheet ID (from URL)"
+          },
+          "range": {
+            "type": "string",
+            "description": "Range to read (e.g., \"Sheet1!A1:B10\" or \"A1:B10\")"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Array of rows, each row is an array of cell values"
+          }
+        }
+      },
+      "required_fields": ["spreadsheet_id", "range"]
+    },
+    {
+      "id": "write_range",
+      "name": "Write Range",
+      "description": "Write data to a sheet range (overwrites existing data)",
+      "input_schema": {
+        "type": "object",
+        "required": ["spreadsheet_id", "range", "values"],
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "description": "Google Sheets spreadsheet ID"
+          },
+          "range": {
+            "type": "string",
+            "description": "Range to write (e.g., \"Sheet1!A1:B10\")"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Array of rows to write, each row is an array of cell values"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "updated_cells": {
+            "type": "integer",
+            "description": "Number of cells updated"
+          },
+          "updated_range": {
+            "type": "string",
+            "description": "Range that was updated"
+          }
+        }
+      },
+      "required_fields": ["spreadsheet_id", "range", "values"]
+    },
+    {
+      "id": "append_rows",
+      "name": "Append Rows",
+      "description": "Append rows to the end of a sheet range",
+      "input_schema": {
+        "type": "object",
+        "required": ["spreadsheet_id", "range", "values"],
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "description": "Google Sheets spreadsheet ID"
+          },
+          "range": {
+            "type": "string",
+            "description": "Sheet name or range (e.g., \"Sheet1\" or \"Sheet1!A1\")"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Array of rows to append, each row is an array of cell values"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "updated_cells": {
+            "type": "integer",
+            "description": "Number of cells updated"
+          },
+          "updated_range": {
+            "type": "string",
+            "description": "Range that was updated"
+          },
+          "rows_appended": {
+            "type": "integer",
+            "description": "Number of rows appended"
+          }
+        }
+      },
+      "required_fields": ["spreadsheet_id", "range", "values"]
+    },
+    {
+      "id": "clear_range",
+      "name": "Clear Range",
+      "description": "Clear data from a sheet range",
+      "input_schema": {
+        "type": "object",
+        "required": ["spreadsheet_id", "range"],
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "description": "Google Sheets spreadsheet ID"
+          },
+          "range": {
+            "type": "string",
+            "description": "Range to clear (e.g., \"Sheet1!A1:B10\")"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "cleared_range": {
+            "type": "string",
+            "description": "Range that was cleared"
+          }
+        }
+      },
+      "required_fields": ["spreadsheet_id", "range"]
+    }
+  ]
+}
+
+

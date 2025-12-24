@@ -185,6 +185,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.core.tasks.check_and_trigger_cron_workflows',
         'schedule': 60.0,  # Run every minute
     },
+    'cleanup-stale-presence': {
+        'task': 'apps.core.tasks.cleanup_stale_presence',
+        'schedule': 300.0,  # Run every 5 minutes
+    },
 }
 
 # Workflow orchestration configuration
@@ -207,4 +211,17 @@ CONNECTOR_REGISTRY_PATH = os.environ.get('CONNECTOR_REGISTRY_PATH', '')
 # Logging and tracing configuration
 LOG_RETENTION_DAYS = int(os.environ.get('LOG_RETENTION_DAYS', '30'))
 TRACE_AGGREGATION_ENABLED = os.environ.get('TRACE_AGGREGATION_ENABLED', 'True').lower() == 'true'
+
+# LLM Guardrails configuration
+LLM_SECRET_REDACTION_ENABLED = os.environ.get('LLM_SECRET_REDACTION_ENABLED', 'True').lower() == 'true'
+LLM_FIELD_ALLOWLIST_ENABLED = os.environ.get('LLM_FIELD_ALLOWLIST_ENABLED', 'True').lower() == 'true'
+LLM_ALLOWED_FIELDS = [
+    'id', 'name', 'title', 'description', 'type',
+    'action_id', 'connector_id', 'prompt', 'messages',
+    'model', 'temperature', 'max_tokens', 'system_prompt',
+    'content', 'role', 'text', 'status', 'created_at',
+    'updated_at', 'version_number', 'workflow_id',
+    'node_id', 'edge_id', 'position', 'data',
+    'source', 'target', 'sourceHandle', 'targetHandle',
+]
 

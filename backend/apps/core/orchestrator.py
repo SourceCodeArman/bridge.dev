@@ -351,6 +351,16 @@ class RunOrchestrator:
                 }
             )
             
+            # Trigger error suggestion generation
+            try:
+                from .tasks import generate_error_suggestions
+                generate_error_suggestions.delay(str(run_step.id))
+            except Exception as e:
+                logger.warning(
+                    f"Failed to trigger suggestion generation for step {run_step.id}: {str(e)}",
+                    extra={'run_step_id': str(run_step.id), 'error': str(e)}
+                )
+            
             # Mark run as failed
             self.fail_run(run_step.run, error_message)
         
@@ -466,6 +476,16 @@ class RunOrchestrator:
                 f"Failed run {run.id}: {error_message}",
                 extra={'run_id': str(run.id), 'error_message': error_message}
             )
+            
+            # Trigger alert event for run failure
+            try:
+                from apps.core.alerts.event_subscriber import AlertEventSubscriber
+                AlertEventSubscriber.on_run_failure(run)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to trigger alert for run {run.id}: {str(e)}",
+                    extra={'run_id': str(run.id), 'error': str(e)}
+                )
             
             # Trigger trace aggregation even on failure
             if getattr(settings, 'TRACE_AGGREGATION_ENABLED', True):

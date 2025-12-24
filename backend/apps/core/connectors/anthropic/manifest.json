@@ -1,0 +1,179 @@
+{
+  "id": "anthropic",
+  "name": "Anthropic",
+  "version": "1.0.0",
+  "description": "Anthropic Claude models for text generation and chat completion",
+  "author": "Bridge.dev",
+  "connector_type": "action",
+  "auth_config": {
+    "type": "api_key",
+    "fields": [
+      {
+        "name": "api_key",
+        "type": "password",
+        "required": true,
+        "description": "Anthropic API key"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "generate_text",
+      "name": "Generate Text",
+      "description": "Generate text using Anthropic Claude models",
+      "input_schema": {
+        "type": "object",
+        "required": ["prompt"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "The prompt to generate text from",
+            "maxLength": 50000
+          },
+          "model": {
+            "type": "string",
+            "description": "Model to use (e.g., claude-3-5-sonnet-20241022, claude-3-opus-20240229)",
+            "default": "claude-3-5-sonnet-20241022"
+          },
+          "temperature": {
+            "type": "number",
+            "description": "Sampling temperature (0.0-1.0)",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 1.0
+          },
+          "max_tokens": {
+            "type": "integer",
+            "description": "Maximum tokens to generate",
+            "minimum": 1,
+            "maximum": 4096,
+            "default": 1024
+          },
+          "system_prompt": {
+            "type": "string",
+            "description": "System prompt for the model (optional)",
+            "maxLength": 10000
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Generated text"
+          },
+          "model_used": {
+            "type": "string",
+            "description": "Model that was used"
+          },
+          "finish_reason": {
+            "type": "string",
+            "description": "Reason for completion (end_turn, max_tokens, etc.)"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "input_tokens": {
+                "type": "integer"
+              },
+              "output_tokens": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "required_fields": ["prompt"]
+    },
+    {
+      "id": "chat",
+      "name": "Chat Completion",
+      "description": "Chat completion using Anthropic Claude models",
+      "input_schema": {
+        "type": "object",
+        "required": ["messages"],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "description": "Array of message objects with 'role' and 'content'",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["user", "assistant"]
+                },
+                "content": {
+                  "type": "string"
+                }
+              },
+              "required": ["role", "content"]
+            }
+          },
+          "model": {
+            "type": "string",
+            "description": "Model to use (e.g., claude-3-5-sonnet-20241022)",
+            "default": "claude-3-5-sonnet-20241022"
+          },
+          "temperature": {
+            "type": "number",
+            "description": "Sampling temperature (0.0-1.0)",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 1.0
+          },
+          "max_tokens": {
+            "type": "integer",
+            "description": "Maximum tokens to generate",
+            "minimum": 1,
+            "maximum": 4096,
+            "default": 1024
+          },
+          "system_prompt": {
+            "type": "string",
+            "description": "System prompt (optional)",
+            "maxLength": 10000
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          },
+          "model_used": {
+            "type": "string",
+            "description": "Model that was used"
+          },
+          "finish_reason": {
+            "type": "string",
+            "description": "Reason for completion"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "input_tokens": {
+                "type": "integer"
+              },
+              "output_tokens": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "required_fields": ["messages"]
+    }
+  ]
+}
+

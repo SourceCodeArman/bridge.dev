@@ -161,6 +161,51 @@ class ManifestValidator:
                 action_ids.append(action_id)
         
         return errors
+
+
+def validate_custom_connector_manifest(manifest: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    """
+    Validate a manifest for a user-contributed (custom) connector.
+    
+    In addition to the standard schema validation, this ensures that:
+      - The manifest is valid according to MANIFEST_SCHEMA
+      - The connector ID does not conflict with any built-in connector IDs
+    
+    Args:
+        manifest: Manifest dictionary to validate
+        
+    Returns:
+        Tuple of (is_valid, list_of_errors)
+    """
+    validator = ManifestValidator()
+    is_valid, errors = validator.validate(manifest)
+    
+    # If schema validation failed, return early
+    if not is_valid:
+        return is_valid, errors
+    
+    connector_id = manifest.get('id')
+    if not connector_id:
+        return False, errors + ['Manifest must include an "id" field']
+    
+    # Check for conflicts with built-in connectors registered in ConnectorRegistry
+    try:
+        from .base import ConnectorRegistry
+        
+        registry = ConnectorRegistry()
+        if registry.get(connector_id):
+            errors.append(
+                f'Connector id "{connector_id}" conflicts with an existing built-in connector. '
+                f'Please choose a different id (e.g., prefix with "custom_").'
+            )
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning(
+            f"Error while checking custom connector id conflicts: {str(exc)}",
+            exc_info=exc,
+            extra={'connector_id': connector_id}
+        )
+    
+    return (len(errors) == 0, errors)
     
     def _validate_triggers(self, manifest: Dict[str, Any]) -> List[str]:
         """Validate triggers array"""

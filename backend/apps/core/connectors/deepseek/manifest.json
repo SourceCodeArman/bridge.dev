@@ -1,0 +1,180 @@
+{
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "version": "1.0.0",
+  "description": "DeepSeek models for text generation and chat completion",
+  "author": "Bridge.dev",
+  "connector_type": "action",
+  "auth_config": {
+    "type": "api_key",
+    "fields": [
+      {
+        "name": "api_key",
+        "type": "password",
+        "required": true,
+        "description": "DeepSeek API key"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "generate_text",
+      "name": "Generate Text",
+      "description": "Generate text using DeepSeek models",
+      "input_schema": {
+        "type": "object",
+        "required": ["prompt"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "The prompt to generate text from",
+            "maxLength": 50000
+          },
+          "model": {
+            "type": "string",
+            "description": "Model to use (e.g., deepseek-chat, deepseek-coder)",
+            "default": "deepseek-chat"
+          },
+          "temperature": {
+            "type": "number",
+            "description": "Sampling temperature (0.0-2.0)",
+            "minimum": 0.0,
+            "maximum": 2.0,
+            "default": 1.0
+          },
+          "max_tokens": {
+            "type": "integer",
+            "description": "Maximum tokens to generate",
+            "minimum": 1,
+            "maximum": 4096,
+            "default": 2000
+          },
+          "system_prompt": {
+            "type": "string",
+            "description": "System prompt for the model (optional)",
+            "maxLength": 10000
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Generated text"
+          },
+          "model_used": {
+            "type": "string",
+            "description": "Model that was used"
+          },
+          "finish_reason": {
+            "type": "string",
+            "description": "Reason for completion (stop, length, etc.)"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "prompt_tokens": {
+                "type": "integer"
+              },
+              "completion_tokens": {
+                "type": "integer"
+              },
+              "total_tokens": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "required_fields": ["prompt"]
+    },
+    {
+      "id": "chat",
+      "name": "Chat Completion",
+      "description": "Chat completion using DeepSeek models",
+      "input_schema": {
+        "type": "object",
+        "required": ["messages"],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "description": "Array of message objects with 'role' and 'content'",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["system", "user", "assistant"]
+                },
+                "content": {
+                  "type": "string"
+                }
+              },
+              "required": ["role", "content"]
+            }
+          },
+          "model": {
+            "type": "string",
+            "description": "Model to use (e.g., deepseek-chat)",
+            "default": "deepseek-chat"
+          },
+          "temperature": {
+            "type": "number",
+            "description": "Sampling temperature (0.0-2.0)",
+            "minimum": 0.0,
+            "maximum": 2.0,
+            "default": 1.0
+          },
+          "max_tokens": {
+            "type": "integer",
+            "description": "Maximum tokens to generate",
+            "minimum": 1,
+            "maximum": 4096,
+            "default": 2000
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          },
+          "model_used": {
+            "type": "string",
+            "description": "Model that was used"
+          },
+          "finish_reason": {
+            "type": "string",
+            "description": "Reason for completion"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "prompt_tokens": {
+                "type": "integer"
+              },
+              "completion_tokens": {
+                "type": "integer"
+              },
+              "total_tokens": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "required_fields": ["messages"]
+    }
+  ]
+}
+

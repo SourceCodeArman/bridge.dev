@@ -10,7 +10,7 @@ from typing import Dict, Any
 from uuid import UUID
 
 from apps.common.logging_utils import get_logger
-from .models import Run, RunStep
+from .models import Run, RunStep, WorkflowPresence, CustomConnector
 from .orchestrator import RunOrchestrator
 from .concurrency import ConcurrencyManager
 from .rate_limiter import RateLimiter
@@ -213,7 +213,7 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
     Returns:
         Dict containing step outputs
     """
-    from .connectors.base import ConnectorRegistry
+    from .connectors.base import ConnectorRegistry, DatabaseCustomConnector
     from .models import Credential
     from .encryption import get_encryption_service
     
@@ -226,21 +226,9 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
         }
     )
     
-    # Get connector from registry
+    # Get connector from registry (built-in connectors)
     registry = ConnectorRegistry()
     connector_class = registry.get(run_step.step_type)
-    
-    if not connector_class:
-        # Fallback to placeholder if connector not found
-        logger.warning(
-            f"Connector {run_step.step_type} not found in registry, using placeholder",
-            extra={'step_type': run_step.step_type}
-        )
-        return {
-            'status': 'completed',
-            'message': f"Step {run_step.step_id} executed (connector not found, placeholder)",
-            'step_type': run_step.step_type
-        }
     
     # Get credential from step inputs or workflow definition
     credential_id = run_step.inputs.get('credential_id')
@@ -282,21 +270,111 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
     # Add other step inputs to config
     config.update(run_step.inputs)
     
-    # Create connector instance
-    connector = registry.create_instance(run_step.step_type, config)
+    # Determine if this is a database-backed custom connector
+    db_custom_connector = None
+    if connector_class is None:
+        # Try to resolve a CustomConnector by slug or manifest id
+        try:
+            db_custom_connector = CustomConnector.objects.select_related('current_version').get(
+                workspace=run_step.run.workflow_version.workflow.workspace,
+                slug=run_step.step_type,
+                status='approved',
+            )
+        except CustomConnector.DoesNotExist:
+            # Fallback: try matching on manifest id of current approved version
+            db_custom_connector = CustomConnector.objects.filter(
+                workspace=run_step.run.workflow_version.workflow.workspace,
+                status='approved',
+                current_version__manifest__id=run_step.step_type,
+            ).select_related('current_version').first()
+    
+    # Check if connector is custom/user-contributed (requires sandbox)
+    is_custom_connector = False
+    temp_connector = None
+    
+    if connector_class is not None:
+        # Built-in or code-based custom connector registered in registry
+        temp_connector = connector_class({})
+        is_custom_connector = _is_custom_connector(run_step.step_type, connector_class)
+    elif db_custom_connector and db_custom_connector.current_version:
+        # Database-backed custom connector
+        manifest = db_custom_connector.current_version.manifest or {}
+        config['manifest'] = manifest
+        connector_class = DatabaseCustomConnector
+        temp_connector = connector_class(config)
+        is_custom_connector = True
+    else:
+        # Fallback to placeholder if connector not found
+        logger.warning(
+            f"Connector {run_step.step_type} not found in registry or custom connector store, using placeholder",
+            extra={'step_type': run_step.step_type}
+        )
+        return {
+            'status': 'completed',
+            'message': f"Step {run_step.step_id} executed (connector not found, placeholder)",
+            'step_type': run_step.step_type
+        }
     
     # Get action_id from inputs (default to first action if not specified)
+    # We need to get this before creating instance to check manifest
+    manifest = getattr(temp_connector, 'manifest', {}) or {}
     action_id = run_step.inputs.get('action_id')
-    if not action_id and connector.manifest.get('actions'):
-        action_id = connector.manifest['actions'][0]['id']
+    if not action_id and manifest.get('actions'):
+        action_id = manifest['actions'][0]['id']
     
     # Prepare inputs for action (exclude connector-specific fields)
     action_inputs = {k: v for k, v in run_step.inputs.items() 
                      if k not in ['credential_id', 'action_id']}
     
-    # Execute connector action
+    # Execute connector action (with sandbox if custom)
     try:
-        outputs = connector.execute(action_id, action_inputs)
+        if is_custom_connector:
+            # Execute in sandbox
+            from .sandbox import SandboxExecutor, ResourceLimits, NetworkPolicy, SecretPolicy
+            from django.conf import settings
+            
+            # Get allowed domains from connector manifest if available
+            manifest = manifest or {}
+            allowed_domains = manifest.get('allowed_domains', [])
+            
+            # Create sandbox executor with policies
+            resource_limits = ResourceLimits()
+            network_policy = NetworkPolicy(
+                allowed_domains=allowed_domains,
+                allow_localhost=False,
+                allow_internal=False
+            )
+            secret_policy = SecretPolicy(
+                allowed_secret_ids={credential_id} if credential_id else set(),
+                mask_in_logs=True
+            )
+            
+            executor = SandboxExecutor(
+                resource_limits=resource_limits,
+                network_policy=network_policy,
+                secret_policy=secret_policy
+            )
+            
+            logger.info(
+                f"Executing custom connector {run_step.step_type} in sandbox",
+                extra={
+                    'step_type': run_step.step_type,
+                    'step_id': run_step.step_id,
+                    'action_id': action_id
+                }
+            )
+            
+            outputs = executor.execute_connector(
+                connector_class=connector_class,
+                config=config,
+                action_id=action_id,
+                inputs=action_inputs
+            )
+        else:
+            # Execute normally (built-in connector)
+            connector = registry.create_instance(run_step.step_type, config)
+            outputs = connector.execute(action_id, action_inputs)
+        
         return outputs
     except Exception as e:
         logger.error(
@@ -305,10 +383,59 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
             extra={
                 'step_type': run_step.step_type,
                 'action_id': action_id,
-                'step_id': run_step.step_id
+                'step_id': run_step.step_id,
+                'is_custom': is_custom_connector
             }
         )
         raise
+
+
+def _is_custom_connector(connector_id: str, connector_class) -> bool:
+    """
+    Check if connector is custom/user-contributed (requires sandbox).
+    
+    Args:
+        connector_id: Connector ID
+        connector_class: Connector class
+        
+    Returns:
+        True if custom connector, False if built-in
+    """
+    # Built-in connectors are in examples/ or have specific IDs
+    built_in_connectors = {
+        'http',
+        'webhook',
+        'slack',
+        'gmail',
+        'google_sheets',
+        'supabase_realtime',
+        # Add other built-in connector IDs here
+    }
+    
+    # Check by ID
+    if connector_id in built_in_connectors:
+        return False
+    
+    # Check by module path (built-in connectors are in examples/)
+    module_path = connector_class.__module__
+    if 'examples' in module_path or 'apps.core.connectors.examples' in module_path:
+        return False
+    
+    # Check manifest for custom flag
+    try:
+        temp_instance = connector_class({})
+        manifest = temp_instance.manifest
+        if manifest.get('is_custom', False):
+            return True
+        if manifest.get('author') and 'Bridge.dev' not in manifest.get('author', ''):
+            # Connectors not authored by Bridge.dev are considered custom
+            return True
+    except Exception:
+        pass
+    
+    # Default: assume custom if not clearly built-in
+    # This is conservative - better to sandbox unknown connectors
+    return True
 
 
 @shared_task(
@@ -511,4 +638,153 @@ def aggregate_run_trace(run_id: str):
             extra={'run_id': run_id}
         )
         raise
+
+
+@shared_task
+def check_run_timeouts():
+    """
+    Periodic task to check for timed-out runs and trigger alerts.
+    
+    This task runs on a schedule (configured in CELERY_BEAT_SCHEDULE)
+    and checks for runs that have exceeded their timeout threshold.
+    
+    Returns:
+        int: Number of timed-out runs detected
+    """
+    from .models import Run, AlertConfiguration
+    from .orchestrator import RunOrchestrator
+    from django.conf import settings
+    from apps.core.alerts.event_subscriber import AlertEventSubscriber
+    
+    logger.info("Checking for timed-out runs")
+    
+    orchestrator = RunOrchestrator()
+    timed_out_count = 0
+    
+    # Get default timeout from settings (in seconds)
+    default_timeout_seconds = getattr(settings, 'WORKFLOW_RUN_TIMEOUT_SECONDS', 3600)  # 1 hour default
+    
+    # Get all running runs
+    running_runs = Run.objects.filter(status='running', started_at__isnull=False)
+    
+    now = timezone.now()
+    
+    for run in running_runs:
+        try:
+            workflow = run.workflow_version.workflow
+            
+            # Get timeout threshold for this workflow
+            alert_configs = AlertConfiguration.objects.filter(
+                workflow=workflow,
+                enabled=True,
+                alert_on_timeout=True
+            ).first()
+            
+            timeout_seconds = default_timeout_seconds
+            if alert_configs and alert_configs.timeout_seconds:
+                timeout_seconds = alert_configs.timeout_seconds
+            
+            # Check if run has exceeded timeout
+            elapsed_seconds = (now - run.started_at).total_seconds()
+            
+            if elapsed_seconds > timeout_seconds:
+                logger.warning(
+                    f"Run {run.id} has timed out (elapsed: {elapsed_seconds}s, timeout: {timeout_seconds}s)",
+                    extra={
+                        'run_id': str(run.id),
+                        'workflow_id': str(workflow.id),
+                        'elapsed_seconds': elapsed_seconds,
+                        'timeout_seconds': timeout_seconds
+                    }
+                )
+                
+                # Mark run as failed with timeout error
+                orchestrator.handle_run_failure(
+                    run,
+                    f"Run timed out after {elapsed_seconds} seconds (timeout: {timeout_seconds}s)"
+                )
+                
+                # Trigger timeout alert event
+                AlertEventSubscriber.on_run_timeout(run)
+                
+                timed_out_count += 1
+                
+        except Exception as exc:
+            logger.error(
+                f"Error processing timeout check for run {run.id}: {str(exc)}",
+                exc_info=exc,
+                extra={'run_id': str(run.id)}
+            )
+    
+    logger.info(
+        f"Timeout check completed, detected {timed_out_count} timed-out runs",
+        extra={'timed_out_count': timed_out_count}
+    )
+    
+    return timed_out_count
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60
+)
+def generate_error_suggestions(self, run_step_id: str):
+    """
+    Generate error suggestions for a failed step.
+    
+    Args:
+        run_step_id: UUID string of the RunStep instance
+        
+    Returns:
+        str: Success message
+    """
+    from .models import RunStep
+    from apps.core.error_analysis.suggestion_generator import SuggestionGenerator
+    from django.conf import settings
+    
+    try:
+        run_step = RunStep.objects.get(id=run_step_id)
+        
+        if run_step.status != 'failed':
+            logger.warning(
+                f"Step {run_step_id} is not failed, skipping suggestion generation",
+                extra={'run_step_id': run_step_id, 'status': run_step.status}
+            )
+            return f"Step {run_step_id} is not failed, skipping"
+        
+        # Get LLM provider from settings
+        llm_provider = getattr(settings, 'ERROR_ANALYSIS_LLM_PROVIDER', 'openai')
+        llm_model = getattr(settings, 'ERROR_ANALYSIS_LLM_MODEL', None)
+        credential_id = getattr(settings, 'ERROR_ANALYSIS_CREDENTIAL_ID', None)
+        
+        # Generate suggestions
+        generator = SuggestionGenerator(
+            llm_provider=llm_provider,
+            model=llm_model,
+            credential_id=credential_id
+        )
+        
+        suggestions = generator.generate_suggestions(run_step)
+        
+        logger.info(
+            f"Generated {len(suggestions)} suggestions for step {run_step_id}",
+            extra={
+                'run_step_id': run_step_id,
+                'suggestion_count': len(suggestions)
+            }
+        )
+        
+        return f"Generated {len(suggestions)} suggestions for step {run_step_id}"
+        
+    except RunStep.DoesNotExist:
+        logger.error(f"RunStep {run_step_id} not found")
+        raise
+    except Exception as exc:
+        logger.error(
+            f"Error generating suggestions for step {run_step_id}: {str(exc)}",
+            exc_info=exc,
+            extra={'run_step_id': run_step_id}
+        )
+        raise self.retry(countdown=60 * (2 ** self.request.retries), exc=exc)
 

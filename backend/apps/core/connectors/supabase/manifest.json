@@ -1,0 +1,86 @@
+{
+  "id": "supabase_realtime",
+  "name": "Supabase Realtime",
+  "version": "1.0.0",
+  "description": "Trigger workflows on Supabase database changes via Realtime",
+  "author": "Bridge.dev",
+  "connector_type": "trigger",
+  "auth_config": {
+    "type": "api_key",
+    "fields": [
+      {
+        "name": "supabase_url",
+        "type": "string",
+        "required": true,
+        "description": "Supabase project URL"
+      },
+      {
+        "name": "supabase_key",
+        "type": "password",
+        "required": true,
+        "description": "Supabase anon/service role key"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "database_change",
+      "name": "Database Change",
+      "description": "Trigger on INSERT, UPDATE, or DELETE events in a Supabase table",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "enum": ["INSERT", "UPDATE", "DELETE"],
+            "description": "Type of database event"
+          },
+          "table": {
+            "type": "string",
+            "description": "Name of the table that changed"
+          },
+          "record": {
+            "type": "object",
+            "description": "New record data (for INSERT/UPDATE)"
+          },
+          "old_record": {
+            "type": "object",
+            "description": "Previous record data (for UPDATE/DELETE)"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Event timestamp"
+          }
+        },
+        "required": ["event_type", "table", "timestamp"]
+      }
+    }
+  ],
+  "config_schema": {
+    "type": "object",
+    "required": ["table_name"],
+    "properties": {
+      "table_name": {
+        "type": "string",
+        "description": "Name of the Supabase table to monitor"
+      },
+      "event_types": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["INSERT", "UPDATE", "DELETE"]
+        },
+        "description": "Event types to listen for (default: all)",
+        "default": ["INSERT", "UPDATE", "DELETE"]
+      },
+      "filters": {
+        "type": "object",
+        "description": "Optional column filters (e.g., {\"status\": \"active\"})",
+        "additionalProperties": true
+      }
+    }
+  }
+}
+
+

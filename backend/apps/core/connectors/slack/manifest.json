@@ -1,0 +1,146 @@
+{
+  "id": "slack",
+  "name": "Slack",
+  "version": "1.0.0",
+  "description": "Send messages to Slack channels and DMs with OAuth or API key authentication",
+  "author": "Bridge.dev",
+  "connector_type": "action",
+  "auth_config": {
+    "type": "oauth",
+    "fields": [
+      {
+        "name": "bot_token",
+        "type": "password",
+        "required": false,
+        "description": "Slack bot token (xoxb-*) - preferred for bot integrations"
+      },
+      {
+        "name": "access_token",
+        "type": "password",
+        "required": false,
+        "description": "OAuth access token - for user token authentication"
+      },
+      {
+        "name": "refresh_token",
+        "type": "password",
+        "required": false,
+        "description": "OAuth refresh token (optional, for token refresh)"
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "required": false,
+        "description": "OAuth client ID (required for token refresh)"
+      },
+      {
+        "name": "client_secret",
+        "type": "password",
+        "required": false,
+        "description": "OAuth client secret (required for token refresh)"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "send_message",
+      "name": "Send Message",
+      "description": "Send a message to a Slack channel or DM",
+      "input_schema": {
+        "type": "object",
+        "required": ["channel", "text"],
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "Channel ID (C1234567890) or channel name (#general or general)"
+          },
+          "text": {
+            "type": "string",
+            "description": "Message text"
+          },
+          "blocks": {
+            "type": "array",
+            "description": "Slack Block Kit blocks for rich formatting (optional)"
+          },
+          "thread_ts": {
+            "type": "string",
+            "description": "Thread timestamp to reply to a thread (optional)"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ts": {
+            "type": "string",
+            "description": "Message timestamp"
+          },
+          "channel": {
+            "type": "string",
+            "description": "Channel ID where message was sent"
+          },
+          "message": {
+            "type": "object",
+            "description": "Full message object from Slack API"
+          }
+        }
+      },
+      "required_fields": ["channel", "text"]
+    },
+    {
+      "id": "list_channels",
+      "name": "List Channels",
+      "description": "List available Slack channels",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["public_channel", "private_channel", "mpim", "im"]
+            },
+            "default": ["public_channel"],
+            "description": "Channel types to list"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Channel ID"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Channel name"
+                },
+                "is_private": {
+                  "type": "boolean",
+                  "description": "Whether channel is private"
+                },
+                "is_archived": {
+                  "type": "boolean",
+                  "description": "Whether channel is archived"
+                }
+              }
+            },
+            "description": "List of channels"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of channels returned"
+          }
+        }
+      },
+      "required_fields": []
+    }
+  ]
+}
+
+

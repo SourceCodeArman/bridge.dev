@@ -2,8 +2,27 @@
 Serializers for core app
 """
 from rest_framework import serializers
-from .models import Workflow, WorkflowVersion, Run, RunStep, Trigger, Credential, CredentialUsage, RunLog, RunTrace
+from .models import (
+    Workflow,
+    WorkflowVersion,
+    Run,
+    RunStep,
+    Trigger,
+    Credential,
+    CredentialUsage,
+    RunLog,
+    RunTrace,
+    AlertConfiguration,
+    AlertHistory,
+    ErrorSuggestion,
+    WorkflowTemplate,
+    WorkflowComment,
+    WorkflowPresence,
+    CustomConnector,
+    CustomConnectorVersion,
+)
 from .encryption import get_encryption_service
+from .connectors.validator import validate_custom_connector_manifest
 
 
 class WorkflowSerializer(serializers.ModelSerializer):
@@ -63,7 +82,8 @@ class RunSerializer(serializers.ModelSerializer):
             'status', 'trigger_type', 'triggered_by',
             'input_data', 'output_data', 'error_message',
             'started_at', 'completed_at', 'duration',
-            'idempotency_key', 'steps', 'created_at', 'updated_at'
+            'idempotency_key', 'steps', 'created_at', 'updated_at',
+            'original_run', 'replay_type', 'replay_from_step_id', 'saved_input_data'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
     
@@ -282,4 +302,322 @@ class RunTraceSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+
+class AlertConfigurationSerializer(serializers.ModelSerializer):
+    """Serializer for AlertConfiguration"""
+    workflow_name = serializers.CharField(source='workflow.name', read_only=True)
+    
+    class Meta:
+        model = AlertConfiguration
+        fields = (
+            'id', 'workflow', 'workflow_name',
+            'alert_on_failure', 'alert_on_timeout', 'timeout_seconds',
+            'notification_channels', 'email_recipients',
+            'slack_webhook_url', 'webhook_url',
+            'throttle_minutes', 'enabled',
+            'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')
+    
+    def validate_notification_channels(self, value):
+        """Validate notification channels"""
+        valid_channels = ['email', 'slack', 'webhook']
+        if not isinstance(value, list):
+            raise serializers.ValidationError("notification_channels must be a list")
+        for channel in value:
+            if channel not in valid_channels:
+                raise serializers.ValidationError(
+                    f"Invalid channel: {channel}. Must be one of {valid_channels}"
+                )
+        return value
+    
+    def validate_email_recipients(self, value):
+        """Validate email recipients"""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("email_recipients must be a list")
+        # Basic email validation
+        import re
+        email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        for email in value:
+            if not email_pattern.match(email):
+                raise serializers.ValidationError(f"Invalid email address: {email}")
+        return value
+
+
+class AlertHistorySerializer(serializers.ModelSerializer):
+    """Serializer for AlertHistory"""
+    alert_config_id = serializers.UUIDField(source='alert_config.id', read_only=True)
+    run_id = serializers.UUIDField(source='run.id', read_only=True)
+    workflow_name = serializers.CharField(source='run.workflow_version.workflow.name', read_only=True)
+    
+    class Meta:
+        model = AlertHistory
+        fields = (
+            'id', 'alert_config_id', 'run_id', 'workflow_name',
+            'alert_type', 'channel', 'sent_at', 'status', 'error_message'
+        )
+        read_only_fields = ('id', 'sent_at')
+
+
+class ErrorSuggestionSerializer(serializers.ModelSerializer):
+    """Serializer for ErrorSuggestion"""
+    run_step_id = serializers.UUIDField(source='run_step.id', read_only=True)
+    step_id = serializers.CharField(source='run_step.step_id', read_only=True)
+    step_type = serializers.CharField(source='run_step.step_type', read_only=True)
+    run_id = serializers.UUIDField(source='run_step.run.id', read_only=True)
+    workflow_name = serializers.CharField(source='run_step.run.workflow_version.workflow.name', read_only=True)
+    
+    class Meta:
+        model = ErrorSuggestion
+        fields = (
+            'id', 'run_step_id', 'step_id', 'step_type',
+            'run_id', 'workflow_name',
+            'error_type', 'suggestion', 'confidence',
+            'actionable', 'fix_data', 'created_at'
+        )
+        read_only_fields = ('id', 'created_at')
+
+
+class FormFieldSchemaSerializer(serializers.Serializer):
+    """Serializer for form field schema"""
+    field_id = serializers.CharField()
+    type = serializers.CharField()
+    label = serializers.CharField()
+    required = serializers.BooleanField()
+    description = serializers.CharField(required=False, allow_blank=True)
+    default = serializers.JSONField(required=False, allow_null=True)
+    validation = serializers.DictField(required=False, allow_null=True)
+    enum_values = serializers.ListField(required=False, allow_null=True)
+    item_type = serializers.CharField(required=False, allow_null=True)
+
+
+class FormSchemaSerializer(serializers.Serializer):
+    """Serializer for form schema response"""
+    connector_id = serializers.CharField()
+    action_id = serializers.CharField()
+    action_name = serializers.CharField()
+    action_description = serializers.CharField(required=False, allow_blank=True)
+    fields = FormFieldSchemaSerializer(many=True)
+    output_schema = serializers.DictField(required=False, allow_null=True)
+
+
+class NodeValidationRequestSerializer(serializers.Serializer):
+    """Serializer for node validation request"""
+    connector_id = serializers.CharField(required=True)
+    action_id = serializers.CharField(required=True)
+    config = serializers.DictField(required=True)
+
+
+class NodeValidationResponseSerializer(serializers.Serializer):
+    """Serializer for node validation response"""
+    valid = serializers.BooleanField()
+    errors = serializers.ListField(child=serializers.CharField())
+    field_errors = serializers.DictField(child=serializers.ListField(child=serializers.CharField()))
+
+
+class WorkflowGenerateRequestSerializer(serializers.Serializer):
+    """Serializer for workflow generation request"""
+    prompt = serializers.CharField(required=True, help_text='Natural language description of the workflow')
+    llm_provider = serializers.ChoiceField(
+        choices=['openai', 'anthropic', 'gemini', 'deepseek'],
+        default='openai',
+        required=False,
+        help_text='LLM provider to use for generation'
+    )
+
+
+class WorkflowTemplateListSerializer(serializers.ModelSerializer):
+    """Serializer for template list view (public fields only)"""
+    created_by_email = serializers.EmailField(source='created_by.email', read_only=True)
+    
+    class Meta:
+        model = WorkflowTemplate
+        fields = (
+            'id', 'name', 'description', 'category',
+            'is_public', 'usage_count', 'created_by_email',
+            'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'usage_count')
+
+
+class WorkflowTemplateDetailSerializer(serializers.ModelSerializer):
+    """Serializer for template detail view (includes full definition)"""
+    created_by_email = serializers.EmailField(source='created_by.email', read_only=True)
+    
+    class Meta:
+        model = WorkflowTemplate
+        fields = (
+            'id', 'name', 'description', 'category',
+            'definition', 'is_public', 'usage_count',
+            'created_by_email', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'usage_count')
+
+
+class WorkflowTemplateCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating templates (admin/curation)"""
+    
+    class Meta:
+        model = WorkflowTemplate
+        fields = (
+            'name', 'description', 'category',
+            'definition', 'is_public'
+        )
+    
+    def validate_definition(self, value):
+        """Validate workflow definition structure"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Definition must be a dictionary')
+        
+        if 'nodes' not in value:
+            raise serializers.ValidationError('Definition must contain "nodes" field')
+        
+        if not isinstance(value.get('nodes', []), list):
+            raise serializers.ValidationError('Nodes must be a list')
+        
+        return value
+
+
+class WorkflowCommentSerializer(serializers.ModelSerializer):
+    """Serializer for WorkflowComment model"""
+    created_by_email = serializers.EmailField(source='created_by.email', read_only=True)
+    resolved_by_email = serializers.EmailField(source='resolved_by.email', read_only=True)
+    is_resolved = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = WorkflowComment
+        fields = (
+            'id', 'workflow_version', 'node_id', 'edge_id',
+            'content', 'created_by', 'created_by_email',
+            'created_at', 'updated_at',
+            'resolved_at', 'resolved_by', 'resolved_by_email',
+            'is_resolved'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'created_by_email', 'resolved_by_email', 'is_resolved')
+    
+    def validate(self, data):
+        """Validate that either node_id or edge_id is provided"""
+        node_id = data.get('node_id')
+        edge_id = data.get('edge_id')
+        
+        if not node_id and not edge_id:
+            raise serializers.ValidationError('Either node_id or edge_id must be provided')
+        
+        if node_id and edge_id:
+            raise serializers.ValidationError('Cannot specify both node_id and edge_id')
+        
+        return data
+
+
+class WorkflowPresenceSerializer(serializers.ModelSerializer):
+    """Serializer for WorkflowPresence model"""
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    
+    class Meta:
+        model = WorkflowPresence
+        fields = (
+            'id', 'workflow_version', 'user', 'user_email', 'user_name',
+            'node_id', 'last_seen_at', 'is_active'
+        )
+        read_only_fields = ('id', 'last_seen_at', 'user_email', 'user_name')
+
+
+class CustomConnectorVersionSerializer(serializers.ModelSerializer):
+    """Serializer for CustomConnectorVersion model."""
+    connector_slug = serializers.SlugField(source='connector.slug', read_only=True)
+    connector_display_name = serializers.CharField(source='connector.display_name', read_only=True)
+    
+    class Meta:
+        model = CustomConnectorVersion
+        fields = (
+            'id',
+            'connector',
+            'connector_slug',
+            'connector_display_name',
+            'version',
+            'manifest',
+            'changelog',
+            'status',
+            'created_by',
+            'created_at',
+        )
+        read_only_fields = ('id', 'created_at')
+    
+    def validate_manifest(self, value):
+        """Validate manifest using the custom connector manifest validator."""
+        is_valid, errors = validate_custom_connector_manifest(value)
+        if not is_valid:
+            raise serializers.ValidationError(errors)
+        return value
+    
+    def validate(self, attrs):
+        """Enforce per-connector version uniqueness with clear error messages."""
+        connector = attrs.get('connector') or getattr(self.instance, 'connector', None)
+        version = attrs.get('version') or getattr(self.instance, 'version', None)
+        
+        if connector and version:
+            qs = CustomConnectorVersion.objects.filter(connector=connector, version=version)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {'version': ['This version already exists for the selected connector.']}
+                )
+        return super().validate(attrs)
+
+
+class CustomConnectorSerializer(serializers.ModelSerializer):
+    """Serializer for CustomConnector model."""
+    workspace_name = serializers.CharField(source='workspace.name', read_only=True)
+    created_by_email = serializers.EmailField(source='created_by.email', read_only=True)
+    current_version_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CustomConnector
+        fields = (
+            'id',
+            'workspace',
+            'workspace_name',
+            'slug',
+            'display_name',
+            'description',
+            'visibility',
+            'status',
+            'current_version',
+            'current_version_info',
+            'created_by',
+            'created_by_email',
+            'created_at',
+            'updated_at',
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'current_version_info')
+    
+    def validate(self, attrs):
+        """Ensure slug is unique per workspace at the serializer level."""
+        workspace = attrs.get('workspace') or getattr(self.instance, 'workspace', None)
+        slug = attrs.get('slug') or getattr(self.instance, 'slug', None)
+        
+        if workspace and slug:
+            qs = CustomConnector.objects.filter(workspace=workspace, slug=slug)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {'slug': ['A connector with this slug already exists in the workspace.']}
+                )
+        return super().validate(attrs)
+    
+    def get_current_version_info(self, obj):
+        """Return a minimal summary of the current version, if set."""
+        version = obj.current_version
+        if not version:
+            return None
+        return {
+            'id': str(version.id),
+            'version': version.version,
+            'status': version.status,
+            'created_at': version.created_at,
+        }
 

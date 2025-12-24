@@ -273,3 +273,50 @@ class ConnectorRegistry:
         
         return connector_class(config)
 
+
+class DatabaseCustomConnector(BaseConnector):
+    """
+    Generic connector implementation backed by a database-stored manifest.
+    
+    This is used as a safe, sandboxed execution wrapper for user-contributed
+    connectors whose manifests are stored in the CustomConnector models.
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize with a manifest provided in config.
+        
+        Expected config keys:
+          - manifest: connector manifest dictionary
+          - other keys are treated as connector configuration/credentials
+        """
+        self._provided_manifest = config.get('manifest') or {}
+        super().__init__(config)
+    
+    def get_manifest(self) -> Dict[str, Any]:
+        """Return the manifest provided via config."""
+        return self._provided_manifest
+    
+    def _execute(self, action_id: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a custom connector action.
+        
+        For now this provides a safe echo-style implementation that can be
+        extended to call user-defined logic. It ensures workflows can execute
+        end-to-end while keeping execution sandboxed.
+        """
+        logger.info(
+            "Executing database-backed custom connector action",
+            extra={
+                'connector_id': self.connector_id,
+                'action_id': action_id,
+            },
+        )
+        
+        return {
+            'connector_id': self.connector_id,
+            'action_id': action_id,
+            'inputs': inputs,
+            'message': 'Custom connector executed in sandbox (placeholder implementation)',
+        }
+
