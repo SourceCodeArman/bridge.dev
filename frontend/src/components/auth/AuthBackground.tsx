@@ -69,7 +69,10 @@ export function AuthBackground() {
                 if (point.y < 0 || point.y > height) point.vy *= -1;
 
                 // Draw point (box)
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.5)'; // Using a primary-like blue (can be updated to match exact accent if converted to RGB)
+                // Actually, let's use the exact accent color converted roughly to RGB for canvas
+                // oklch(0.5206 0.1048 233.25) is approx #2563eb (blue-600)
+                ctx.fillStyle = 'rgba(37, 99, 235, 0.4)';
                 ctx.fillRect(point.x - point.size / 2, point.y - point.size / 2, point.size, point.size);
 
                 // Connect to nearby points
@@ -81,8 +84,8 @@ export function AuthBackground() {
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
                     if (distance < CONNECTION_DISTANCE) {
-                        const opacity = (1 - distance / CONNECTION_DISTANCE) * 0.15;
-                        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                        const opacity = (1 - distance / CONNECTION_DISTANCE) * 0.3;
+                        ctx.strokeStyle = `rgba(37, 99, 235, ${opacity})`;
                         ctx.lineWidth = 1;
                         ctx.beginPath();
                         ctx.moveTo(point.x, point.y);

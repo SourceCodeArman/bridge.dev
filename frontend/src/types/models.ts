@@ -37,6 +37,31 @@ export interface WorkflowEdge {
     target: string;
 }
 
+export interface CreateWorkflowRequest {
+    name: string;
+    description?: string;
+    nodes: WorkflowNode[];
+    edges: WorkflowEdge[];
+    trigger?: Trigger;
+    is_active?: boolean;
+}
+
+export interface UpdateWorkflowRequest {
+    name?: string;
+    description?: string;
+    nodes?: WorkflowNode[];
+    edges?: WorkflowEdge[];
+    trigger?: Trigger;
+    is_active?: boolean;
+}
+
+
+export interface WorkflowListParams {
+    page?: number;
+    page_size?: number;
+    is_active?: boolean;
+}
+
 // Run Types
 export interface Run {
     id: string;
@@ -64,6 +89,15 @@ export interface RunStep {
     output: Record<string, unknown>;
     error?: string;
     retry_count: number;
+}
+
+export interface RunListParams {
+    page?: number;
+    page_size?: number;
+    workflow_id?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
 }
 
 // Connector Types

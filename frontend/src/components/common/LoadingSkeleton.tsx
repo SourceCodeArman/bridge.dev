@@ -1,88 +1,46 @@
-interface SkeletonProps {
-    className?: string;
-}
+import { Skeleton } from '@/components/ui/skeleton';
 
-const Skeleton = ({ className = '' }: SkeletonProps) => (
-    <div
-        className={`animate-pulse rounded-md bg-muted/50 ${className}`}
-        style={{
-            backgroundImage: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.05), transparent)',
-            backgroundSize: '200% 100%',
-            animation: 'shimmer 1.5s infinite',
-        }}
-    />
-);
-
-export const TableSkeleton = ({ rows = 5 }: { rows?: number }) => (
-    <div className="space-y-3">
-        <div className="flex items-center gap-4">
-            <Skeleton className="h-10 w-full" />
-        </div>
-        {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-12 w-full" />
+export function TableSkeleton() {
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-8 w-[200px]" />
+                <Skeleton className="h-8 w-[100px]" />
             </div>
-        ))}
-    </div>
-);
-
-export const CardSkeleton = ({ cards = 3 }: { cards?: number }) => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: cards }).map((_, i) => (
-            <div key={i} className="space-y-3 rounded-lg border border-border bg-card p-6">
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-32 w-full" />
-            </div>
-        ))}
-    </div>
-);
-
-export const PageSkeleton = () => (
-    <div className="flex h-screen bg-background">
-        {/* Sidebar skeleton */}
-        <div className="w-64 border-r border-border bg-muted/20 p-4">
-            <Skeleton className="mb-6 h-8 w-32" />
             <div className="space-y-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
+                {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
                 ))}
             </div>
         </div>
+    );
+}
 
-        {/* Main content skeleton */}
-        <div className="flex-1 p-8">
-            <Skeleton className="mb-6 h-10 w-64" />
-            <div className="space-y-4">
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-            </div>
+export function CardSkeleton() {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+                <div key={i} className="p-4 border rounded-lg space-y-3">
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                </div>
+            ))}
         </div>
-    </div>
-);
+    );
+}
 
-export const FormSkeleton = ({ fields = 4 }: { fields?: number }) => (
-    <div className="space-y-6">
-        {Array.from({ length: fields }).map((_, i) => (
-            <div key={i} className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-10 w-full" />
+export function PageSkeleton() {
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div className="space-y-2">
+                    <Skeleton className="h-8 w-[300px]" />
+                    <Skeleton className="h-4 w-[200px]" />
+                </div>
+                <Skeleton className="h-10 w-[120px]" />
             </div>
-        ))}
-        <Skeleton className="h-10 w-32" />
-    </div>
-);
-
-// Add shimmer keyframes to global styles if not already present
-if (typeof document !== 'undefined') {
-    const style = document.createElement('style');
-    style.textContent = `
-    @keyframes shimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
-    }
-  `;
-    document.head.appendChild(style);
+            <CardSkeleton />
+        </div>
+    );
 }

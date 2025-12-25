@@ -85,43 +85,43 @@ export default function ResetPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen flex">
-            {/* Left Panel - Brand Area */}
-            <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-blue-600 to-blue-800 relative overflow-hidden">
-                <AuthBackground />
-                <div className="relative z-10 flex flex-col justify-center px-16 py-12 text-white">
-                    <h1 className="text-4xl font-bold mb-4">Bridge.dev</h1>
-                    <p className="text-xl text-blue-100 mb-8">
-                        The open-source no-code integration platform
+        <div className="flex min-h-screen w-full bg-neutral-900">
+            {/* Left Column - Branding & Animation */}
+            <div className="hidden lg:flex lg:w-1/2 relative bg-neutral-800 overflow-hidden items-center justify-center">
+                <div className="absolute inset-0 z-0">
+                    <AuthBackground />
+                    <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[1px]" />
+                </div>
+                <div className="relative z-10 p-12 text-white max-w-lg">
+                    <h1 className="text-5xl font-bold mb-6 tracking-tight">Bridge.dev</h1>
+                    <p className="text-xl text-neutral-300 leading-relaxed">
+                        Secure your account with a new password.
                     </p>
-                    <button className="border-2 border-white/30 hover:border-white/60 rounded-lg px-6 py-3 w-fit transition-colors text-white font-medium">
-                        Read More
-                    </button>
                 </div>
             </div>
 
-            {/* Right Panel - Form Area */}
-            <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
-                <div className="w-full max-w-md">
+            {/* Right Column - Form */}
+            <div className="flex-1 flex text-white flex-col justify-center px-4 sm:px-12 lg:px-24 bg-neutral-900">
+                <div className="w-full max-w-md mx-auto space-y-8">
                     {success ? (
                         <div className="text-center space-y-6">
-                            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
-                            <h2 className="text-3xl font-bold text-gray-900">Password Reset Successful</h2>
-                            <p className="text-gray-500">
+                            <h2 className="text-3xl font-bold tracking-tight text-white">Password Reset Successful</h2>
+                            <p className="text-neutral-400">
                                 Your password has been updated. Redirecting you to login...
                             </p>
-                            <Alert variant="success" className="mx-auto max-w-sm">
+                            <Alert variant="default" className="mx-auto max-w-sm bg-green-500/10 border-green-500/20 text-green-200">
                                 <AlertDescription>
                                     You can now log in with your new password.
                                 </AlertDescription>
                             </Alert>
                             <div className="pt-4">
                                 <Link to={ROUTES.LOGIN}>
-                                    <Button className="w-full h-14 rounded-xl text-base font-semibold bg-blue-600 hover:bg-blue-700">
+                                    <Button className="w-full h-12 rounded-xl text-base font-semibold bg-primary hover:bg-primary/90 text-white">
                                         Continue to Login
                                     </Button>
                                 </Link>
@@ -129,25 +129,23 @@ export default function ResetPasswordPage() {
                         </div>
                     ) : (
                         <div className="space-y-8">
-                            <div>
-                                <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h2>
-                                <p className="text-gray-500">Create a new strong password for your account</p>
+                            <div className="text-center lg:text-left">
+                                <h2 className="text-3xl font-bold tracking-tight">Reset Password</h2>
+                                <p className="mt-2 text-neutral-400">
+                                    Create a new strong password for your account
+                                </p>
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {error && (
-                                    <Alert variant="destructive">
+                                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/50 text-red-200">
                                         <AlertDescription>{error}</AlertDescription>
                                     </Alert>
                                 )}
 
-                                <div className="space-y-2">
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                        </div>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-neutral-300">New Password</label>
                                         <Input
                                             id="password"
                                             type="password"
@@ -156,27 +154,21 @@ export default function ResetPasswordPage() {
                                             onChange={(e) => setPassword(e.target.value)}
                                             error={!!fieldErrors.password}
                                             disabled={loading || !token}
-                                            className="pl-12 h-14 rounded-xl bg-gray-50 border-gray-200"
+                                            className="h-12 rounded-xl border-neutral-800 focus:border-primary/50 bg-neutral-900 transition-all text-white placeholder:text-neutral-500"
                                             autoComplete="new-password"
                                             autoFocus
                                         />
+                                        {fieldErrors.password && (
+                                            <div className="space-y-1 mt-1">
+                                                {fieldErrors.password.map((err, idx) => (
+                                                    <p key={idx} className="text-sm text-red-400">{err}</p>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                    {fieldErrors.password && (
-                                        <div className="space-y-1">
-                                            {fieldErrors.password.map((err, idx) => (
-                                                <p key={idx} className="text-sm text-destructive">{err}</p>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
 
-                                <div className="space-y-2">
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                        </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-neutral-300">Confirm New Password</label>
                                         <Input
                                             id="confirmPassword"
                                             type="password"
@@ -185,26 +177,25 @@ export default function ResetPasswordPage() {
                                             onChange={(e) => setConfirmPassword(e.target.value)}
                                             error={!!fieldErrors.confirmPassword}
                                             disabled={loading || !token}
-                                            className="pl-12 h-14 rounded-xl bg-gray-50 border-gray-200"
+                                            className="h-12 rounded-xl bg-  neutral-950 border-neutral-800 focus:border-primary/50 focus:bg-neutral-900 transition-all text-white placeholder:text-neutral-500"
                                             autoComplete="new-password"
                                         />
+                                        {fieldErrors.confirmPassword && (
+                                            <p className="text-sm text-red-400">{fieldErrors.confirmPassword[0]}</p>
+                                        )}
                                     </div>
-                                    {fieldErrors.confirmPassword && (
-                                        <p className="text-sm text-destructive">{fieldErrors.confirmPassword[0]}</p>
-                                    )}
                                 </div>
 
                                 <Button
                                     type="submit"
-                                    className="w-full h-14 rounded-xl text-base font-semibold bg-blue-600 hover:bg-blue-700"
-                                    loading={loading}
+                                    className="w-full h-12 rounded-xl text-base font-semibold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                                     disabled={loading || !token}
                                 >
                                     {loading ? 'Resetting password...' : 'Reset Password'}
                                 </Button>
 
                                 <div className="text-center">
-                                    <Link to={ROUTES.LOGIN} className="text-gray-600 hover:text-blue-600 font-medium flex items-center justify-center gap-2">
+                                    <Link to={ROUTES.LOGIN} className="text-neutral-400 hover:text-white font-medium flex items-center justify-center gap-2 transition-colors">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                                         </svg>
