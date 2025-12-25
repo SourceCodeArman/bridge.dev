@@ -13,5 +13,12 @@ export const ROUTES = {
     CONNECTORS: '/connectors',
     CREDENTIALS: '/credentials',
     SETTINGS: '/settings',
+    DOCS: '/docs',
+    DOCS_GETTING_STARTED: '/docs/getting-started',
+    DOCS_API: '/docs/api',
+    DOCS_CONNECTORS: '/docs/connectors',
+    DOCS_WORKFLOWS: '/docs/workflows',
+    DOCS_FAQ: '/docs/faq',
     NOT_FOUND: '/404',
 } as const;
+

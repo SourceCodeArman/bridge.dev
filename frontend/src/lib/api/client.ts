@@ -1,7 +1,66 @@
-import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, API_ENDPOINTS } from '@/lib/constants';
 import { STORAGE_KEYS, getItem, removeItem, setItem } from '@/lib/utils/storage';
 import type { ApiError, RefreshTokenResponse } from '@/types';
+
+// Retry configuration
+const RETRY_CONFIG = {
+    maxRetries: 3,
+    retryDelay: 1000, // Base delay in ms
+    retryableStatuses: [408, 429, 500, 502, 503, 504],
+    retryableMethods: ['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE'],
+} as const;
+
+// Extended request config with retry tracking
+interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
+    _retry?: boolean;
+    _retryCount?: number;
+}
+
+/**
+ * Calculate exponential backoff delay
+ */
+const getRetryDelay = (retryCount: number, baseDelay: number): number => {
+    // Exponential backoff with jitter
+    const delay = baseDelay * Math.pow(2, retryCount);
+    const jitter = delay * 0.1 * Math.random();
+    return delay + jitter;
+};
+
+/**
+ * Determine if request should be retried
+ */
+const shouldRetryRequest = (error: AxiosError, config: ExtendedAxiosRequestConfig): boolean => {
+    const retryCount = config._retryCount || 0;
+
+    // Max retries exceeded
+    if (retryCount >= RETRY_CONFIG.maxRetries) {
+        return false;
+    }
+
+    // Network errors (no response)
+    if (!error.response) {
+        return true;
+    }
+
+    // Check if status code is retryable
+    if (!RETRY_CONFIG.retryableStatuses.includes(error.response.status as (typeof RETRY_CONFIG.retryableStatuses)[number])) {
+        return false;
+    }
+
+    // Check if method is retryable (skip POST by default to avoid duplicate submissions)
+    const method = config.method?.toUpperCase() || 'GET';
+    if (!(RETRY_CONFIG.retryableMethods as readonly string[]).includes(method)) {
+        return false;
+    }
+
+    return true;
+};
+
+/**
+ * Sleep utility for retry delays
+ */
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 const apiClient: AxiosInstance = axios.create({
     baseURL: API_BASE_URL,
@@ -40,16 +99,20 @@ const processQueue = (error: unknown = null, token: string | null = null) => {
     failedQueue = [];
 };
 
-// Response interceptor for error handling and token refresh
+// Response interceptor for error handling, retry logic, and token refresh
 apiClient.interceptors.response.use(
-    (response) => {
+    (response: AxiosResponse) => {
         return response;
     },
     async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as ExtendedAxiosRequestConfig;
 
-        // Handle 401 Unauthorized errors
-        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+        if (!originalRequest) {
+            return Promise.reject(error);
+        }
+
+        // Handle 401 Unauthorized errors (token refresh)
+        if (error.response?.status === 401 && !originalRequest._retry) {
             const refreshToken = getItem<string>(STORAGE_KEYS.REFRESH_TOKEN);
 
             if (!refreshToken) {
@@ -118,6 +181,19 @@ apiClient.interceptors.response.use(
             }
         }
 
+        // Handle retry logic for transient errors
+        if (shouldRetryRequest(error, originalRequest)) {
+            const retryCount = (originalRequest._retryCount || 0) + 1;
+            originalRequest._retryCount = retryCount;
+
+            const delay = getRetryDelay(retryCount, RETRY_CONFIG.retryDelay);
+
+            console.warn(`Retrying request (attempt ${retryCount}/${RETRY_CONFIG.maxRetries}): ${originalRequest.url}`);
+
+            await sleep(delay);
+            return apiClient(originalRequest);
+        }
+
         // Transform error to ApiError format
         const errorData = error.response?.data as { message?: string; errors?: Record<string, string[]> } | undefined;
         const apiError: ApiError = {
@@ -131,3 +207,4 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+export { RETRY_CONFIG };
