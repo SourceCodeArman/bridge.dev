@@ -8,6 +8,8 @@ export interface Workflow {
     updated_at: string;
     workspace_id: string;
     current_version?: WorkflowVersion;
+    last_run_at?: string;
+    trigger_type?: string;
 }
 
 export interface WorkflowVersion {
@@ -49,8 +51,7 @@ export interface CreateWorkflowRequest {
 export interface UpdateWorkflowRequest {
     name?: string;
     description?: string;
-    nodes?: WorkflowNode[];
-    edges?: WorkflowEdge[];
+    definition: { nodes: WorkflowNode[]; edges: WorkflowEdge[] };
     trigger?: Trigger;
     is_active?: boolean;
 }
@@ -117,12 +118,14 @@ export interface RunListParams {
 // Connector Types
 export interface Connector {
     id: string;
-    name: string;
+    display_name: string;
     description: string;
     type: string;
     icon?: string;
+    icon_url?: string;
     manifest: ConnectorManifest;
     is_custom: boolean;
+    slug?: string;
 }
 
 export interface ConnectorManifest {

@@ -100,6 +100,26 @@ export default function RegisterPage() {
                         </p>
                     </div>
 
+                    <div className="flex justify-center">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                const randomId = Math.floor(Math.random() * 10000);
+                                setFormData({
+                                    first_name: 'Tester',
+                                    last_name: `User${randomId}`,
+                                    email: `tester_${randomId}@example.com`,
+                                    password: 'Password123!',
+                                    password_confirm: 'Password123!',
+                                });
+                            }}
+                            className="text-xs border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800"
+                        >
+                            Fill Test Data
+                        </Button>
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {error && (
                             <Alert variant="destructive" className="bg-red-500/10 border-red-500/50 text-red-200">

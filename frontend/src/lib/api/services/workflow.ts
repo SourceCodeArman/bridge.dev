@@ -25,6 +25,11 @@ export const workflowService = {
         return response.data;
     },
 
+    saveDraft: async (id: string, definition: { nodes: any[]; edges: any[] }) => {
+        const response = await client.post(API_ENDPOINTS.WORKFLOWS.DRAFTS(id), { definition });
+        return response.data;
+    },
+
     delete: async (id: string) => {
         await client.delete(API_ENDPOINTS.WORKFLOWS.DETAIL(id));
     },

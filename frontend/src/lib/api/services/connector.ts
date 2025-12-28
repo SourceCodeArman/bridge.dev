@@ -1,17 +1,15 @@
-import client from '../client';
+import apiClient from '../client';
 import { API_ENDPOINTS } from '@/lib/constants';
-import type { PaginatedResponse, Connector } from '@/types';
+import type { Connector } from '../../../types/models';
 
 export const connectorService = {
-    list: async (page = 1, pageSize = 20) => {
-        const response = await client.get<PaginatedResponse<Connector>>(API_ENDPOINTS.CONNECTORS.LIST, {
-            params: { page, page_size: pageSize },
-        });
-        return response.data;
+    list: async (): Promise<Connector[]> => {
+        const { data } = await apiClient.get<{ data: { connectors: Connector[] } }>(API_ENDPOINTS.CONNECTORS.LIST);
+        return data.data.connectors;
     },
 
-    get: async (id: string) => {
-        const response = await client.get<Connector>(API_ENDPOINTS.CONNECTORS.DETAIL(id));
-        return response.data;
+    get: async (id: string): Promise<Connector> => {
+        const { data } = await apiClient.get<{ data: Connector }>(API_ENDPOINTS.CONNECTORS.DETAIL(id));
+        return data.data;
     },
 };

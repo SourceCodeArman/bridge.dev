@@ -56,7 +56,7 @@ export function RecentRunsTable({ runs, loading }: RecentRunsTableProps) {
                 </Link>
             </CardHeader>
             <CardContent>
-                <Table>
+                <Table >
                     <TableHeader>
                         <TableRow>
                             <TableHead>Workflow</TableHead>
