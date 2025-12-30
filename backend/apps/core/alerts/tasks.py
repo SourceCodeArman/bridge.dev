@@ -2,7 +2,6 @@
 Celery tasks for alert system.
 """
 from celery import shared_task
-from django.utils import timezone
 from apps.common.logging_utils import get_logger
 from apps.core.models import Run, AlertConfiguration
 from .throttler import AlertThrottler

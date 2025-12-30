@@ -3,7 +3,6 @@ Suggestion generator for error analysis.
 
 Generates actionable fix suggestions from LLM analysis.
 """
-from typing import Dict, Any
 from apps.common.logging_utils import get_logger
 from apps.core.models import RunStep, ErrorSuggestion
 from .log_ingestor import LogIngestor

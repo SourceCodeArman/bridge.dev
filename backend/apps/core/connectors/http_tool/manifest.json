@@ -1,0 +1,103 @@
+{
+    "id": "http-tool",
+    "name": "HTTP Tool",
+    "version": "1.0.0",
+    "description": "Make HTTP Requests",
+    "author": "Bridge.dev",
+    "connector_type": "agent-tool",
+    "auth_config": {
+        "type": "custom",
+        "fields": [
+            {
+                "name": "default_headers",
+                "type": "object",
+                "required": false,
+                "description": "Default headers to include in all requests"
+            },
+            {
+                "name": "timeout",
+                "type": "number",
+                "required": false,
+                "description": "Default timeout in seconds",
+                "default": 30
+            }
+        ]
+    },
+    "actions": [
+        {
+            "id": "request",
+            "name": "HTTP Request",
+            "description": "Make an HTTP request",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "url",
+                    "method"
+                ],
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL to request"
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "DELETE",
+                            "PATCH"
+                        ],
+                        "description": "HTTP method"
+                    },
+                    "headers": {
+                        "type": "object",
+                        "description": "Request headers",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "params": {
+                        "type": "object",
+                        "description": "URL query parameters",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "body": {
+                        "description": "Request body (JSON object or string)"
+                    },
+                    "timeout": {
+                        "type": "number",
+                        "description": "Request timeout in seconds"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "status_code": {
+                        "type": "integer",
+                        "description": "HTTP status code"
+                    },
+                    "headers": {
+                        "type": "object",
+                        "description": "Response headers"
+                    },
+                    "body": {
+                        "description": "Response body (parsed if JSON, otherwise raw text)"
+                    },
+                    "raw_body": {
+                        "type": "string",
+                        "description": "Raw response body as string"
+                    }
+                }
+            },
+            "required_fields": [
+                "url",
+                "method"
+            ]
+        }
+    ]
+}

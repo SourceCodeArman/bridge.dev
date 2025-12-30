@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from apps.core.connectors.base import BaseConnector
 from apps.common.logging_utils import get_logger
-from .auth import get_slack_client, refresh_oauth_token
+from .auth import get_slack_client
 
 logger = get_logger(__name__)
 

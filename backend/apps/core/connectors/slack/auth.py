@@ -3,7 +3,7 @@ Slack authentication helpers.
 
 Handles OAuth token refresh and API key validation.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)

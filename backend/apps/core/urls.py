@@ -22,6 +22,7 @@ from .views import (
     WorkflowCommentViewSet,
     WorkflowPresenceViewSet,
     CustomConnectorViewSet,
+    CustomConnectorVersionViewSet,
 )
 from .health import health_check
 
@@ -51,13 +52,18 @@ router.register(r"presence", WorkflowPresenceViewSet, basename="workflowpresence
 router.register(
     r"custom-connectors", CustomConnectorViewSet, basename="customconnector"
 )
+router.register(
+    r"custom-connector-versions",
+    CustomConnectorVersionViewSet,
+    basename="customconnectorversion",
+)
 
 app_name = "core"
 
 urlpatterns = [
     path("", include(router.urls)),
     path(
-        "triggers/webhook/<uuid:trigger_id>/",
+        "webhook/<uuid:webhook_id>/",
         WebhookTriggerView.as_view(),
         name="webhook-trigger",
     ),

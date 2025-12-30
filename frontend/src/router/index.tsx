@@ -14,16 +14,13 @@ import DocsHomePage from '@/pages/docs/DocsHomePage';
 import GettingStartedPage from '@/pages/docs/GettingStartedPage';
 import ApiDocsPage from '@/pages/docs/ApiDocsPage';
 import ConnectorsDocsPage from '@/pages/docs/ConnectorsDocsPage';
+import ConnectorsPage from '@/pages/connectors/ConnectorsPage';
+import CreateCustomConnectorPage from '@/pages/connectors/CreateCustomConnectorPage';
 import WorkflowsDocsPage from '@/pages/docs/WorkflowsDocsPage';
 import FaqPage from '@/pages/docs/FaqPage';
 import NotFoundPage from '@/pages/NotFoundPage';
-import TestPage from '@/pages/workflow/TestPage';
 
 export const router = createBrowserRouter([
-    {
-        path: ROUTES.TEST,
-        element: <TestPage />,
-    },
     {
         path: ROUTES.HOME,
         element: <Navigate to={ROUTES.DASHBOARD} replace />,
@@ -58,6 +55,14 @@ export const router = createBrowserRouter([
             {
                 path: ROUTES.WORKFLOWS,
                 element: <WorkflowsPage />,
+            },
+            {
+                path: '/connectors/create',
+                element: <CreateCustomConnectorPage />,
+            },
+            {
+                path: ROUTES.CONNECTORS,
+                element: <ConnectorsPage />,
             },
             {
                 path: ROUTES.WORKFLOWS_CREATE,

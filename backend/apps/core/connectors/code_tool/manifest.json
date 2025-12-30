@@ -1,0 +1,118 @@
+{
+    "id": "code-tool",
+    "name": "Code Tool",
+    "version": "1.0.0",
+    "description": "Execute JS/Python code",
+    "author": "Bridge.dev",
+    "connector_type": "agent-tool",
+    "auth_config": {
+        "type": "none",
+        "fields": []
+    },
+    "actions": [
+        {
+            "id": "execute_python",
+            "name": "Execute Python",
+            "description": "Execute Python code in a sandboxed environment",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "code"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Python code to execute",
+                        "maxLength": 100000
+                    },
+                    "timeout": {
+                        "type": "number",
+                        "description": "Execution timeout in seconds",
+                        "default": 30,
+                        "minimum": 1,
+                        "maximum": 300
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "stdout": {
+                        "type": "string",
+                        "description": "Standard output"
+                    },
+                    "stderr": {
+                        "type": "string",
+                        "description": "Standard error"
+                    },
+                    "result": {
+                        "description": "Execution result (if any)"
+                    },
+                    "execution_time": {
+                        "type": "number",
+                        "description": "Execution time in seconds"
+                    },
+                    "error": {
+                        "type": "string",
+                        "description": "Error message if execution failed"
+                    }
+                }
+            },
+            "required_fields": [
+                "code"
+            ]
+        },
+        {
+            "id": "execute_javascript",
+            "name": "Execute JavaScript",
+            "description": "Execute JavaScript code in a sandboxed environment",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "code"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "JavaScript code to execute",
+                        "maxLength": 100000
+                    },
+                    "timeout": {
+                        "type": "number",
+                        "description": "Execution timeout in seconds",
+                        "default": 30,
+                        "minimum": 1,
+                        "maximum": 300
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "stdout": {
+                        "type": "string",
+                        "description": "Standard output"
+                    },
+                    "stderr": {
+                        "type": "string",
+                        "description": "Standard error"
+                    },
+                    "result": {
+                        "description": "Execution result (if any)"
+                    },
+                    "execution_time": {
+                        "type": "number",
+                        "description": "Execution time in seconds"
+                    },
+                    "error": {
+                        "type": "string",
+                        "description": "Error message if execution failed"
+                    }
+                }
+            },
+            "required_fields": [
+                "code"
+            ]
+        }
+    ]
+}

@@ -3,7 +3,6 @@ Throttling logic for alert system.
 
 Prevents alert spam by tracking recent alert history.
 """
-from typing import Optional
 from django.utils import timezone
 from datetime import timedelta
 from apps.common.logging_utils import get_logger

@@ -121,11 +121,14 @@ export interface Connector {
     display_name: string;
     description: string;
     type: string;
+    connector_type: 'agent-tool' | 'agent-model' | 'agent-memory' | 'agent' | 'action' | 'trigger' | 'condition' | 'custom';
     icon?: string;
     icon_url?: string;
     manifest: ConnectorManifest;
     is_custom: boolean;
+    is_active: boolean;
     slug?: string;
+    version?: string;
 }
 
 export interface ConnectorManifest {
@@ -133,7 +136,15 @@ export interface ConnectorManifest {
     version: string;
     description: string;
     auth: AuthConfig;
-    actions: ConnectorAction[];
+    actions: Record<string, ConnectorAction>;
+    triggers?: Record<string, unknown>; // Added for completeness based on SheetConnectorManifest
+    ui?: {
+        nodeSize?: { width: number; height: number };
+        outputHandles?: number;
+        handles?: { left?: number; right?: number; top?: number; bottom?: number; }; // Granular handle counts
+        handleNames?: Record<string, string>; // Map of "side-index" to name (e.g., "left-0": "My Input")
+        handleLocations?: string[]; // Legacy
+    };
 }
 
 export interface AuthConfig {
@@ -148,12 +159,20 @@ export interface AuthField {
     required: boolean;
 }
 
+export interface JSONSchema {
+    type?: string;
+    properties?: Record<string, any>;
+    required?: string[];
+    description?: string;
+    [key: string]: any;
+}
+
 export interface ConnectorAction {
     id: string;
     name: string;
     description: string;
-    input_schema: Record<string, unknown>;
-    output_schema: Record<string, unknown>;
+    input_schema: JSONSchema;
+    output_schema: JSONSchema;
 }
 
 export interface ConnectorListParams {

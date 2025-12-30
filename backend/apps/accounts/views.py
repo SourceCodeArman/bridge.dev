@@ -106,7 +106,6 @@ def register(request):
             # temporary logging for debugging
             print(f"Error creating default resources: {e}")
             # We don't fail registration if this fails, but user might have issues
-            pass
 
         return Response(
             {

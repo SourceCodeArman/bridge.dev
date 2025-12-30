@@ -14,12 +14,13 @@ from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Prefetch, Q, Max  # Moved from get_queryset and added Max
 from apps.accounts.permissions import (
     IsWorkspaceMember,
     HasCredentialPermission,
     IsWorkspaceAdmin,
 )
-from .permissions import CanCommentOnWorkflow, CanEditWorkflow
+from .permissions import CanCommentOnWorkflow
 from apps.common.logging_utils import get_logger
 from .models import (
     Workflow,
@@ -28,7 +29,6 @@ from .models import (
     RunStep,
     Trigger,
     Credential,
-    CredentialUsage,
     RunLog,
     RunTrace,
     AlertConfiguration,
@@ -43,6 +43,7 @@ from .models import (
 )
 from .serializers import (
     WorkflowSerializer,
+    WorkflowListSerializer,
     WorkflowVersionSerializer,
     RunSerializer,
     RunStepSerializer,
@@ -91,6 +92,14 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = WorkflowSerializer
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
+    def get_serializer_class(self):
+        """Use lightweight serializer for list view, full serializer for others"""
+        if self.action == "list":
+            from .serializers import WorkflowListSerializer
+
+            return WorkflowListSerializer
+        return WorkflowSerializer
+
     def _get_workspace_context(self):
         """
         Helper to get workspace context, with fallback to default workspace for authenticated users.
@@ -122,10 +131,42 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         serializer.save(workspace=workspace, created_by=self.request.user)
 
     def get_queryset(self):
-        """Filter workflows by workspace"""
+        """Filter workflows by workspace with optimized query"""
+        from django.db.models import Prefetch, Q, Max
+
         workspace = self._get_workspace_context()
         if workspace:
-            return Workflow.objects.filter(workspace=workspace)
+            # Optimize queries by prefetching related data
+            return (
+                Workflow.objects.filter(workspace=workspace)
+                .select_related("workspace", "created_by")
+                .prefetch_related(
+                    # Prefetch only active versions
+                    Prefetch(
+                        "versions",
+                        queryset=WorkflowVersion.objects.filter(
+                            is_active=True
+                        ).order_by("-version_number"),
+                        to_attr="active_versions_cache",
+                    ),
+                    # Prefetch latest version (draft or active)
+                    Prefetch(
+                        "versions",
+                        queryset=WorkflowVersion.objects.order_by("-created_at")[:1],
+                        to_attr="latest_version_cache",
+                    ),
+                    # Prefetch active triggers
+                    Prefetch(
+                        "triggers",
+                        queryset=Trigger.objects.filter(is_active=True),
+                        to_attr="active_triggers_cache",
+                    ),
+                )
+                .annotate(
+                    # Annotate with last run timestamp to avoid subquery
+                    last_run_timestamp=Max("versions__runs__created_at")
+                )
+            )
         # If no workspace context, return empty queryset
         return Workflow.objects.none()
 
@@ -216,11 +257,12 @@ class WorkflowViewSet(viewsets.ModelViewSet):
             for node in nodes:
                 node_type = node.get("type")
                 node_data = node.get("data", {})
+                connector_id = node_data.get("connectorType")
                 action_id = node_data.get("action_id")
 
-                if node_type and action_id:
+                if connector_id and action_id:
                     validation_result = editor.validate_node_config(
-                        node_type, action_id, node_data
+                        connector_id, action_id, node_data
                     )
 
                     if not validation_result["valid"]:
@@ -235,14 +277,11 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                                     f"Node {node_id}, field {field}: {error}"
                                 )
 
+            # Note: We found validation errors, but we still allow saving as a draft
+            # This enables users to save incomplete work
             if node_validation_errors:
-                return Response(
-                    {
-                        "status": "error",
-                        "data": {"validation_errors": errors + node_validation_errors},
-                        "message": "Node configuration validation failed",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
+                print(
+                    f"Draft saved with {len(node_validation_errors)} validation errors"
                 )
 
             # Get or create draft version
@@ -359,11 +398,12 @@ class WorkflowViewSet(viewsets.ModelViewSet):
             for node in nodes:
                 node_type = node.get("type")
                 node_data = node.get("data", {})
+                connector_id = node_data.get("connectorType")
                 action_id = node_data.get("action_id")
 
-                if node_type and action_id:
+                if connector_id and action_id:
                     validation_result = editor.validate_node_config(
-                        node_type, action_id, node_data
+                        connector_id, action_id, node_data
                     )
 
                     if not validation_result["valid"]:
@@ -569,11 +609,12 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 for node in nodes:
                     node_type = node.get("type")
                     node_data = node.get("data", {})
+                    connector_id = node_data.get("connectorType")
                     action_id = node_data.get("action_id")
 
-                    if node_type and action_id:
+                    if connector_id and action_id:
                         validation_result = editor.validate_node_config(
-                            node_type, action_id, node_data
+                            connector_id, action_id, node_data
                         )
 
                         if not validation_result["valid"]:
@@ -629,11 +670,12 @@ class WorkflowViewSet(viewsets.ModelViewSet):
             for node in nodes:
                 node_type = node.get("type")
                 node_data = node.get("data", {})
+                connector_id = node_data.get("connectorType")
                 action_id = node_data.get("action_id")
 
-                if node_type and action_id:
+                if connector_id and action_id:
                     validation_result = editor.validate_node_config(
-                        node_type, action_id, node_data
+                        connector_id, action_id, node_data
                     )
 
                     if not validation_result["valid"]:
@@ -693,6 +735,11 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         # Activate this version
         version.is_active = True
         version.save(update_fields=["is_active", "updated_at"])
+
+        # Update workflow status to active
+        if workflow.status != "active":
+            workflow.status = "active"
+            workflow.save(update_fields=["status", "updated_at"])
 
         serializer = WorkflowVersionSerializer(version)
         return Response(
@@ -1120,46 +1167,97 @@ class WebhookTriggerView(APIView):
     """
     Webhook endpoint for triggering workflows.
 
-    POST /api/v1/core/triggers/webhook/{trigger_id}/
+    Supports: GET, POST, PUT, PATCH, DELETE
+    Path: /api/v1/core/webhook/{webhook_id}/
     """
 
     permission_classes = []  # Public endpoint for webhooks
 
-    def post(self, request, trigger_id):
+    def get(self, request, webhook_id):
+        return self._handle_request(request, webhook_id)
+
+    def post(self, request, webhook_id):
+        return self._handle_request(request, webhook_id)
+
+    def put(self, request, webhook_id):
+        return self._handle_request(request, webhook_id)
+
+    def patch(self, request, webhook_id):
+        return self._handle_request(request, webhook_id)
+
+    def delete(self, request, webhook_id):
+        return self._handle_request(request, webhook_id)
+
+    def _handle_request(self, request, webhook_id):
         """
-        Handle webhook trigger request.
+        Handle webhook trigger request for all methods.
 
         Args:
             request: Django request object
-            trigger_id: UUID string of the trigger
+            webhook_id: UUID string of the webhook (stored in node data)
         """
         try:
-            trigger = get_object_or_404(Trigger, id=trigger_id, trigger_type="webhook")
+            # Find workflow with this webhook_id in its definition
+            workflow_version = None
+            webhook_node = None
 
-            # Check if trigger is active
-            if not trigger.is_active:
+            active_versions = WorkflowVersion.objects.filter(
+                is_active=True
+            ).select_related("workflow")
+
+            for version in active_versions:
+                definition = version.definition or {}
+                nodes = definition.get("nodes", [])
+
+                for node in nodes:
+                    node_data = node.get("data", {})
+                    # Check if this is a webhook node with matching ID
+                    # The node's id field is the webhook_id (React Flow node ID)
+                    connector_type = node_data.get("connectorType")
+                    node_id = node.get("id")
+
+                    if connector_type == "webhook" and str(node_id) == str(webhook_id):
+                        workflow_version = version
+                        webhook_node = node
+                        break
+
+                if workflow_version:
+                    break
+
+            if not workflow_version or not webhook_node:
                 return Response(
-                    {"status": "error", "message": "Trigger is not active"},
+                    {"status": "error", "message": "Webhook not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Check if workflow is active
+            if workflow_version.workflow.status != "active":
+                return Response(
+                    {"status": "error", "message": "Workflow is not active"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Validate webhook payload
-            serializer = WebhookTriggerSerializer(data=request.data)
-            if not serializer.is_valid():
+            # Get webhook configuration from node data
+            webhook_config = webhook_node.get("data", {}).get("config", {})
+
+            # Validate HTTP method
+            # Default to POST if not configured (backward compatibility)
+            # Note: Manifest uses 'http_method', checking both for safety
+            configured_method = webhook_config.get(
+                "http_method", webhook_config.get("method", "POST")
+            ).upper()
+            if request.method != configured_method:
                 return Response(
                     {
                         "status": "error",
-                        "data": serializer.errors,
-                        "message": "Validation failed",
+                        "message": f"Method {request.method} not allowed. Expected {configured_method}",
                     },
-                    status=status.HTTP_400_BAD_REQUEST,
+                    status=status.HTTP_405_METHOD_NOT_ALLOWED,
                 )
 
-            payload = serializer.validated_data
+            secret = webhook_config.get("secret")
 
             # Validate webhook signature if configured
-            config = trigger.config or {}
-            secret = config.get("secret")
             if secret:
                 signature = request.META.get("HTTP_X_WEBHOOK_SIGNATURE", "")
                 if not signature:
@@ -1178,24 +1276,24 @@ class WebhookTriggerView(APIView):
                     logger.error(
                         f"Error validating webhook signature: {str(e)}",
                         exc_info=e,
-                        extra={"trigger_id": str(trigger.id)},
+                        extra={"webhook_id": str(webhook_id)},
                     )
                     return Response(
                         {"status": "error", "message": "Error validating signature"},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     )
 
-            # Get active workflow version
-            workflow_version = trigger.workflow.get_active_version()
-            if not workflow_version:
-                return Response(
-                    {"status": "error", "message": "Workflow has no active version"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # Prepare webhook payload
+            payload = {
+                "method": request.method,
+                "headers": dict(request.META),
+                "body": request.data,
+                "query_params": dict(request.GET),
+            }
 
             # Generate idempotency key
             idempotency_key = generate_idempotency_key(
-                trigger_id=str(trigger.id), payload=payload
+                trigger_id=str(webhook_id), payload=payload
             )
 
             # Create and enqueue run
@@ -1213,10 +1311,10 @@ class WebhookTriggerView(APIView):
             execute_workflow_run.delay(str(run.id))
 
             logger.info(
-                f"Webhook triggered workflow {trigger.workflow.id} via trigger {trigger.id}",
+                f"Webhook triggered workflow {workflow_version.workflow.id} via webhook {webhook_id}",
                 extra={
-                    "trigger_id": str(trigger.id),
-                    "workflow_id": str(trigger.workflow.id),
+                    "webhook_id": str(webhook_id),
+                    "workflow_id": str(workflow_version.workflow.id),
                     "run_id": str(run.id),
                 },
             )
@@ -1224,7 +1322,7 @@ class WebhookTriggerView(APIView):
             return Response(
                 {
                     "status": "success",
-                    "data": {"run_id": str(run.id), "status": run.status},
+                    "data": {"run_id": str(run.id)},
                     "message": "Webhook received and workflow run created",
                 },
                 status=status.HTTP_201_CREATED,
@@ -1239,7 +1337,7 @@ class WebhookTriggerView(APIView):
             logger.error(
                 f"Error handling webhook: {str(e)}",
                 exc_info=e,
-                extra={"trigger_id": trigger_id},
+                extra={"webhook_id": str(webhook_id)},
             )
             return Response(
                 {
@@ -1383,6 +1481,80 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
                 "message": "Connectors retrieved successfully",
             }
         )
+
+    def retrieve(self, request, pk=None):
+        """
+        Get details for a specific connector (system or custom).
+        """
+        # 1. Try to find a system connector first
+        try:
+            instance = self.get_queryset().get(pk=pk)
+            serializer = self.get_serializer(instance)
+            return Response(
+                {
+                    "status": "success",
+                    "data": serializer.data,
+                    "message": "Connector retrieved successfully",
+                }
+            )
+        except (Connector.DoesNotExist, ValidationError):
+            # 2. If not found, look for a custom connector in the workspace
+            workspace = getattr(request, "workspace", None)
+            if workspace:
+                try:
+                    # pk could be ID or Slug
+                    # Safely construct query based on whether input is a valid UUID
+                    import uuid
+
+                    query = Q(slug=pk)
+                    try:
+                        uuid_obj = uuid.UUID(str(pk))
+                        query |= Q(id=uuid_obj)
+                    except (ValueError, TypeError):
+                        pass
+
+                    custom = CustomConnector.objects.get(
+                        query,
+                        workspace=workspace,
+                        status="approved",
+                        current_version__isnull=False,
+                    )
+
+                    # Convert to unified connector format
+                    manifest = custom.current_version.manifest or {}
+                    data = {
+                        "id": manifest.get("id") or custom.slug,
+                        "name": manifest.get("name") or custom.display_name,
+                        "version": manifest.get("version"),
+                        "description": manifest.get("description")
+                        or custom.description,
+                        "author": manifest.get("author") or custom.created_by.email
+                        if custom.created_by
+                        else None,
+                        "connector_type": manifest.get("connector_type"),
+                        "actions": manifest.get("actions", []),
+                        "triggers": manifest.get("triggers", []),
+                        "auth_config": manifest.get("auth_config", {}),
+                        "manifest": manifest,  # Include full manifest
+                        "is_custom": True,
+                        "is_active": True,
+                        "icon_url": None,  # or use custom icon if supported
+                    }
+
+                    return Response(
+                        {
+                            "status": "success",
+                            "data": data,
+                            "message": "Connector retrieved successfully",
+                        }
+                    )
+                except (CustomConnector.DoesNotExist, ValidationError):
+                    pass
+
+            return Response(
+                {"status": "error", "message": "Connector not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
     @action(
         detail=True,
@@ -1941,7 +2113,7 @@ class WorkflowCommentViewSet(viewsets.ModelViewSet):
                 user=request.user, workspace=workspace, is_active=True
             )
             is_admin = user_role.role.codename == "admin"
-        except:
+        except Exception:
             pass
 
         if not (is_creator or is_admin):
@@ -2121,6 +2293,17 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter custom connectors by workspace."""
         workspace = getattr(self.request, "workspace", None)
+
+        # Fallback: try to resolve workspace from user's organization if not set by middleware
+        if not workspace and self.request.user.is_authenticated:
+            from apps.accounts.models import OrganizationMember
+
+            membership = OrganizationMember.objects.filter(
+                user=self.request.user, is_active=True
+            ).first()
+            if membership:
+                workspace = membership.organization.workspaces.first()
+
         if workspace:
             return CustomConnector.objects.filter(workspace=workspace)
         return CustomConnector.objects.none()
@@ -2130,7 +2313,7 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
         Require workspace admin privileges for write operations.
         """
         base_perms = [IsAuthenticated(), IsWorkspaceMember()]
-        admin_actions = {"create", "update", "partial_update", "destroy"}
+        admin_actions = {"update", "partial_update", "destroy"}
         if self.action in admin_actions:
             base_perms.append(IsWorkspaceAdmin())
         return base_perms
@@ -2138,6 +2321,17 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set workspace and created_by from request context."""
         workspace = getattr(self.request, "workspace", None)
+
+        # Fallback: try to resolve workspace from user's organization if not set by middleware
+        if not workspace and self.request.user.is_authenticated:
+            from apps.accounts.models import OrganizationMember
+
+            membership = OrganizationMember.objects.filter(
+                user=self.request.user, is_active=True
+            ).first()
+            if membership:
+                workspace = membership.organization.workspaces.first()
+
         if not workspace:
             raise ValidationError("Workspace context required")
 
@@ -2197,7 +2391,6 @@ class CustomConnectorVersionViewSet(viewsets.ModelViewSet):
         """
         base_perms = [IsAuthenticated(), IsWorkspaceMember()]
         admin_actions = {
-            "create",
             "update",
             "partial_update",
             "destroy",

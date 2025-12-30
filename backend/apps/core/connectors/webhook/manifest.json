@@ -1,0 +1,190 @@
+{
+    "id": "webhook",
+    "name": "Webhook Trigger",
+    "version": "1.0.0",
+    "description": "Starts workflow via webhook",
+    "author": "Bridge.dev",
+    "connector_type": "trigger",
+    "triggers": [
+        {
+            "id": "webhook",
+            "name": "Webhook",
+            "description": "Incoming Webhook"
+        }
+    ],
+    "auth_config": {
+        "type": "custom",
+        "fields": [
+            {
+                "name": "secret",
+                "type": "password",
+                "required": false,
+                "description": "Optional secret for webhook signature verification"
+            }
+        ]
+    },
+    "actions": [
+        {
+            "id": "receive",
+            "name": "Receive Webhook",
+            "description": "Receive and parse incoming webhook request",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "http_method": {
+                        "type": "string",
+                        "enum": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "DELETE",
+                            "PATCH"
+                        ],
+                        "default": "GET",
+                        "description": "HTTP Method",
+                        "displayName": "HTTP Method"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Webhook URL - This URL will trigger your workflow",
+                        "displayName": "Webhook URL",
+                        "readOnly": true,
+                        "format": "webhook_url"
+                    },
+                    "authentication": {
+                        "type": "string",
+                        "enum": [
+                            "None",
+                            "Basic Auth",
+                            "Header Auth"
+                        ],
+                        "default": "None",
+                        "description": "Authentication",
+                        "displayName": "Authentication"
+                    },
+                    "respond": {
+                        "type": "string",
+                        "enum": [
+                            "Immediately",
+                            "When Last Node Finishes",
+                            "Using Respond to Webhook Node"
+                        ],
+                        "default": "Immediately",
+                        "description": "Respond",
+                        "displayName": "Respond"
+                    },
+                    "allowed_origins": {
+                        "type": "string",
+                        "default": "*",
+                        "description": "Allowed Origins (CORS)",
+                        "displayName": "Allowed Origins (CORS)"
+                    },
+                    "field_name_binary_data": {
+                        "type": "string",
+                        "default": "data",
+                        "description": "Field Name for Binary Data",
+                        "displayName": "Field Name for Binary Data"
+                    },
+                    "ignore_bots": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Ignore Bots",
+                        "displayName": "Ignore Bots"
+                    },
+                    "ip_whitelist": {
+                        "type": "string",
+                        "description": "IP(s) Whitelist",
+                        "displayName": "IP(s) Whitelist",
+                        "placeholder": "e.g. 127.0.0.1"
+                    },
+                    "no_response_body": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "No Response Body",
+                        "displayName": "No Response Body"
+                    },
+                    "raw_body": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Raw Body",
+                        "displayName": "Raw Body"
+                    },
+                    "response_code": {
+                        "type": "integer",
+                        "enum": [
+                            200,
+                            201,
+                            202,
+                            204,
+                            301,
+                            302,
+                            400,
+                            401,
+                            403,
+                            404,
+                            500
+                        ],
+                        "default": 200,
+                        "description": "Response Code",
+                        "displayName": "Response Code"
+                    },
+                    "response_data": {
+                        "type": "string",
+                        "default": "success",
+                        "description": "Response Data",
+                        "displayName": "Response Data"
+                    },
+                    "response_headers": {
+                        "type": "array",
+                        "description": "Response Headers",
+                        "displayName": "Response Headers",
+                        "default": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "Name"
+                                },
+                                "value": {
+                                    "type": "string",
+                                    "description": "Value"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "method": {
+                        "type": "string",
+                        "description": "HTTP method"
+                    },
+                    "headers": {
+                        "type": "object",
+                        "description": "Request headers"
+                    },
+                    "body": {
+                        "description": "Parsed request body"
+                    },
+                    "query_params": {
+                        "type": "object",
+                        "description": "Query parameters"
+                    },
+                    "verified": {
+                        "type": "boolean",
+                        "description": "Whether signature verification passed (if configured)"
+                    }
+                }
+            },
+            "required_fields": []
+        }
+    ]
+}

@@ -4,10 +4,9 @@ Gmail Connector implementation.
 Provides Gmail integration with email sending and reading capabilities.
 """
 import base64
-import email
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from apps.core.connectors.base import BaseConnector
 from apps.common.logging_utils import get_logger

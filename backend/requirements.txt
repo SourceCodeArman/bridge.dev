@@ -112,3 +112,11 @@ vine==5.1.0
 wcwidth==0.2.14
 websockets==15.0.1
 yarl==1.22.0
+pymongo>=4.6.0
+supabase>=2.0.0
+psycopg2-binary>=2.9.0
+redis>=5.0.0
+xata>=1.0.0
+requests>=2.31.0
+openai>=1.0.0
+Pillow>=10.0.0

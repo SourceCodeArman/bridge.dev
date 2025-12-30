@@ -4,8 +4,6 @@ Resource limits for sandbox execution.
 Defines and enforces limits on time, memory, CPU, and other resources.
 """
 import resource
-import signal
-import time
 from typing import Dict, Any, Optional
 from django.conf import settings
 from apps.common.logging_utils import get_logger

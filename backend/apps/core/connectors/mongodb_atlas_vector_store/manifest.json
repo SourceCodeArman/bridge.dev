@@ -1,0 +1,122 @@
+{
+    "id": "mongodb-atlas-vector-store",
+    "name": "MongoDB Atlas Vector",
+    "version": "1.0.0",
+    "description": "MongoDB Atlas Vector Search",
+    "author": "Bridge.dev",
+    "connector_type": "agent-tool",
+    "auth_config": {
+        "type": "api_key",
+        "fields": [
+            {
+                "name": "connection_string",
+                "type": "password",
+                "required": true,
+                "description": "MongoDB Atlas connection string"
+            }
+        ]
+    },
+    "actions": [
+        {
+            "id": "search",
+            "name": "Vector Search",
+            "description": "Search for similar vectors in MongoDB Atlas",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "query_vector",
+                    "index_name"
+                ],
+                "properties": {
+                    "query_vector": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        },
+                        "description": "Query vector for similarity search"
+                    },
+                    "index_name": {
+                        "type": "string",
+                        "description": "Name of the vector search index"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 100
+                    },
+                    "num_candidates": {
+                        "type": "integer",
+                        "description": "Number of candidates to consider",
+                        "default": 100
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "document": {
+                                    "type": "object",
+                                    "description": "The matched document"
+                                },
+                                "score": {
+                                    "type": "number",
+                                    "description": "Similarity score"
+                                }
+                            }
+                        }
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "Number of results returned"
+                    }
+                }
+            },
+            "required_fields": [
+                "query_vector",
+                "index_name"
+            ]
+        },
+        {
+            "id": "insert",
+            "name": "Insert Vector",
+            "description": "Insert a document with vector embedding",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "collection",
+                    "document"
+                ],
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "document": {
+                        "type": "object",
+                        "description": "Document to insert with vector field"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "inserted_id": {
+                        "type": "string",
+                        "description": "ID of the inserted document"
+                    }
+                }
+            },
+            "required_fields": [
+                "collection",
+                "document"
+            ]
+        }
+    ]
+}

@@ -2,7 +2,7 @@
 Validators for step inputs and outputs using JSON schemas.
 """
 import jsonschema
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from apps.common.logging_utils import get_logger
 from .schemas import get_step_input_schema, get_step_output_schema
 
@@ -11,7 +11,6 @@ logger = get_logger(__name__)
 
 class SchemaValidationError(Exception):
     """Exception raised when schema validation fails"""
-    pass
 
 
 def validate_step_inputs(step_type: str, inputs: Dict[str, Any]) -> None:

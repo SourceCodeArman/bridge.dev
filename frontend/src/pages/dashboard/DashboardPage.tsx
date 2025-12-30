@@ -40,7 +40,7 @@ export default function DashboardPage() {
     };
 
     return (
-        <div className="space-y-8 relative">
+        <div className="space-y-8 relative p-6">
             {/* Header Section */}
             <div className="flex flex-col gap-2">
                 <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">

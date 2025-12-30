@@ -3,7 +3,7 @@ Log ingestor for error analysis.
 
 Collects run logs and traces for failed steps to provide context for LLM analysis.
 """
-from typing import Dict, Any, List
+from typing import Dict, Any
 from apps.common.logging_utils import get_logger
 from apps.core.models import RunStep, RunLog, RunTrace
 

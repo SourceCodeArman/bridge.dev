@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { v4 as uuidv4 } from 'uuid';
 import { workflowService } from '@/lib/api/services/workflow';
 import { connectorService } from '@/lib/api/services/connector';
 import {
@@ -22,6 +23,7 @@ import type {
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { TriggerNode, ActionNode, ConditionNode, AgentNode, ModelNode, MemoryNode, ToolNode } from '@/components/workflow/CustomNodes';
+import { CustomNode } from '@/components/workflow/CustomNode';
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel';
 import { Save, Layout, Rocket, Webhook, Plus } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
@@ -41,11 +43,10 @@ const nodeTypes = {
     modelNode: ModelNode,
     memoryNode: MemoryNode,
     toolsNode: ToolNode,
+    custom: CustomNode,
 };
 
-const initialNodes: Node[] = [
-    { id: '1', type: 'trigger', position: { x: 250, y: 5 }, data: { label: 'Webhook', triggerType: 'webhook' } },
-];
+const initialNodes: Node[] = [];
 
 const initialEdges: Edge[] = [];
 
@@ -87,6 +88,7 @@ const WorkflowCanvasInner = () => {
     const [saving, setSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [isHydrated, setIsHydrated] = useState(false);
+    const [initialDefinition, setInitialDefinition] = useState<string | null>(null);
 
     // Fetch workflow data if ID is present
     const { data: workflow, isLoading } = useQuery({
@@ -100,10 +102,12 @@ const WorkflowCanvasInner = () => {
         setIsAddNodeOpen(true);
     }, []);
 
-    // Hydrate state from fetched workflow
+    // Hydrate state from workflow's current_version (already included in GET /workflows/{id}/)
     useEffect(() => {
-        if (workflow?.current_version?.graph) {
-            const { nodes: savedNodes, edges: savedEdges } = workflow.current_version.graph;
+        const versionData = workflow?.current_version;
+
+        if (versionData?.graph) {
+            const { nodes: savedNodes, edges: savedEdges } = versionData.graph;
 
             // Restore the onAddClick function to nodes, as it's not serialized
             const hydratedNodes = savedNodes.map((node: Node) => ({
@@ -116,6 +120,15 @@ const WorkflowCanvasInner = () => {
 
             setNodes(hydratedNodes);
             setEdges(savedEdges);
+            setIsHydrated(true);
+
+            // Store initial definition for change detection
+            setInitialDefinition(JSON.stringify({
+                nodes: savedNodes,
+                edges: savedEdges
+            }));
+        } else if (workflow) {
+            // Workflow loaded but no version/draft - start with empty canvas
             setIsHydrated(true);
         }
     }, [workflow, setNodes, setEdges, handleSmartAdd]);
@@ -164,7 +177,7 @@ const WorkflowCanvasInner = () => {
 
     const createNode = (type: string, position: { x: number, y: number }, event?: React.DragEvent | null, connectorData?: any) => {
         // ... (existing variable setups) ...
-        let bridgeType = event?.dataTransfer.getData('application/bridge-type');
+        const bridgeType = event?.dataTransfer.getData('application/bridge-type');
         let connectorDataVal = connectorData;
 
         if (!connectorDataVal && event) {
@@ -177,27 +190,49 @@ const WorkflowCanvasInner = () => {
         let connectorType = 'action';
         let actionId = '';
         const iconUrl = connectorDataVal?.icon_url;
+        let ui = connectorDataVal?.manifest?.ui; // Extract UI settings
 
-        if (type === 'action') {
-            // ... (existing logic) ...
-            if (connectorDataVal) {
-                label = connectorDataVal.name;
-                description = connectorDataVal.description || 'Action';
-                connectorType = connectorDataVal.slug || bridgeType;
-                actionId = 'action';
-            } else if (bridgeType) {
-                label = bridgeType;
-                connectorType = bridgeType;
+        // Generic handling from connector data if available
+        if (connectorDataVal) {
+            label = connectorDataVal.display_name || connectorDataVal.name;
+            description = connectorDataVal.description || '';
+            connectorType = connectorDataVal.slug || bridgeType;
+            // For action nodes, we might need a specific actionId, but default to 'action' or first action if available?
+            // For now keeping it simple as before:
+            if (type === 'action') actionId = 'action';
+        } else {
+            // Fallbacks for drag without specific connector data (though our new UI always provides it)
+            if (type === 'trigger') {
+                label = 'Webhook Trigger';
+                description = 'Starts workflow via webhook';
+                connectorType = 'webhook';
+            } else if (type === 'condition') {
+                label = 'If / Else';
+                connectorType = 'condition';
+            } else if (type === 'agent') {
+                label = 'AI Agent';
+                connectorType = 'ai-agent';
+            } else if (type === 'modelNode') {
+                label = 'Model';
+                connectorType = 'model';
+            } else if (type === 'memoryNode') {
+                label = 'Memory';
+                connectorType = 'memory';
+            } else if (type === 'toolsNode') {
+                label = 'Tool';
+                connectorType = 'tool';
             }
-        } else if (type === 'trigger') {
-            label = 'Webhook Trigger';
-            description = 'Starts workflow via webhook';
-            connectorType = 'webhook';
+        }
+
+        // Determine the react-flow node type
+        let nodeType = type;
+        if (connectorDataVal?.is_custom) {
+            nodeType = 'custom';
         }
 
         const newNode: Node = {
-            id: Math.random().toString(),
-            type,
+            id: uuidv4(),
+            type: nodeType,
             position,
             data: {
                 label,
@@ -205,12 +240,14 @@ const WorkflowCanvasInner = () => {
                 connectorType,
                 actionId,
                 iconUrl,
+                ui, // Pass UI settings
                 onAddClick: handleSmartAdd
             },
         };
 
         setNodes((nds) => nds.concat(newNode));
         setIsAddNodeOpen(false);
+        // ...
 
         // Handle Pending Connection
         if (pendingConnection) {
@@ -281,29 +318,28 @@ const WorkflowCanvasInner = () => {
             // Place relative to source (or target in reverse case)
             const referenceNode = nodes.find(n => n.id === pendingConnection.sourceId);
             if (referenceNode) {
-                const nodeWidth = pendingConnection.nodeWidth || 92;  // Default to 92px for standard nodes
+                const nodeWidth = pendingConnection.nodeWidth || 100;  // Default to 100px for standard nodes
                 let xOffset = nodeWidth + 100;  // Node width + 100px gap
                 let yOffset = 0;
-
                 // If connecting to a target handle (Agent Resources), place BELOW
                 if (pendingConnection.type === 'target') {
-                    yOffset = 250;
+                    yOffset = 260;
 
                     // Adjust X based on which handle was clicked
-                    // Agent node has handles at: model=30px, memory=92px, tools=154px from left
+                    // Agent node has handles at: model=30px, memory=90px, tools=150px from left
                     // Resource nodes are 50px wide, so center them under the handle
                     const handlePositions: Record<string, number> = {
-                        'model': 30,
-                        'memory': 92,
-                        'tools': 154,
+                        'model': -30,
+                        'memory': 90,
+                        'tools': 220,
                     };
                     const handleX = handlePositions[pendingConnection.handleId] || 0;
-                    // Position the resource node (50px wide) centered under the handle
-                    xOffset = handleX - 25; // Center the 50px node under the handle
+                    // Position the resource node (60px wide) centered under the handle
+                    xOffset = handleX - 30; // Center the 60px node under the handle
                 } else {
                     // Standard flow (Right)
-                    if (pendingConnection.handleId === 'true') yOffset = -100;  // Upper branch
-                    if (pendingConnection.handleId === 'false') yOffset = 100;   // Lower branch
+                    if (pendingConnection.handleId === 'true') yOffset = -90;  // Upper branch
+                    if (pendingConnection.handleId === 'false') yOffset = 90;   // Lower branch
                 }
 
                 position = {
@@ -327,7 +363,7 @@ const WorkflowCanvasInner = () => {
         [setEdges],
     );
 
-    const onNodeClick = useCallback(
+    const onNodeDoubleClick = useCallback(
         (_: React.MouseEvent, node: Node) => {
             setSelectedNode(node);
         },
@@ -344,7 +380,6 @@ const WorkflowCanvasInner = () => {
             event.preventDefault();
 
             const type = event.dataTransfer.getData('application/reactflow');
-            const bridgeType = event.dataTransfer.getData('application/bridge-type');
             const connectorDataStr = event.dataTransfer.getData('application/connector-data');
 
             if (typeof type === 'undefined' || !type) {
@@ -439,6 +474,54 @@ const WorkflowCanvasInner = () => {
         window.requestAnimationFrame(() => fitView());
     }, [nodes, edges, setNodes, setEdges, fitView]);
 
+    const handleSave = useCallback(async () => {
+        if (!id) return;
+        setSaving(true);
+        try {
+            // Map ReactFlow nodes to WorkflowNodes to ensure type safety
+            const workflowNodes = nodes.map(node => ({
+                id: node.id,
+                type: node.type || 'default',
+                position: node.position,
+                data: node.data,
+            }));
+
+            const definition = {
+                nodes: workflowNodes,
+                edges: edges.map(edge => ({
+                    id: edge.id,
+                    source: edge.source,
+                    target: edge.target,
+                    sourceHandle: edge.sourceHandle,
+                    targetHandle: edge.targetHandle,
+                }))
+            };
+
+            // Compare with initial definition to detect changes
+            const currentDefinitionStr = JSON.stringify(definition);
+
+            if (initialDefinition && currentDefinitionStr === initialDefinition) {
+                console.log('No changes detected, skipping save');
+                setSaving(false);
+                return;
+            }
+
+            // Use saveDraft to save the workflow definition (creates/updates WorkflowVersion)
+            await workflowService.saveDraft(id, definition);
+
+            // Update initial definition after successful save
+            setInitialDefinition(currentDefinitionStr);
+            setLastSaved(new Date());
+            console.log('Workflow draft saved successfully');
+        } catch (err: any) {
+            console.error('Failed to save workflow', err);
+            alert(`Failed to save workflow: ${err?.message || err?.response?.data?.message || 'Unknown error'}`);
+            // Don't set lastSaved if there was an error
+        } finally {
+            setSaving(false);
+        }
+    }, [id, nodes, edges, initialDefinition]);
+
     const handlePublish = useCallback(async () => {
         if (!id) return;
         setSaving(true);
@@ -451,27 +534,45 @@ const WorkflowCanvasInner = () => {
                 data: node.data,
             }));
 
-            await workflowService.update(id, {
-                name: workflow?.name || 'Untitled Workflow',
-                definition: {
-                    nodes: workflowNodes,
-                    edges: edges.map(edge => ({
-                        id: edge.id,
-                        source: edge.source,
-                        target: edge.target
-                    }))
-                }
-            });
+            const definition = {
+                nodes: workflowNodes,
+                edges: edges.map(edge => ({
+                    id: edge.id,
+                    source: edge.source,
+                    target: edge.target,
+                    sourceHandle: edge.sourceHandle,
+                    targetHandle: edge.targetHandle,
+                }))
+            };
+
+            // Publish the workflow version (activates it)
+            await workflowService.publish(id, definition);
+
             setLastSaved(new Date());
-        } catch (err) {
-            console.error('Failed to save workflow', err);
+            alert('Workflow published and activated successfully!');
+            console.log('Workflow published successfully');
+        } catch (err: any) {
+            console.error('Failed to publish workflow', err);
+            alert(`Failed to publish workflow: ${err?.message || err?.response?.data?.message || 'Unknown error'}`);
         } finally {
             setSaving(false);
         }
-    }, [id, nodes, edges, workflow]);
+    }, [id, nodes, edges]);
+
+
+    // Autosave effect
+    useEffect(() => {
+        if (!isHydrated || !id) return;
+
+        const timer = setTimeout(() => {
+            handleSave();
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [nodes, edges, isHydrated, id, handleSave]);
 
     return (
-        <div className="h-[calc(100vh-4rem)] flex w-full relative">
+        <div className="h-screen flex w-full relative rounded-2xl">
             {/* Main Canvas */}
             <div className="flex-1 relative" ref={reactFlowWrapper}>
                 <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -487,112 +588,219 @@ const WorkflowCanvasInner = () => {
                             </SheetHeader>
                             <div className="flex flex-col gap-4 text-neutral-200">
                                 <h3 className="font-semibold text-sm">Components</h3>
-                                <div className="space-y-2">
+                                <div className="space-y-4">
+                                    {/* Triggers */}
                                     {(isNodeAllowed('trigger') || isNodeAllowed('webhook')) && (
-                                        <>
+                                        <div>
                                             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Triggers</div>
-                                            <div
-                                                className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                onClick={() => handleAddNodeClick('trigger')}
-                                                draggable
-                                                onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'trigger')}
-                                            >
-                                                <Webhook className="w-4 h-4 text-neutral-200" />
-                                                <span className="text-sm">Webhook Trigger</span>
+                                            <div className="space-y-2">
+                                                {connectors?.filter(c => c.connector_type === 'trigger').map((connector) => (
+                                                    <div
+                                                        key={connector.id}
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('trigger', connector)}
+                                                        draggable
+                                                        onDragStart={(event) => {
+                                                            event.dataTransfer.setData('application/reactflow', 'trigger');
+                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'webhook');
+                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
+                                                        }}
+                                                    >
+                                                        {connector.icon_url ? (
+                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        ) : (
+                                                            <Webhook className="w-4 h-4 text-neutral-200" />
+                                                        )}
+                                                        <span className="text-sm">{connector.display_name}</span>
+                                                    </div>
+                                                ))}
+                                                {/* Fallback for hardcoded if needed, or if no trigger connectors yet */}
+                                                {!connectors?.some(c => c.connector_type === 'trigger') && (
+                                                    <div
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('trigger')}
+                                                        draggable
+                                                        onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'trigger')}
+                                                    >
+                                                        <Webhook className="w-4 h-4 text-neutral-200" />
+                                                        <span className="text-sm">Webhook Trigger</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </>
+                                        </div>
                                     )}
 
-                                    {isNodeAllowed('action') && (
-                                        <>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 mt-4">Actions</div>
-                                            {connectors?.map((connector) => (
-                                                <div
-                                                    key={connector.id}
-                                                    className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                    onClick={() => handleAddNodeClick('action', connector)}
-                                                    draggable
-                                                    onDragStart={(event) => {
-                                                        event.dataTransfer.setData('application/reactflow', 'action');
-                                                        event.dataTransfer.setData('application/bridge-type', connector.slug || connector.display_name.toLowerCase());
-                                                        event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                    }}
-                                                >
-                                                    {connector.icon_url ? (
-                                                        <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
-                                                    ) : (
-                                                        <div className="w-4 h-4 bg-muted rounded-full" />
-                                                    )}
-                                                    <span className="text-sm">{connector.display_name}</span>
-                                                </div>
-                                            ))}
-                                        </>
+                                    {/* Actions */}
+                                    {isNodeAllowed('action') && connectors?.some(c => c.connector_type === 'action') && (
+                                        <div>
+                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Actions</div>
+                                            <div className="space-y-2">
+                                                {connectors?.filter(c => c.connector_type === 'action').map((connector) => (
+                                                    <div
+                                                        key={connector.id}
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('action', connector)}
+                                                        draggable
+                                                        onDragStart={(event) => {
+                                                            event.dataTransfer.setData('application/reactflow', 'action');
+                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || connector.display_name.toLowerCase());
+                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
+                                                        }}
+                                                    >
+                                                        {connector.icon_url ? (
+                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        ) : (
+                                                            <div className="w-4 h-4 bg-muted rounded-full" />
+                                                        )}
+                                                        <span className="text-sm">{connector.display_name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
 
+                                    {/* Logic (Condition) */}
                                     {isNodeAllowed('condition') && (
-                                        <>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 mt-4">Logic</div>
+                                        <div>
+                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Logic</div>
                                             <div
                                                 className="border p-2 rounded cursor-pointer bg-card hover:bg-accent transition-colors"
                                                 onClick={() => handleAddNodeClick('condition')}
                                                 draggable
                                                 onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'condition')}
                                             >
-                                                If / Else
+                                                <span className="text-sm">If / Else</span>
                                             </div>
-                                        </>
+                                        </div>
                                     )}
 
+                                    {/* AI Agents */}
                                     {isNodeAllowed('agent') && (
-                                        <>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 mt-4">AI</div>
-                                            <div
-                                                className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                onClick={() => handleAddNodeClick('agent')}
-                                                draggable
-                                                onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'agent')}
-                                            >
-                                                <span className="text-sm">AI Agent</span>
+                                        <div>
+                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">AI Agents</div>
+                                            <div className="space-y-2">
+                                                {/* Dynamic Agent Connectors */}
+                                                {connectors?.filter(c => c.connector_type === 'agent').map((connector) => (
+                                                    <div
+                                                        key={connector.id}
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('agent', connector)}
+                                                        draggable
+                                                        onDragStart={(event) => {
+                                                            event.dataTransfer.setData('application/reactflow', 'agent');
+                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'agent');
+                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
+                                                        }}
+                                                    >
+                                                        {connector.icon_url ? (
+                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        ) : (
+                                                            <div className="w-4 h-4 bg-muted rounded-full" />
+                                                        )}
+                                                        <span className="text-sm">{connector.display_name}</span>
+                                                    </div>
+                                                ))}
+                                                {/* Fallback/Generic Agent Node if no specific agent connectors or want generic option */}
+                                                {!connectors?.some(c => c.connector_type === 'agent') && (
+                                                    <div
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('agent')}
+                                                        draggable
+                                                        onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'agent')}
+                                                    >
+                                                        <span className="text-sm">AI Agent</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </>
-                                    )}
-
-                                    {isNodeAllowed('modelNode') && (
-                                        <>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 mt-4">Agent Resources</div>
-                                            <div
-                                                className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                onClick={() => handleAddNodeClick('modelNode')}
-                                                draggable
-                                                onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'modelNode')}
-                                            >
-                                                <span className="text-sm">Model</span>
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {isNodeAllowed('memoryNode') && (
-                                        <div
-                                            className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                            onClick={() => handleAddNodeClick('memoryNode')}
-                                            draggable
-                                            onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'memoryNode')}
-                                        >
-                                            <span className="text-sm">Memory</span>
                                         </div>
                                     )}
 
-                                    {isNodeAllowed('toolsNode') && (
-                                        <div
-                                            className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                            onClick={() => handleAddNodeClick('toolsNode')}
-                                            draggable
-                                            onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'toolsNode')}
-                                        >
-                                            <span className="text-sm">Tool</span>
+                                    {/* Agent Models */}
+                                    {isNodeAllowed('modelNode') && connectors?.some(c => c.connector_type === 'agent-model') && (
+                                        <div>
+                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Models</div>
+                                            <div className="space-y-2">
+                                                {connectors?.filter(c => c.connector_type === 'agent-model').map((connector) => (
+                                                    <div
+                                                        key={connector.id}
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('modelNode', connector)}
+                                                        draggable
+                                                        onDragStart={(event) => {
+                                                            event.dataTransfer.setData('application/reactflow', 'modelNode');
+                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'model');
+                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
+                                                        }}
+                                                    >
+                                                        {connector.icon_url ? (
+                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        ) : (
+                                                            <div className="w-4 h-4 bg-muted rounded-full" />
+                                                        )}
+                                                        <span className="text-sm">{connector.display_name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
 
+                                    {/* Agent Memory */}
+                                    {isNodeAllowed('memoryNode') && connectors?.some(c => c.connector_type === 'agent-memory') && (
+                                        <div>
+                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Memory</div>
+                                            <div className="space-y-2">
+                                                {connectors?.filter(c => c.connector_type === 'agent-memory').map((connector) => (
+                                                    <div
+                                                        key={connector.id}
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('memoryNode', connector)}
+                                                        draggable
+                                                        onDragStart={(event) => {
+                                                            event.dataTransfer.setData('application/reactflow', 'memoryNode');
+                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'memory');
+                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
+                                                        }}
+                                                    >
+                                                        {connector.icon_url ? (
+                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        ) : (
+                                                            <div className="w-4 h-4 bg-muted rounded-full" />
+                                                        )}
+                                                        <span className="text-sm">{connector.display_name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Agent Tools */}
+                                    {isNodeAllowed('toolsNode') && connectors?.some(c => c.connector_type === 'agent-tool') && (
+                                        <div>
+                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tools</div>
+                                            <div className="space-y-2">
+                                                {connectors?.filter(c => c.connector_type === 'agent-tool').map((connector) => (
+                                                    <div
+                                                        key={connector.id}
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('toolsNode', connector)}
+                                                        draggable
+                                                        onDragStart={(event) => {
+                                                            event.dataTransfer.setData('application/reactflow', 'toolsNode');
+                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'tool');
+                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
+                                                        }}
+                                                    >
+                                                        {connector.icon_url ? (
+                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        ) : (
+                                                            <div className="w-4 h-4 bg-muted rounded-full" />
+                                                        )}
+                                                        <span className="text-sm">{connector.display_name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </SheetContent>
@@ -602,9 +810,9 @@ const WorkflowCanvasInner = () => {
                         <Layout className="w-4 h-4 mr-2" />
                         Auto Layout
                     </Button>
-                    <Button variant="outline" size="sm" disabled>
+                    <Button variant="outline" size="sm" disabled={saving} onClick={handleSave}>
                         <Save className="w-4 h-4 mr-2" />
-                        {saving ? 'Saving...' : lastSaved ? 'Saved' : 'Saved'}
+                        {saving ? 'Saving...' : lastSaved ? 'Saved' : 'Save'}
                     </Button>
                     <Button size="sm" onClick={handlePublish}>
                         <Rocket className="w-4 h-4 mr-2" />
@@ -620,7 +828,7 @@ const WorkflowCanvasInner = () => {
                     onConnect={onConnect}
                     onConnectStart={onConnectStart}
                     onConnectEnd={onConnectEnd}
-                    onNodeClick={onNodeClick}
+                    onNodeDoubleClick={onNodeDoubleClick}
                     nodeTypes={nodeTypes}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
@@ -648,6 +856,7 @@ const WorkflowCanvasInner = () => {
             <NodeConfigPanel
                 key={selectedNode?.id}
                 selectedNode={selectedNode}
+                workflowId={id}
                 onClose={() => setSelectedNode(null)}
                 onUpdateNode={(nodeId, data) => {
                     setNodes((nds) => nds.map((n) => {

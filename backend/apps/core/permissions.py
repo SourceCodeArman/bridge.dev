@@ -2,7 +2,6 @@
 Permission classes for core app collaboration features.
 """
 from rest_framework import permissions
-from apps.accounts.permissions import IsWorkspaceMember, HasPermission
 from apps.accounts.rbac_models import UserRole
 
 

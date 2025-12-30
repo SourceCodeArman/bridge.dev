@@ -3,7 +3,7 @@ Tests for workflow templates.
 """
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from apps.core.models import WorkflowTemplate, Workflow, WorkflowVersion
+from apps.core.models import WorkflowTemplate, Workflow
 from apps.accounts.models import Workspace
 from apps.core.utils.template_cloner import TemplateCloner
 

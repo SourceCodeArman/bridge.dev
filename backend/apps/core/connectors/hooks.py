@@ -3,8 +3,7 @@ Lifecycle hooks for connectors.
 
 Provides decorators and registry for connector lifecycle events.
 """
-from functools import wraps
-from typing import Callable, Dict, Any, List, Optional
+from typing import Callable, Dict, Any, List
 from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)

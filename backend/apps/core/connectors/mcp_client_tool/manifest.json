@@ -1,0 +1,95 @@
+{
+    "id": "mcp-client-tool",
+    "name": "MCP Client",
+    "version": "1.0.0",
+    "description": "Connect to MCP Server",
+    "author": "Bridge.dev",
+    "connector_type": "agent-tool",
+    "auth_config": {
+        "type": "custom",
+        "fields": [
+            {
+                "name": "server_command",
+                "type": "string",
+                "required": true,
+                "description": "Command to start the MCP server (e.g., 'npx -y @modelcontextprotocol/server-filesystem')"
+            },
+            {
+                "name": "server_args",
+                "type": "array",
+                "required": false,
+                "description": "Optional arguments for the MCP server command"
+            }
+        ]
+    },
+    "actions": [
+        {
+            "id": "call_tool",
+            "name": "Call MCP Tool",
+            "description": "Call a tool on the connected MCP server",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "tool_name"
+                ],
+                "properties": {
+                    "tool_name": {
+                        "type": "string",
+                        "description": "Name of the MCP tool to call"
+                    },
+                    "arguments": {
+                        "type": "object",
+                        "description": "Arguments to pass to the tool"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "description": "Tool execution result"
+                    },
+                    "error": {
+                        "type": "string",
+                        "description": "Error message if tool execution failed"
+                    }
+                }
+            },
+            "required_fields": [
+                "tool_name"
+            ]
+        },
+        {
+            "id": "list_tools",
+            "name": "List MCP Tools",
+            "description": "List all available tools on the MCP server",
+            "input_schema": {
+                "type": "object",
+                "properties": {}
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "tools": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "type": "string"
+                                },
+                                "inputSchema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "required_fields": []
+        }
+    ]
+}

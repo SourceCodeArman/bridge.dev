@@ -4,7 +4,6 @@ Trace aggregation for workflow runs.
 Builds trace structures from RunLog entries for fast retrieval.
 """
 from typing import Dict, Any, List
-from django.utils import timezone
 from apps.common.logging_utils import get_logger
 from .models import Run, RunStep, RunLog, RunTrace
 

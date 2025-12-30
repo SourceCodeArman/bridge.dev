@@ -3,8 +3,6 @@ Tests for collaboration features (comments and presence).
 """
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.utils import timezone
-from datetime import timedelta
 from apps.core.models import WorkflowComment, WorkflowPresence, Workflow, WorkflowVersion
 from apps.accounts.models import Workspace, Organization
 

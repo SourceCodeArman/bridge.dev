@@ -4,7 +4,7 @@ URL templating utilities for HTTP connector.
 Supports Jinja2-style templating with variable substitution from previous steps.
 """
 from typing import Dict, Any, Optional
-from jinja2 import Template, Environment, BaseLoader
+from jinja2 import Environment, BaseLoader
 from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)

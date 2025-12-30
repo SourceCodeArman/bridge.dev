@@ -1,0 +1,132 @@
+{
+    "id": "supabase-vector-store",
+    "name": "Supabase Vector Store",
+    "version": "1.0.0",
+    "description": "Supabase Vector Search",
+    "author": "Bridge.dev",
+    "connector_type": "agent-tool",
+    "auth_config": {
+        "type": "api_key",
+        "fields": [
+            {
+                "name": "supabase_url",
+                "type": "string",
+                "required": true,
+                "description": "Supabase project URL"
+            },
+            {
+                "name": "supabase_key",
+                "type": "password",
+                "required": true,
+                "description": "Supabase service role key"
+            }
+        ]
+    },
+    "actions": [
+        {
+            "id": "search",
+            "name": "Vector Search",
+            "description": "Search for similar vectors using pgvector",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "query_vector",
+                    "table_name"
+                ],
+                "properties": {
+                    "query_vector": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        },
+                        "description": "Query vector for similarity search"
+                    },
+                    "table_name": {
+                        "type": "string",
+                        "description": "Name of the table containing vectors"
+                    },
+                    "vector_column": {
+                        "type": "string",
+                        "description": "Name of the vector column",
+                        "default": "embedding"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 100
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "document": {
+                                    "type": "object",
+                                    "description": "The matched document"
+                                },
+                                "distance": {
+                                    "type": "number",
+                                    "description": "Vector distance"
+                                }
+                            }
+                        }
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "Number of results returned"
+                    }
+                }
+            },
+            "required_fields": [
+                "query_vector",
+                "table_name"
+            ]
+        },
+        {
+            "id": "insert",
+            "name": "Insert Vector",
+            "description": "Insert a row with vector embedding",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "table_name",
+                    "data"
+                ],
+                "properties": {
+                    "table_name": {
+                        "type": "string",
+                        "description": "Table name"
+                    },
+                    "data": {
+                        "type": "object",
+                        "description": "Data to insert including vector field"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ID of the inserted row"
+                    },
+                    "data": {
+                        "type": "object",
+                        "description": "Inserted data"
+                    }
+                }
+            },
+            "required_fields": [
+                "table_name",
+                "data"
+            ]
+        }
+    ]
+}

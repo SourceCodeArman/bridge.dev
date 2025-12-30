@@ -5,9 +5,7 @@ Includes Workflow, WorkflowVersion, Run, RunStep, and Trigger models.
 """
 
 from django.db import models
-from django.utils import timezone
 import uuid
-import json
 
 
 class Workflow(models.Model):
@@ -526,6 +524,12 @@ class CustomConnector(models.Model):
     description = models.TextField(
         blank=True, help_text="Description of what this connector does"
     )
+    icon = models.ImageField(
+        upload_to="connector_icons/",
+        null=True,
+        blank=True,
+        help_text="Icon for the connector",
+    )
     visibility = models.CharField(
         max_length=20,
         choices=VISIBILITY_CHOICES,
@@ -578,7 +582,24 @@ class Connector(models.Model):
     Built-in system connectors (e.g., OpenAI, Slack, etc.)
     """
 
+    CONNECTOR_TYPE_CHOICES = [
+        ("agent-tool", "Agent Tool"),
+        ("agent-model", "Agent Model"),
+        ("agent-memory", "Agent Memory"),
+        ("agent", "Agent"),
+        ("action", "Action"),
+        ("trigger", "Trigger"),
+        ("condition", "Condition"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    connector_type = models.CharField(
+        max_length=20,
+        choices=CONNECTOR_TYPE_CHOICES,
+        default="action",
+        db_index=True,
+        help_text="Type of connector (e.g., action, trigger, agent-tool)",
+    )
     slug = models.SlugField(
         max_length=200, unique=True, help_text="Unique identifier for the connector"
     )

@@ -5,7 +5,6 @@ Provides structured logging with correlation IDs and environment-specific format
 """
 import logging
 import json
-from django.conf import settings
 
 
 class CorrelationIDFormatter(logging.Formatter):
@@ -84,5 +83,4 @@ def configure_logging():
     """
     # Logging is configured in settings files (dev.py and prod.py)
     # This function can be used for additional runtime configuration if needed
-    pass
 

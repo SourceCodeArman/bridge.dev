@@ -1,0 +1,165 @@
+{
+    "id": "redis-memory",
+    "name": "Redis Memory",
+    "version": "1.0.0",
+    "description": "Redis Chat Memory",
+    "author": "Bridge.dev",
+    "connector_type": "agent-memory",
+    "auth_config": {
+        "type": "api_key",
+        "fields": [
+            {
+                "name": "redis_url",
+                "type": "password",
+                "required": true,
+                "description": "Redis connection URL (e.g., redis://localhost:6379 or redis://user:password@host:port/db)"
+            }
+        ]
+    },
+    "actions": [
+        {
+            "id": "save_message",
+            "name": "Save Message",
+            "description": "Save a message to conversation history",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "conversation_id",
+                    "role",
+                    "content"
+                ],
+                "properties": {
+                    "conversation_id": {
+                        "type": "string",
+                        "description": "Unique conversation identifier"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "user",
+                            "assistant",
+                            "system"
+                        ],
+                        "description": "Message role"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Message content"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Optional message metadata"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "message_id": {
+                        "type": "string",
+                        "description": "ID of the saved message"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Message timestamp"
+                    }
+                }
+            },
+            "required_fields": [
+                "conversation_id",
+                "role",
+                "content"
+            ]
+        },
+        {
+            "id": "get_history",
+            "name": "Get History",
+            "description": "Retrieve conversation history",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "conversation_id"
+                ],
+                "properties": {
+                    "conversation_id": {
+                        "type": "string",
+                        "description": "Unique conversation identifier"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of messages to retrieve",
+                        "default": 100,
+                        "minimum": 1,
+                        "maximum": 1000
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "messages": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "message_id": {
+                                    "type": "string"
+                                },
+                                "role": {
+                                    "type": "string"
+                                },
+                                "content": {
+                                    "type": "string"
+                                },
+                                "timestamp": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "metadata": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "Number of messages returned"
+                    }
+                }
+            },
+            "required_fields": [
+                "conversation_id"
+            ]
+        },
+        {
+            "id": "clear",
+            "name": "Clear History",
+            "description": "Clear conversation history",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "conversation_id"
+                ],
+                "properties": {
+                    "conversation_id": {
+                        "type": "string",
+                        "description": "Unique conversation identifier"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "deleted_count": {
+                        "type": "integer",
+                        "description": "Number of messages deleted"
+                    }
+                }
+            },
+            "required_fields": [
+                "conversation_id"
+            ]
+        }
+    ]
+}

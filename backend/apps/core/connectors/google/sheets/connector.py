@@ -3,7 +3,7 @@ Google Sheets Connector implementation.
 
 Provides Google Sheets integration with read, write, append, and clear capabilities.
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from apps.core.connectors.base import BaseConnector
 from apps.common.logging_utils import get_logger

@@ -8,7 +8,7 @@ import { memo } from 'react';
 // Common handle styles
 const handleStyle = { padding: '4px', background: '#262626' };
 
-const ConnectorIcon = ({ type, className }: { type: string, className?: string }) => {
+export const ConnectorIcon = ({ type, className }: { type: string, className?: string }) => {
     const iconClass = className || "w-5 h-5";
     const getColor = (t: string) => {
         switch (t.toLowerCase()) {
@@ -54,7 +54,7 @@ const NodeShell = ({ selected, title, type, children, icon, className }: NodeShe
         {/* The visual node box */}
         <Card className={cn(
             "w-[100px] h-[100px] p-0 flex items-center justify-center border border-border bg-[#1c1c1c] transition-all rounded-[18px] z-10",
-            selected ? "border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)] scale-105" : "hover:border-neutral-500 hover:scale-105",
+            selected ? "border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "hover:border-neutral-500",
             className
         )}>
             {icon || <ConnectorIcon type={type} className="w-10 h-10" />}
@@ -76,7 +76,7 @@ const NodeShell = ({ selected, title, type, children, icon, className }: NodeShe
     </div>
 );
 
-const SmartPlusHandle = ({
+export const SmartPlusHandle = ({
     maxConnections = 1,
     allowedNodeTypes,
     onSmartClick,
@@ -157,8 +157,8 @@ const SmartPlusHandle = ({
             transform: shape === 'diamond' ? 'translate(-50%, -50%) rotate(45deg)' : 'translate(-50%, -50%)',
         };
 
-        let handleOffset = -100; // Distance from node border
-        let lineWidth = 100;     // Length of the line
+        const handleOffset = -100; // Distance from node border
+        let lineWidth = Position.Bottom === handleProps.position ? 90 : 100;     // Length of the line
 
         // Apply custom line dimensions from handleProps.style if provided (AI Agent uses custom)
         if (handleProps.style?.height !== undefined) {
@@ -516,9 +516,9 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
                 type="source"
                 position={Position.Right}
                 style={{ ...handleStyle, top: '50%' }}
-                maxConnections={Infinity}
                 onSmartClick={data.onAddClick}
                 draggingFrom={data.draggingFrom}
+                nodeWidth={100}
             />
         </>
     );
@@ -543,9 +543,9 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
                 type="source"
                 position={Position.Right}
                 style={{ ...handleStyle, top: '25%', transform: 'translateY(-50%)' }}
-                maxConnections={Infinity}
                 onSmartClick={data.onAddClick}
                 draggingFrom={data.draggingFrom}
+                nodeWidth={100}
             />
             <div className={`absolute top-[25%] -right-8 -translate-y-1/2 text-[9px] text-neutral-200 font-bold tracking-tighter bg-neutral-900 z-20`}>TRUE</div>
 
@@ -562,10 +562,9 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
                 type="source"
                 position={Position.Right}
                 style={{ ...handleStyle, top: '75%', transform: 'translateY(-50%)' }}
-                maxConnections={Infinity}
                 onSmartClick={data.onAddClick}
-                isHandle={true}
                 draggingFrom={data.draggingFrom}
+                nodeWidth={100}
             />
             <div className="absolute top-[75%] -right-9 -translate-y-1/2 text-[9px] text-neutral-200 font-bold tracking-tighter bg-neutral-900 z-20">FALSE</div>
         </div>
@@ -585,7 +584,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
             <Handle type="target" position={Position.Left} style={handleStyle} className="z-99" />
 
             <Card className={cn(
-                "flex min-w-[200px] h-[100px] p-0 items-center border border-border bg-[#1c1c1c] transition-all rounded-[18px]",
+                "flex w-[200px] !important h-[100px] p-0 items-center border border-border bg-[#1c1c1c] transition-all rounded-[18px]",
                 selected ? "border-neutral-500 shadow-md" : ""
             )}>
                 <div className="flex items-center gap-2 pl-3">
@@ -647,7 +646,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
                 id="memory"
                 position={Position.Bottom}
                 style={{
-                    left: 92,
+                    left: 90,
                     bottom: -10,
                     width: 10,
                     height: 10,
@@ -675,7 +674,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
                 id="memory"
                 position={Position.Bottom}
                 style={{
-                    left: 92,
+                    left: 90,
                     height: 100,
                 }}
                 shape="diamond"
@@ -692,7 +691,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
                 id="tools"
                 position={Position.Bottom}
                 style={{
-                    left: 154,
+                    left: 150,
                     bottom: -10,
                     width: 10,
                     height: 10,
@@ -719,7 +718,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
                 id="tools"
                 position={Position.Bottom}
                 style={{
-                    left: 154,
+                    left: 150,
                     height: 100,
                 }}
                 shape="diamond"
@@ -734,8 +733,8 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
 
             {/* Resource Labels - Positioned under handles */}
             <div className="absolute top-full left-[30px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Model</div>
-            <div className="absolute top-full left-[92px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Memory</div>
-            <div className="absolute top-full left-[154px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Tools</div>
+            <div className="absolute top-full left-[90px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Memory</div>
+            <div className="absolute top-full left-[150px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Tools</div>
 
             <Handle type="source" id="source" position={Position.Right} style={handleStyle} className="z-99" />
             <SmartPlusHandle
@@ -800,7 +799,7 @@ const AgentResourceNode = memo(({ data, selected }: NodeProps) => {
 
             {/* Circular Node */}
             <Card className={cn(
-                "w-[50px] h-[50px] rounded-full p-0 flex items-center justify-center bg-[#1c1c1c] transition-all relative border border-neutral-800",
+                "w-[60px] h-[60px] rounded-full p-0 flex items-center justify-center bg-[#1c1c1c] transition-all relative border border-neutral-800",
                 selected ? "border-neutral-500 shadow-md" : ""
             )}>
                 <div className="flex flex-col items-center justify-center gap-2">

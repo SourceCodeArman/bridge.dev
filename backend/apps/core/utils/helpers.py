@@ -26,7 +26,6 @@ def generate_idempotency_key(
     Returns:
         Hexadecimal hash string to use as idempotency key
     """
-    import time
     from django.utils import timezone
 
     # Build key components

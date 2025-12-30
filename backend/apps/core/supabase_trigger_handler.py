@@ -4,10 +4,9 @@ Supabase Realtime trigger handler.
 Manages Supabase Realtime connections for workflow triggers and handles event processing.
 """
 import threading
-from typing import Dict, Any, Optional
-from django.utils import timezone
+from typing import Dict, Any
 from apps.common.logging_utils import get_logger
-from .models import Trigger, WorkflowVersion
+from .models import Trigger
 from .orchestrator import RunOrchestrator
 from .tasks import execute_workflow_run
 from .encryption import get_encryption_service

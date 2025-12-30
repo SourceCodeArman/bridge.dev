@@ -3,10 +3,9 @@ Google OAuth authentication helpers.
 
 Handles OAuth token refresh and credential management for Google APIs.
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from apps.common.logging_utils import get_logger
 

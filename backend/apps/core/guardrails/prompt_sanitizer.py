@@ -4,7 +4,7 @@ Prompt sanitizer service for LLM guardrails.
 Implements field allowlisting and integrates with secret redaction
 to ensure only safe data is sent to LLM APIs.
 """
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from django.conf import settings
 from apps.common.logging_utils import get_logger
 from .secret_redactor import SecretRedactor

@@ -1,0 +1,138 @@
+{
+    "id": "openai-model",
+    "name": "OpenAI Model",
+    "version": "1.0.0",
+    "description": "OpenAI LLM",
+    "author": "Bridge.dev",
+    "connector_type": "agent-model",
+    "auth_config": {
+        "type": "api_key",
+        "fields": [
+            {
+                "name": "api_key",
+                "type": "password",
+                "required": true,
+                "description": "OpenAI API key (starts with sk-)"
+            }
+        ]
+    },
+    "actions": [
+        {
+            "id": "configure",
+            "name": "Configure Model",
+            "description": "Configure the OpenAI model settings",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "description": "Model to use (e.g., gpt-4, gpt-3.5-turbo)",
+                        "default": "gpt-3.5-turbo",
+                        "enum": [
+                            "gpt-4",
+                            "gpt-4-turbo",
+                            "gpt-3.5-turbo",
+                            "gpt-4o",
+                            "gpt-4o-mini"
+                        ]
+                    },
+                    "temperature": {
+                        "type": "number",
+                        "description": "Sampling temperature (0.0-2.0)",
+                        "minimum": 0.0,
+                        "maximum": 2.0,
+                        "default": 1.0
+                    },
+                    "max_tokens": {
+                        "type": "integer",
+                        "description": "Maximum tokens to generate",
+                        "minimum": 1,
+                        "maximum": 4096,
+                        "default": 1000
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "description": "Configured model"
+                    },
+                    "temperature": {
+                        "type": "number",
+                        "description": "Configured temperature"
+                    },
+                    "max_tokens": {
+                        "type": "integer",
+                        "description": "Configured max tokens"
+                    }
+                }
+            },
+            "required_fields": []
+        },
+        {
+            "id": "generate",
+            "name": "Generate Response",
+            "description": "Generate a response from the model",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "messages"
+                ],
+                "properties": {
+                    "messages": {
+                        "type": "array",
+                        "description": "Array of message objects with 'role' and 'content'",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "role": {
+                                    "type": "string",
+                                    "enum": [
+                                        "system",
+                                        "user",
+                                        "assistant"
+                                    ]
+                                },
+                                "content": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "role",
+                                "content"
+                            ]
+                        }
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "response": {
+                        "type": "string",
+                        "description": "Generated response"
+                    },
+                    "usage": {
+                        "type": "object",
+                        "properties": {
+                            "prompt_tokens": {
+                                "type": "integer"
+                            },
+                            "completion_tokens": {
+                                "type": "integer"
+                            },
+                            "total_tokens": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                }
+            },
+            "required_fields": [
+                "messages"
+            ]
+        }
+    ]
+}

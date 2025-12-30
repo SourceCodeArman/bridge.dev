@@ -1,0 +1,72 @@
+{
+    "id": "condition",
+    "name": "If / Else",
+    "version": "1.0.0",
+    "description": "Conditional logic",
+    "author": "Bridge.dev",
+    "connector_type": "condition",
+    "auth_config": {
+        "type": "none",
+        "fields": []
+    },
+    "actions": [
+        {
+            "id": "evaluate",
+            "name": "Evaluate Condition",
+            "description": "Evaluate a conditional expression",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "left_value",
+                    "operator",
+                    "right_value"
+                ],
+                "properties": {
+                    "left_value": {
+                        "description": "Left-hand value for comparison"
+                    },
+                    "operator": {
+                        "type": "string",
+                        "enum": [
+                            "==",
+                            "!=",
+                            ">",
+                            "<",
+                            ">=",
+                            "<=",
+                            "contains",
+                            "matches",
+                            "is_empty",
+                            "is_not_empty"
+                        ],
+                        "description": "Comparison operator"
+                    },
+                    "right_value": {
+                        "description": "Right-hand value for comparison (not needed for is_empty/is_not_empty)"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "type": "boolean",
+                        "description": "Result of the condition evaluation"
+                    },
+                    "branch": {
+                        "type": "string",
+                        "enum": [
+                            "true",
+                            "false"
+                        ],
+                        "description": "Which branch to follow (true or false)"
+                    }
+                }
+            },
+            "required_fields": [
+                "left_value",
+                "operator"
+            ]
+        }
+    ]
+}

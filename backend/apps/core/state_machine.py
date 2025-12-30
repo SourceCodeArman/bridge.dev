@@ -4,7 +4,6 @@ State machine for workflow run and step lifecycle management.
 Defines valid state transitions and provides transition validation.
 """
 from django.utils import timezone
-from django.db import transaction
 from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)

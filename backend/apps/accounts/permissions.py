@@ -2,9 +2,8 @@
 Custom permission classes for RBAC and workspace access control
 """
 from rest_framework import permissions
-from rest_framework.exceptions import PermissionDenied
 from .models import Workspace, OrganizationMember
-from .rbac_models import UserRole, Permission
+from .rbac_models import UserRole
 
 
 class IsWorkspaceMember(permissions.BasePermission):

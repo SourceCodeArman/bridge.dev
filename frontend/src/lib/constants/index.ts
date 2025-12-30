@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
         ACTIVATE: (id: string) => `/api/v1/core/workflows/${id}/activate/`,
         DEACTIVATE: (id: string) => `/api/v1/core/workflows/${id}/deactivate/`,
         DRAFTS: (id: string) => `/api/v1/core/workflows/${id}/drafts/`,
+        PUBLISH_VERSION: (id: string) => `/api/v1/core/workflows/${id}/publish_version/`,
     },
     RUNS: {
         LIST: '/api/v1/core/runs/',
@@ -28,6 +29,14 @@ export const API_ENDPOINTS = {
     CONNECTORS: {
         LIST: '/api/v1/core/connectors/',
         DETAIL: (id: string) => `/api/v1/core/connectors/${id}/`,
+    },
+    CUSTOM_CONNECTORS: {
+        LIST: '/api/v1/core/custom-connectors/',
+        DETAIL: (id: string) => `/api/v1/core/custom-connectors/${id}/`,
+    },
+    CUSTOM_CONNECTOR_VERSIONS: {
+        LIST: '/api/v1/core/custom-connector-versions/',
+        DETAIL: (id: string) => `/api/v1/core/custom-connector-versions/${id}/`,
     },
     CREDENTIALS: {
         LIST: '/api/v1/core/credentials/',

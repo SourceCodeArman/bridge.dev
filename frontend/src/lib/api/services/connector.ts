@@ -12,4 +12,9 @@ export const connectorService = {
         const { data } = await apiClient.get<{ data: Connector }>(API_ENDPOINTS.CONNECTORS.DETAIL(id));
         return data.data;
     },
+
+    getBySlug: async (slug: string): Promise<Connector | undefined> => {
+        const connectors = await connectorService.list();
+        return connectors.find(c => c.slug === slug);
+    },
 };

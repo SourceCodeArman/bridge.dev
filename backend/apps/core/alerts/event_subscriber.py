@@ -3,8 +3,6 @@ Event subscriber for alert system.
 
 Listens for run failures and timeouts and triggers alert sending.
 """
-from typing import Optional
-from django.utils import timezone
 from apps.common.logging_utils import get_logger
 from apps.core.models import Run, AlertConfiguration
 from .tasks import send_alert_task

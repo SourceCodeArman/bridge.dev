@@ -73,15 +73,20 @@
 
 /* e.g. in your global CSS */
 .react-flow {
-  --xy-controls-button-background-color-default: #26262680;  /* button bg */
-  --xy-controls-button-background-color-hover-default: #262626; /* hover bg */
-  --xy-controls-button-color-default: #f9fafb;  /* icon color */
-  --xy-controls-button-color-hover-default: #e5e7eb; /* hover icon color */
-  --xy-controls-button-border-color-default: #26262680; /* border */
+  --xy-controls-button-background-color-default: #26262680;
+  /* button bg */
+  --xy-controls-button-background-color-hover-default: #262626;
+  /* hover bg */
+  --xy-controls-button-color-default: #f9fafb;
+  /* icon color */
+  --xy-controls-button-color-hover-default: #e5e7eb;
+  /* hover icon color */
+  --xy-controls-button-border-color-default: #26262680;
+  /* border */
   --xy-controls-box-shadow-default: 0 0 4px 1px rgba(0, 0, 0, 0.4);
   --xy-attribution-background-color-default: #262626;
 }
 
 .react-flow__edge-path {
-    stroke-width: 1px !important;
+  stroke-width: 1px !important;
 }

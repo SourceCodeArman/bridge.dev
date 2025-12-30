@@ -3,8 +3,8 @@ Serializers for accounts app
 """
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User, Organization, Workspace, OrganizationMember
-from .rbac_models import Role, Permission, UserRole
+from .models import User, Organization, Workspace
+from .rbac_models import Role, Permission
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

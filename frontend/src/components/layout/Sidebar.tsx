@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "../theme/theme-toggle";
 
 // Menu items.
 const items = [
@@ -66,6 +67,7 @@ export function AppSidebar() {
                     {items.map((item, idx) => (
                         <SidebarLink key={idx} link={item} />
                     ))}
+                    <ThemeToggle />
                 </div>
             </div>
         </SidebarBody>

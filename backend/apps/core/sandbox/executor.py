@@ -8,7 +8,7 @@ import sys
 import os
 import tempfile
 import shutil
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional
 from apps.common.logging_utils import get_logger
 from .resource_limits import ResourceLimits
 from .policies import NetworkPolicy, SecretPolicy

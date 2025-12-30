@@ -3,7 +3,7 @@ OpenAI Connector implementation.
 
 Provides OpenAI GPT models integration for text generation and chat completion.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from apps.core.connectors.base import BaseConnector
 from apps.common.logging_utils import get_logger
 from apps.core.guardrails.prompt_sanitizer import PromptSanitizer

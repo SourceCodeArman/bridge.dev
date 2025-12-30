@@ -3,7 +3,7 @@ Graph validation utilities for workflow definitions.
 
 Validates workflow graphs for cycles, node validity, and edge compatibility.
 """
-from typing import Dict, Any, List, Set
+from typing import Dict, Any, List
 from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)

@@ -5,7 +5,6 @@ Defines Role, Permission, RolePermission, and UserRole models for
 granular access control within workspaces.
 """
 from django.db import models
-from django.utils import timezone
 import uuid
 
 

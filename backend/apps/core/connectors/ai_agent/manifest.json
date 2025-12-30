@@ -1,0 +1,107 @@
+{
+    "id": "ai-agent",
+    "name": "AI Agent",
+    "version": "1.0.0",
+    "description": "AI Agent Node",
+    "author": "Bridge.dev",
+    "connector_type": "agent",
+    "auth_config": {
+        "type": "none",
+        "fields": []
+    },
+    "actions": [
+        {
+            "id": "run",
+            "name": "Run Agent",
+            "description": "Run the AI agent with tools, memory, and model",
+            "input_schema": {
+                "type": "object",
+                "required": [
+                    "input"
+                ],
+                "properties": {
+                    "input": {
+                        "type": "string",
+                        "description": "User input to the agent"
+                    },
+                    "context": {
+                        "type": "object",
+                        "description": "Additional context for the agent"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "response": {
+                        "type": "string",
+                        "description": "Agent response"
+                    },
+                    "tool_calls": {
+                        "type": "array",
+                        "description": "Tools called by the agent",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "tool": {
+                                    "type": "string"
+                                },
+                                "result": {}
+                            }
+                        }
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Execution metadata"
+                    }
+                }
+            },
+            "required_fields": [
+                "input"
+            ]
+        },
+        {
+            "id": "configure",
+            "name": "Configure Agent",
+            "description": "Configure the agent with model, memory, and tools",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "model_id": {
+                        "type": "string",
+                        "description": "ID of the model to use"
+                    },
+                    "memory_id": {
+                        "type": "string",
+                        "description": "ID of the memory connector to use"
+                    },
+                    "tool_ids": {
+                        "type": "array",
+                        "description": "IDs of tools available to the agent",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "system_prompt": {
+                        "type": "string",
+                        "description": "System prompt for the agent"
+                    }
+                }
+            },
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "configured": {
+                        "type": "boolean",
+                        "description": "Whether configuration succeeded"
+                    },
+                    "configuration": {
+                        "type": "object",
+                        "description": "Current configuration"
+                    }
+                }
+            },
+            "required_fields": []
+        }
+    ]
+}

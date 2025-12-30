@@ -95,7 +95,6 @@ class TemplateCloner:
             Processed definition with placeholders replaced
         """
         import copy
-        import json
         
         # Deep copy to avoid modifying original
         processed = copy.deepcopy(definition)

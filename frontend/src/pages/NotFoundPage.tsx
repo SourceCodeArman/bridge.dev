@@ -10,9 +10,9 @@ export default function NotFoundPage() {
         <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 p-8">
             <div className="max-w-md text-center">
                 {/* 404 Illustration */}
-                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-neutral-200">
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-neutral-900 text-neutral-200">
                     <svg
-                        className="h-10 w-10 text-neutral-600"
+                        className="h-10 w-10"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -26,14 +26,14 @@ export default function NotFoundPage() {
                     </svg>
                 </div>
 
-                <h1 className="text-6xl font-bold text-neutral-900 mb-2">
+                <h1 className="text-6xl font-bold text-neutral-200 mb-2">
                     404
                 </h1>
-                <h2 className="text-xl font-semibold text-neutral-700 mb-4">
+                <h2 className="text-xl font-semibold text-neutral-200 mb-4">
                     Page Not Found
                 </h2>
 
-                <p className="text-neutral-600 mb-8">
+                <p className="text-neutral-200 mb-8">
                     The page you're looking for doesn't exist or has been moved.
                 </p>
 
@@ -53,21 +53,21 @@ export default function NotFoundPage() {
                     <div className="mt-2 flex flex-wrap gap-2 justify-center">
                         <Link
                             to="/workflows"
-                            className="text-neutral-900 underline hover:no-underline"
+                            className="text-neutral-200 underline hover:no-underline"
                         >
                             Workflows
                         </Link>
-                        <span className="text-neutral-300">•</span>
+                        <span className="text-neutral-200">•</span>
                         <Link
                             to="/connectors"
-                            className="text-neutral-900 underline hover:no-underline"
+                            className="text-neutral-200 underline hover:no-underline"
                         >
                             Connectors
                         </Link>
-                        <span className="text-neutral-300">•</span>
+                        <span className="text-neutral-200">•</span>
                         <Link
                             to="/settings"
-                            className="text-neutral-900 underline hover:no-underline"
+                            className="text-neutral-200 underline hover:no-underline"
                         >
                             Settings
                         </Link>

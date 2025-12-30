@@ -41,7 +41,6 @@ class BaseConnector(ABC):
         Returns:
             Dictionary containing manifest data (id, name, version, actions, etc.)
         """
-        pass
     
     def initialize(self) -> None:
         """
@@ -77,7 +76,6 @@ class BaseConnector(ABC):
         
         Subclasses should override this method to implement initialization logic.
         """
-        pass
     
     def execute(self, action_id: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -134,7 +132,6 @@ class BaseConnector(ABC):
             ValueError: If action_id is invalid
             Exception: If execution fails
         """
-        pass
     
     def validate_inputs(self, schema: Dict[str, Any], data: Dict[str, Any]) -> bool:
         """

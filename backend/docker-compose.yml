@@ -1,0 +1,101 @@
+version: '3.8'
+name: 'bridgedev'
+
+services:
+  # Django Backend
+  backend:
+    build:
+      context: .
+      target: development
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot-reloading in development
+      - .:/app
+      # Exclude virtual environment from mount
+      - /app/.venv
+    environment:
+      - DJANGO_ENV=dev
+      - DEBUG=true
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    networks:
+      - bridge-network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: bridgedev-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - bridge-network
+    command: redis-server --appendonly yes
+
+  # Celery Worker
+  celery-worker:
+    container_name: bridgedev-celery-worker
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - DJANGO_ENV=dev
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - bridge-network
+    command: celery -A config worker --loglevel=info
+
+  # Celery Beat (Periodic Tasks)
+  celery-beat:
+    container_name: bridgedev-celery-beat
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - DJANGO_ENV=dev
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - bridge-network
+    command: celery -A config beat --loglevel=info
+
+networks:
+  bridge-network:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+        - subnet: fd00:dead:beef::/48
+
+volumes:
+  redis-data:

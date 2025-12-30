@@ -4,16 +4,13 @@ Celery tasks for workflow execution.
 Handles asynchronous execution of workflow runs and steps.
 """
 from celery import shared_task
-from django.conf import settings
 from django.utils import timezone
 from typing import Dict, Any
-from uuid import UUID
 
 from apps.common.logging_utils import get_logger
-from .models import Run, RunStep, WorkflowPresence, CustomConnector
+from .models import Run, RunStep, CustomConnector
 from .orchestrator import RunOrchestrator
 from .concurrency import ConcurrencyManager
-from .rate_limiter import RateLimiter
 
 logger = get_logger(__name__)
 
@@ -331,7 +328,6 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
         if is_custom_connector:
             # Execute in sandbox
             from .sandbox import SandboxExecutor, ResourceLimits, NetworkPolicy, SecretPolicy
-            from django.conf import settings
             
             # Get allowed domains from connector manifest if available
             manifest = manifest or {}
@@ -503,7 +499,7 @@ def check_and_trigger_cron_workflows():
     Returns:
         int: Number of workflows triggered
     """
-    from .models import Trigger, WorkflowVersion
+    from .models import Trigger
     from .orchestrator import RunOrchestrator
     
     try:

@@ -6,7 +6,7 @@ Provides HTTP request capabilities with URL templating, response parsing, and er
 import requests
 import json
 import xml.etree.ElementTree as ET
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from apps.core.connectors.base import BaseConnector
 from apps.common.logging_utils import get_logger
 from .templating import render_template
@@ -127,7 +127,6 @@ class HTTPConnector(BaseConnector):
     def _initialize(self) -> None:
         """Initialize HTTP connector (no special setup needed)"""
         # HTTP connector doesn't need special initialization
-        pass
     
     def _parse_response_body(self, response: requests.Response) -> Dict[str, Any]:
         """

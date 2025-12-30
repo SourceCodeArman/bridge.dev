@@ -4,7 +4,6 @@ Workflow generator service for Bridge.dev.
 Converts natural language prompts into workflow draft definitions using LLM connectors.
 """
 import json
-import uuid
 from typing import Dict, Any, List, Optional
 from apps.common.logging_utils import get_logger
 from .connectors.base import ConnectorRegistry

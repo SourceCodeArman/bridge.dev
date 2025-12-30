@@ -8,7 +8,6 @@ from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from typing import Dict, List, Optional, Any
-from uuid import UUID
 
 from apps.common.logging_utils import get_logger
 from django.conf import settings

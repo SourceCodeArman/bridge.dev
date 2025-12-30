@@ -5,7 +5,7 @@ Recursively scans data structures to identify and redact secrets before
 sending to LLM APIs or logging.
 """
 import re
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Optional
 from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)

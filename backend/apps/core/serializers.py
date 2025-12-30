@@ -41,6 +41,7 @@ class ConnectorSerializer(serializers.ModelSerializer):
             "manifest",
             "icon_url",
             "is_active",
+            "connector_type",
         ]
 
 
@@ -73,10 +74,23 @@ class WorkflowSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "workspace", "created_at", "updated_at")
 
     def get_active_version_number(self, obj):
+        # Use prefetched cache if available
+        if hasattr(obj, "active_versions_cache"):
+            return (
+                obj.active_versions_cache[0].version_number
+                if obj.active_versions_cache
+                else None
+            )
+        # Fallback to original method
         active_version = obj.get_active_version()
         return active_version.version_number if active_version else None
 
     def get_last_run_at(self, obj):
+        # Use annotated field if available (much faster)
+        if hasattr(obj, "last_run_timestamp"):
+            return obj.last_run_timestamp
+
+        # Fallback to original query
         from .models import Run
 
         last_run = (
@@ -87,14 +101,95 @@ class WorkflowSerializer(serializers.ModelSerializer):
         return last_run.created_at if last_run else None
 
     def get_trigger_type(self, obj):
+        # Use prefetched cache if available
+        if hasattr(obj, "active_triggers_cache"):
+            return (
+                obj.active_triggers_cache[0].trigger_type
+                if obj.active_triggers_cache
+                else None
+            )
+        # Fallback to original method
         active_trigger = obj.triggers.filter(is_active=True).first()
         return active_trigger.trigger_type if active_trigger else None
 
     def get_current_version(self, obj):
         """Get the most recent version (draft or active)"""
-        last_version = obj.versions.order_by("-created_at").first()
+        # Use prefetched cache if available
+        if hasattr(obj, "latest_version_cache"):
+            last_version = (
+                obj.latest_version_cache[0] if obj.latest_version_cache else None
+            )
+        else:
+            # Fallback to query
+            last_version = obj.versions.order_by("-created_at").first()
+
         if last_version:
-            return WorkflowVersionSerializer(last_version).data
+            # Check if this is a detail view (retrieve action) vs list view
+            # For detail views, include the full definition; for list views, minimal data
+            view = self.context.get("view")
+            is_detail_view = view and getattr(view, "action", None) == "retrieve"
+
+            if is_detail_view:
+                # Return full version data including definition for detail views
+                return {
+                    "id": str(last_version.id),
+                    "version_number": last_version.version_number,
+                    "is_active": last_version.is_active,
+                    "created_at": last_version.created_at,
+                    "definition": last_version.definition,
+                    "graph": last_version.definition,  # Alias for frontend compatibility
+                }
+            else:
+                # Return minimal data for list views to optimize performance
+                return {
+                    "id": str(last_version.id),
+                    "version_number": last_version.version_number,
+                    "is_active": last_version.is_active,
+                    "created_at": last_version.created_at,
+                }
+        return None
+
+
+class WorkflowListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for Workflow list view - optimized for performance"""
+
+    workspace_name = serializers.CharField(source="workspace.name", read_only=True)
+    active_version_number = serializers.SerializerMethodField()
+    last_run_at = serializers.SerializerMethodField()
+    trigger_type = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Workflow
+        fields = (
+            "id",
+            "name",
+            "description",
+            "workspace",
+            "workspace_name",
+            "status",
+            "active_version_number",
+            "last_run_at",
+            "trigger_type",
+            "created_by",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "workspace", "created_at", "updated_at")
+
+    def get_active_version_number(self, obj):
+        """Get active version number from prefetched cache"""
+        if hasattr(obj, "active_versions_cache") and obj.active_versions_cache:
+            return obj.active_versions_cache[0].version_number
+        return None
+
+    def get_last_run_at(self, obj):
+        """Get last run timestamp from annotated field"""
+        return getattr(obj, "last_run_timestamp", None)
+
+    def get_trigger_type(self, obj):
+        """Get trigger type from prefetched cache"""
+        if hasattr(obj, "active_triggers_cache") and obj.active_triggers_cache:
+            return obj.active_triggers_cache[0].trigger_type
         return None
 
 
@@ -823,6 +918,7 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "slug",
             "display_name",
             "description",
+            "icon",
             "visibility",
             "status",
             "current_version",
@@ -832,7 +928,14 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "created_at", "updated_at", "current_version_info")
+        read_only_fields = (
+            "id",
+            "workspace",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "current_version_info",
+        )
 
     def validate(self, attrs):
         """Ensure slug is unique per workspace at the serializer level."""
@@ -863,4 +966,5 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "version": version.version,
             "status": version.status,
             "created_at": version.created_at,
+            "manifest": version.manifest,
         }

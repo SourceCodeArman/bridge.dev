@@ -12,7 +12,7 @@ export default function AppLayout() {
             <div className="flex h-screen w-full bg-neutral-800 flex-col md:flex-row overflow-hidden border border-border m-0 text-left">
                 <AppSidebar />
                 <main className="flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out overflow-y-auto bg-neutral-900 rounded-l-3xl">
-                    <div className="flex-1 p-6 text-neutral-200">
+                    <div className="flex-1 text-neutral-200">
                         <Outlet />
                     </div>
                 </main>

@@ -1,0 +1,14 @@
+{
+    "name": "Test Connector",
+    "version": "1.0.0",
+    "description": "A test connector for verification",
+    "connector_type": "action",
+    "actions": [
+        {
+            "name": "test_action",
+            "display_name": "Test Action",
+            "description": "Does nothing",
+            "inputs": {}
+        }
+    ]
+}
