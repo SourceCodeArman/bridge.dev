@@ -40,7 +40,9 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, w
     });
 
     // Get selected action from manifest
-    const selectedAction = connector?.manifest?.actions?.find((a: ConnectorAction) => a.id === actionId);
+    const selectedAction = connector?.manifest?.actions
+        ? Object.values(connector.manifest.actions).find((a: ConnectorAction) => a.id === actionId)
+        : undefined;
 
     // Update local state when node changes
     useEffect(() => {
@@ -54,14 +56,17 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, w
     }, [selectedNode?.id]);
 
     // Auto-select first action if only one available
+    // Auto-select first action if only one available
     useEffect(() => {
-        if (connector?.manifest?.actions && connector.manifest.actions.length === 1 && !actionId) {
-            const firstAction = connector.manifest.actions[0];
-            console.log('Auto-selecting first action:', firstAction);
-            console.log('Full connector manifest:', connector.manifest);
-            if (firstAction) {
-                setActionId(firstAction.id);
-                handleFieldChange('action_id', firstAction.id);
+        if (connector?.manifest?.actions) {
+            const actions = Object.values(connector.manifest.actions);
+            if (actions.length === 1 && !actionId) {
+                const firstAction = actions[0];
+                console.log('Auto-selecting first action:', firstAction);
+                if (firstAction) {
+                    setActionId(firstAction.id);
+                    handleFieldChange('action_id', firstAction.id);
+                }
             }
         }
     }, [connector]);
@@ -104,7 +109,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, w
 
     return (
         <Sheet open={!!selectedNode} onOpenChange={handleSheetOpenChange}>
-            <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto bg-neutral-900 text-neutral-200 border-l-0">
+            <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto bg-background text-foreground border-l-0">
                 <SheetHeader>
                     <SheetTitle>{label}</SheetTitle>
                     <SheetDescription>
@@ -116,7 +121,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, w
                     <div className="mt-6 space-y-6">
                         {/* Connector Configuration */}
                         {connectorLoading && (
-                            <div className="text-sm text-muted-foreground">Loading connector...</div>
+                            <div className="text-sm text-foreground">Loading connector...</div>
                         )}
 
                         {connector && (
@@ -132,9 +137,9 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, w
                                 )}
 
                                 {/* Action Selector */}
-                                {connector.manifest?.actions && connector.manifest.actions.length > 1 && (
+                                {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 1 && (
                                     <ActionSelector
-                                        actions={connector.manifest.actions}
+                                        actions={Object.values(connector.manifest.actions)}
                                         value={actionId}
                                         onChange={handleActionChange}
                                     />
@@ -175,8 +180,8 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, w
                                 )}
 
                                 {/* No action selected message */}
-                                {connector.manifest?.actions && connector.manifest.actions.length > 0 && !selectedAction && (
-                                    <div className="text-sm text-muted-foreground bg-muted/50 p-4 rounded-md">
+                                {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 0 && !selectedAction && (
+                                    <div className="text-sm text-foreground bg-muted/50 p-4 rounded-md">
                                         Select an action to configure parameters
                                     </div>
                                 )}
@@ -185,7 +190,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, w
 
                         {/* Non-connector nodes (Condition, plain Trigger) */}
                         {!connector && !connectorLoading && connectorSlug && (
-                            <div className="text-sm text-muted-foreground bg-muted/50 p-4 rounded-md">
+                            <div className="text-sm text-foreground bg-muted/50 p-4 rounded-md">
                                 {selectedNode.type === 'condition' && (
                                     <p>Condition logic builder will be available here.</p>
                                 )}

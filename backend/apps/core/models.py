@@ -524,12 +524,8 @@ class CustomConnector(models.Model):
     description = models.TextField(
         blank=True, help_text="Description of what this connector does"
     )
-    icon = models.ImageField(
-        upload_to="connector_icons/",
-        null=True,
-        blank=True,
-        help_text="Icon for the connector",
-    )
+    icon_url_light = models.URLField(blank=True, null=True, help_text="URL to connector icon")
+    icon_url_dark = models.URLField(blank=True, null=True, help_text="URL to connector icon")
     visibility = models.CharField(
         max_length=20,
         choices=VISIBILITY_CHOICES,
@@ -607,7 +603,8 @@ class Connector(models.Model):
     description = models.TextField(blank=True)
     version = models.CharField(max_length=50, default="1.0.0")
     manifest = models.JSONField(help_text="Connector manifest definition")
-    icon_url = models.URLField(blank=True, null=True, help_text="URL to connector icon")
+    icon_url_light = models.URLField(blank=True, null=True, help_text="URL to connector icon")
+    icon_url_dark = models.URLField(blank=True, null=True, help_text="URL to connector icon")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

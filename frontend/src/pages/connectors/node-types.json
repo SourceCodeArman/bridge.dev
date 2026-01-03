@@ -1,0 +1,318 @@
+{
+    "nodeTypes": [
+        {
+            "id": "trigger",
+            "label": "Trigger",
+            "dimensions": {
+                "width": 100,
+                "height": 100
+            },
+            "resizable": false,
+            "preview": {
+                "widthClass": "w-8",
+                "containerClass": "rounded-l-[60px] justify-center",
+                "showLine": false
+            },
+            "style": {
+                "containerClass": "rounded-l-[60px]",
+                "ratioOptions": [],
+                "radiusOptions": []
+            },
+            "handles": {
+                "defaults": {
+                    "left": 0,
+                    "right": 1,
+                    "top": 0,
+                    "bottom": 0
+                },
+                "styling": [
+                    {
+                        "type": "circle",
+                        "rotation": 0,
+                        "translation": {
+                            "rightLeft": {
+                                "x": 0,
+                                "y": 0
+                            },
+                            "topBottom": {
+                                "x": 0,
+                                "y": 0
+                            }
+                        },
+                        "borderRadius": "10px"
+                    }
+                ],
+                "allowedHandleTypes": [
+                    "output"
+                ],
+                "maxHandleCounts": {
+                    "left": 0,
+                    "right": 5,
+                    "top": 0,
+                    "bottom": 0
+                }
+            }
+        },
+        {
+            "id": "action",
+            "label": "Action",
+            "dimensions": {
+                "width": 100,
+                "height": 100
+            },
+            "resizable": false,
+            "preview": {
+                "widthClass": "w-8",
+                "containerClass": "rounded-[18px] justify-center",
+                "showLine": false
+            },
+            "style": {
+                "containerClass": "rounded-[18px]",
+                "ratioOptions": [],
+                "radiusOptions": []
+            },
+            "handles": {
+                "defaults": {
+                    "left": 1,
+                    "right": 1,
+                    "top": 0,
+                    "bottom": 0
+                },
+                "styling": [
+                    {
+                        "type": "circle",
+                        "rotation": 0,
+                        "translation": {
+                            "rightLeft": {
+                                "x": 0,
+                                "y": 0
+                            },
+                            "topBottom": {
+                                "x": 0,
+                                "y": 0
+                            }
+                        },
+                        "borderRadius": "10px"
+                    }
+                ],
+                "allowedHandleTypes": [
+                    "input",
+                    "output"
+                ],
+                "maxHandleCounts": {
+                    "left": 5,
+                    "right": 5,
+                    "top": 5,
+                    "bottom": 5
+                }
+            }
+        },
+        {
+            "id": "agent",
+            "label": "Agent",
+            "dimensions": {
+                "width": 200,
+                "height": 100
+            },
+            "resizable": false,
+            "preview": {
+                "widthClass": "w-16",
+                "containerClass": "rounded justify-center",
+                "showLine": true
+            },
+            "style": {
+                "containerClass": "rounded-[24px]",
+                "ratioOptions": [],
+                "radiusOptions": []
+            },
+            "handles": {
+                "defaults": {
+                    "left": 1,
+                    "right": 1,
+                    "top": 0,
+                    "bottom": 3
+                },
+                "styling": [
+                    {
+                        "type": "circle",
+                        "rotation": 0,
+                        "translation": {
+                            "rightLeft": {
+                                "x": 0,
+                                "y": 0
+                            },
+                            "topBottom": {
+                                "x": 0,
+                                "y": 0
+                            }
+                        },
+                        "borderRadius": "10px"
+                    }
+                ],
+                "allowedHandleTypes": [
+                    "input",
+                    "output"
+                ],
+                "maxHandleCounts": {
+                    "left": 5,
+                    "right": 5,
+                    "top": 5,
+                    "bottom": 5
+                }
+            }
+        },
+        {
+            "id": "agent-tool",
+            "label": "Agent Resource",
+            "dimensions": {
+                "width": 100,
+                "height": 100
+            },
+            "resizable": false,
+            "preview": {
+                "widthClass": "w-8",
+                "containerClass": "rounded-full justify-center",
+                "showLine": false
+            },
+            "style": {
+                "containerClass": "rounded-full",
+                "ratioOptions": [],
+                "radiusOptions": []
+            },
+            "handles": {
+                "defaults": {
+                    "left": 0,
+                    "right": 0,
+                    "top": 1,
+                    "bottom": 0
+                },
+                "styling": [
+                    {
+                        "type": "diamond",
+                        "rotation": 45,
+                        "translation": {
+                            "rightLeft": {
+                                "x": 0,
+                                "y": 0
+                            },
+                            "topBottom": {
+                                "x": 0,
+                                "y": 0
+                            }
+                        },
+                        "borderRadius": "2px"
+                    }
+                ],
+                "allowedHandleTypes": [
+                    "output"
+                ],
+                "maxHandleCounts": {
+                    "left": 0,
+                    "right": 0,
+                    "top": 1,
+                    "bottom": 0
+                }
+            }
+        },
+        {
+            "id": "custom",
+            "label": "Custom",
+            "dimensions": {
+                "width": 100,
+                "height": 100
+            },
+            "resizable": true,
+            "preview": {
+                "widthClass": "w-8",
+                "containerClass": "rounded-[18px] justify-center",
+                "showLine": false
+            },
+            "style": {
+                "containerClass": "rounded-[18px]",
+                "ratioOptions": [
+                    {
+                        "width": 100,
+                        "height": 100
+                    },
+                    {
+                        "width": 100,
+                        "height": 200
+                    },
+                    {
+                        "width": 200,
+                        "height": 100
+                    }
+                ],
+                "radiusOptions": [
+                    "18px",
+                    "100%"
+                ]
+            },
+            "handles": {
+                "defaults": {
+                    "left": 1,
+                    "right": 1,
+                    "top": 0,
+                    "bottom": 0
+                },
+                "styling": [
+                    {
+                        "type": "circle",
+                        "rotation": 0,
+                        "translation": {
+                            "rightLeft": {
+                                "x": 0,
+                                "y": 0
+                            },
+                            "topBottom": {
+                                "x": 0,
+                                "y": 0
+                            }
+                        },
+                        "borderRadius": "10px"
+                    },
+                    {
+                        "type": "diamond",
+                        "rotation": 45,
+                        "translation": {
+                            "rightLeft": {
+                                "x": 0,
+                                "y": 0
+                            },
+                            "topBottom": {
+                                "x": 0,
+                                "y": 0
+                            }
+                        },
+                        "borderRadius": "2px"
+                    },
+                    {
+                        "type": "square",
+                        "rotation": 0,
+                        "translation": {
+                            "rightLeft": {
+                                "x": 0,
+                                "y": 0
+                            },
+                            "topBottom": {
+                                "x": 0,
+                                "y": 0
+                            }
+                        },
+                        "borderRadius": "2px"
+                    }
+                ],
+                "allowedHandleTypes": [
+                    "input",
+                    "output"
+                ],
+                "maxHandleCounts": {
+                    "left": 5,
+                    "right": 5,
+                    "top": 5,
+                    "bottom": 5
+                }
+            }
+        }
+    ]
+}

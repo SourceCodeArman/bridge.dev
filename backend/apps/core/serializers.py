@@ -25,6 +25,12 @@ from .models import (
 )
 from .encryption import get_encryption_service
 from .connectors.validator import validate_custom_connector_manifest
+from django.db import transaction
+from django.utils.text import slugify
+from django.conf import settings
+from supabase import create_client
+import uuid
+import os
 
 
 class ConnectorSerializer(serializers.ModelSerializer):
@@ -39,7 +45,8 @@ class ConnectorSerializer(serializers.ModelSerializer):
             "description",
             "version",
             "manifest",
-            "icon_url",
+            "icon_url_light",
+            "icon_url_dark",
             "is_active",
             "connector_type",
         ]
@@ -908,6 +915,9 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
     workspace_name = serializers.CharField(source="workspace.name", read_only=True)
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
     current_version_info = serializers.SerializerMethodField()
+    manifest_file = serializers.FileField(write_only=True)
+    icon = serializers.ImageField(write_only=True, required=False)
+    slug = serializers.SlugField(required=False, allow_blank=True)
 
     class Meta:
         model = CustomConnector
@@ -918,7 +928,8 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "slug",
             "display_name",
             "description",
-            "icon",
+            "icon_url_light",
+            "icon_url_dark",
             "visibility",
             "status",
             "current_version",
@@ -927,6 +938,8 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "created_by_email",
             "created_at",
             "updated_at",
+            "manifest_file",
+            "icon",
         )
         read_only_fields = (
             "id",
@@ -934,12 +947,18 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "updated_at",
-            "current_version_info",
         )
 
     def validate(self, attrs):
         """Ensure slug is unique per workspace at the serializer level."""
         workspace = attrs.get("workspace") or getattr(self.instance, "workspace", None)
+
+        # Auto-generate slug if not provided
+        if not attrs.get("slug"):
+            display_name = attrs.get("display_name")
+            if display_name:
+                attrs["slug"] = slugify(display_name)
+
         slug = attrs.get("slug") or getattr(self.instance, "slug", None)
 
         if workspace and slug:
@@ -955,6 +974,75 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
                     }
                 )
         return super().validate(attrs)
+
+    def create(self, validated_data):
+        manifest_file = validated_data.pop("manifest_file")
+        icon = validated_data.pop("icon", None)
+
+        # Handle icon upload to Supabase Storage
+        if icon:
+            try:
+                supabase = create_client(
+                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY
+                )
+                file_ext = os.path.splitext(icon.name)[1]
+                file_path = f"connectors/{uuid.uuid4()}{file_ext}"
+
+                # Read file content
+                file_content = icon.read()
+
+                # Upload to Supabase
+                supabase.storage.from_("connector-icons").upload(
+                    file_path, file_content, {"content-type": icon.content_type}
+                )
+
+                # Get public URL
+                public_url_response = supabase.storage.from_(
+                    "connector-icons"
+                ).get_public_url(file_path)
+
+                # Use public URL directly if it's a string, or check response
+                icon_url = public_url_response
+
+                validated_data["icon_url_light"] = icon_url
+                validated_data["icon_url_dark"] = icon_url
+
+            except Exception as e:
+                # Log error but proceed without icon
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to upload icon to Supabase: {str(e)}")
+
+        try:
+            import json
+
+            # If manifest_file was read before, ensure we start from 0
+            manifest_file.seek(0)
+            manifest_data = json.loads(manifest_file.read().decode("utf-8"))
+            validate_custom_connector_manifest(manifest_data)
+        except Exception as e:
+            raise serializers.ValidationError(
+                {"manifest_file": f"Invalid manifest: {str(e)}"}
+            )
+
+        with transaction.atomic():
+            connector = CustomConnector.objects.create(**validated_data)
+
+            # Create initial draft version
+            version = CustomConnectorVersion.objects.create(
+                connector=connector,
+                version=manifest_data.get("version", "1.0.0"),
+                manifest=manifest_data,
+                status="draft",
+                created_by=validated_data.get("created_by"),
+            )
+
+            # Set as current version
+            connector.current_version = version
+            connector.save(update_fields=["current_version"])
+
+        return connector
 
     def get_current_version_info(self, obj):
         """Return a minimal summary of the current version, if set."""

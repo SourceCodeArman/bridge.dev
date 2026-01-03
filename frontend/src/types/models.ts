@@ -123,7 +123,8 @@ export interface Connector {
     type: string;
     connector_type: 'agent-tool' | 'agent-model' | 'agent-memory' | 'agent' | 'action' | 'trigger' | 'condition' | 'custom';
     icon?: string;
-    icon_url?: string;
+    icon_url_light?: string;
+    icon_url_dark?: string;
     manifest: ConnectorManifest;
     is_custom: boolean;
     is_active: boolean;
@@ -145,6 +146,7 @@ export interface ConnectorManifest {
         handleNames?: Record<string, string>; // Map of "side-index" to name (e.g., "left-0": "My Input")
         handleLocations?: string[]; // Legacy
     };
+    connector_type?: string;
 }
 
 export interface AuthConfig {

@@ -11,10 +11,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Prefetch, Q, Max  # Moved from get_queryset and added Max
+from django.db.models import Q  # Moved from get_queryset and added Max
 from apps.accounts.permissions import (
     IsWorkspaceMember,
     HasCredentialPermission,
@@ -78,6 +77,7 @@ from .utils import generate_idempotency_key, validate_webhook_signature
 from .tasks import execute_workflow_run
 from .supabase_trigger_handler import trigger_manager
 from .utils.template_cloner import TemplateCloner
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 logger = get_logger(__name__)
 
@@ -1286,7 +1286,7 @@ class WebhookTriggerView(APIView):
             # Prepare webhook payload
             payload = {
                 "method": request.method,
-                "headers": dict(request.META),
+                "headers": dict(request.headers),
                 "body": request.data,
                 "query_params": dict(request.GET),
             }
@@ -2279,7 +2279,6 @@ class WorkflowPresenceViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-
 class CustomConnectorViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing custom (user-contributed) connectors.
@@ -2287,6 +2286,7 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
     Connectors are scoped to a workspace and managed by workspace admins.
     """
 
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
     serializer_class = CustomConnectorSerializer
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 

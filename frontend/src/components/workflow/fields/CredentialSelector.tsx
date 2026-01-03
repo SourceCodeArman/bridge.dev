@@ -44,7 +44,7 @@ export default function CredentialSelector({
                     </SelectTrigger>
                     <SelectContent>
                         {filteredCredentials.length === 0 && (
-                            <div className="p-2 text-sm text-muted-foreground text-center">
+                            <div className="p-2 text-sm text-foreground text-center">
                                 No credentials available
                             </div>
                         )}

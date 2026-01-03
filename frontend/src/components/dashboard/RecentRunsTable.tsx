@@ -38,7 +38,7 @@ export function RecentRunsTable({ runs, loading }: RecentRunsTableProps) {
                 <CardContent>
                     <div className="space-y-2">
                         {[1, 2, 3].map((i) => (
-                            <div key={i} className="h-12 w-full bg-neutral-100 dark:bg-neutral-800 rounded animate-pulse" />
+                            <div key={i} className="h-12 w-full bg-neutral-100 dark:bg-card rounded animate-pulse" />
                         ))}
                     </div>
                 </CardContent>
@@ -68,7 +68,7 @@ export function RecentRunsTable({ runs, loading }: RecentRunsTableProps) {
                     <TableBody>
                         {runs.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center text-muted-foreground h-28">
+                                <TableCell colSpan={4} className="text-center text-foreground h-28">
                                     No runs found.
                                 </TableCell>
                             </TableRow>

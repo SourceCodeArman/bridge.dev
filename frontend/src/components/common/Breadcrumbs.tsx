@@ -11,10 +11,10 @@ export function Breadcrumbs() {
     }
 
     return (
-        <nav className="flex items-center space-x-1 text-sm text-neutral-400">
+        <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
             <Link
                 to="/dashboard"
-                className="flex items-center hover:text-neutral-200 transition-colors"
+                className="flex items-center hover:text-foreground transition-colors"
             >
                 <Home className="h-4 w-4" />
             </Link>
@@ -26,13 +26,13 @@ export function Breadcrumbs() {
                     <div key={to} className="flex items-center">
                         <ChevronRight className="h-4 w-4 mx-1" />
                         {isLast ? (
-                            <span className="font-medium text-neutral-200 capitalize">
+                            <span className="font-medium text-foreground capitalize">
                                 {value.replace(/-/g, ' ')}
                             </span>
                         ) : (
                             <Link
                                 to={to}
-                                className="hover:text-neutral-200 transition-colors capitalize"
+                                className="hover:text-foreground transition-colors capitalize"
                             >
                                 {value.replace(/-/g, ' ')}
                             </Link>

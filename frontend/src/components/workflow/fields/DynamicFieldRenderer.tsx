@@ -61,7 +61,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
+                    <p className="text-xs text-foreground">{schema.description}</p>
                 )}
                 <div className="flex gap-2">
                     <Input
@@ -78,7 +78,7 @@ export default function DynamicFieldRenderer({
                                 navigator.clipboard.writeText(webhookUrl);
                             }
                         }}
-                        className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-md text-sm"
+                        className="px-3 py-2 bg-card hover:bg-neutral-700 rounded-md text-sm"
                         title="Copy to clipboard"
                     >
                         Copy
@@ -98,18 +98,18 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
+                    <p className="text-xs text-foreground">{schema.description}</p>
                 )}
                 <Select value={value || schema.default || ''} onValueChange={onChange}>
-                    <SelectTrigger id={fieldName} className="bg-neutral-900 border-neutral-700">
-                        <SelectValue placeholder={`Select ${label.toLowerCase()}`} className="text-neutral-500" />
+                    <SelectTrigger id={fieldName} className="bg-background border-border">
+                        <SelectValue placeholder={`Select ${label.toLowerCase()}`} className="text-muted-foreground" />
                     </SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-700">
+                    <SelectContent className="bg-background border-border">
                         {schema.enum.map((option) => (
                             <SelectItem
                                 key={option}
                                 value={option}
-                                className="text-neutral-200 hover:bg-neutral-800 focus:bg-neutral-800"
+                                className="text-foreground hover:bg-card focus:bg-card"
                             >
                                 {option}
                             </SelectItem>
@@ -137,7 +137,7 @@ export default function DynamicFieldRenderer({
                     </Label>
                 </div>
                 {schema.description && (
-                    <p className="text-xs text-muted-foreground ml-6">{schema.description}</p>
+                    <p className="text-xs text-foreground ml-6">{schema.description}</p>
                 )}
                 {error && <p className="text-sm text-destructive ml-6">{error}</p>}
             </div>
@@ -153,7 +153,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
+                    <p className="text-xs text-foreground">{schema.description}</p>
                 )}
                 <Input
                     id={fieldName}
@@ -182,7 +182,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
+                    <p className="text-xs text-foreground">{schema.description}</p>
                 )}
                 <Textarea
                     id={fieldName}
@@ -222,7 +222,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
+                    <p className="text-xs text-foreground">{schema.description}</p>
                 )}
                 <Textarea
                     id={fieldName}
@@ -243,7 +243,7 @@ export default function DynamicFieldRenderer({
                 {required && <span className="text-destructive ml-1">*</span>}
             </Label>
             {schema.description && (
-                <p className="text-xs text-muted-foreground">{schema.description}</p>
+                <p className="text-xs text-foreground">{schema.description}</p>
             )}
             <Input
                 id={fieldName}

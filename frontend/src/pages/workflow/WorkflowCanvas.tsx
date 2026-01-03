@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { workflowService } from '@/lib/api/services/workflow';
 import { connectorService } from '@/lib/api/services/connector';
+import { customConnectorService } from '@/lib/api/services/customConnector';
 import {
     ReactFlow,
     MiniMap,
@@ -22,8 +23,9 @@ import type {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
-import { TriggerNode, ActionNode, ConditionNode, AgentNode, ModelNode, MemoryNode, ToolNode } from '@/components/workflow/CustomNodes';
+import { TriggerNode, ActionNode, ConditionNode, AgentNode } from '@/components/workflow/CustomNodes';
 import { CustomNode } from '@/components/workflow/CustomNode';
+import { ThemeAwareIcon } from '@/components/connectors/ThemeAwareIcon';
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel';
 import { Save, Layout, Rocket, Webhook, Plus } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
@@ -40,9 +42,6 @@ const nodeTypes = {
     action: ActionNode,
     condition: ConditionNode,
     agent: AgentNode,
-    modelNode: ModelNode,
-    memoryNode: MemoryNode,
-    toolsNode: ToolNode,
     custom: CustomNode,
 };
 
@@ -89,6 +88,33 @@ const WorkflowCanvasInner = () => {
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [isHydrated, setIsHydrated] = useState(false);
     const [initialDefinition, setInitialDefinition] = useState<string | null>(null);
+    const [showMiniMap, setShowMiniMap] = useState(false);
+    const miniMapTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+    const showMiniMapUI = useCallback(() => {
+        if (miniMapTimeoutRef.current) {
+            clearTimeout(miniMapTimeoutRef.current);
+        }
+        setShowMiniMap(true);
+    }, []);
+
+    const hideMiniMapUI = useCallback(() => {
+        if (miniMapTimeoutRef.current) {
+            clearTimeout(miniMapTimeoutRef.current);
+        }
+        miniMapTimeoutRef.current = setTimeout(() => {
+            setShowMiniMap(false);
+        }, 1000);
+    }, []);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (miniMapTimeoutRef.current) {
+                clearTimeout(miniMapTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Fetch workflow data if ID is present
     const { data: workflow, isLoading } = useQuery({
@@ -147,16 +173,7 @@ const WorkflowCanvasInner = () => {
         }));
     }, [handleSmartAdd, setNodes]);
 
-    // Autosave effect
-    useEffect(() => {
-        if (!isHydrated || !id) return;
 
-        const timer = setTimeout(() => {
-            handlePublish();
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [nodes, edges, isHydrated, id]);
 
 
     // Fetch available connectors
@@ -164,6 +181,13 @@ const WorkflowCanvasInner = () => {
         queryKey: ['connectors'],
         queryFn: connectorService.list,
     });
+
+    const { data: customConnectors } = useQuery({
+        queryKey: ['custom-connectors'],
+        queryFn: customConnectorService.list,
+    });
+
+    const allConnectors = [...(connectors || []), ...(customConnectors || [])];
 
     // ... (omitted useEffect for brevity, it uses handleSmartAdd which is updated) ...
 
@@ -189,7 +213,8 @@ const WorkflowCanvasInner = () => {
         let description = 'Performs an action';
         let connectorType = 'action';
         let actionId = '';
-        const iconUrl = connectorDataVal?.icon_url;
+        const iconUrlLight = connectorDataVal?.icon_url_light;
+        const iconUrlDark = connectorDataVal?.icon_url_dark;
         let ui = connectorDataVal?.manifest?.ui; // Extract UI settings
 
         // Generic handling from connector data if available
@@ -239,7 +264,8 @@ const WorkflowCanvasInner = () => {
                 description,
                 connectorType,
                 actionId,
-                iconUrl,
+                iconUrlLight,
+                iconUrlDark,
                 ui, // Pass UI settings
                 onAddClick: handleSmartAdd
             },
@@ -373,7 +399,8 @@ const WorkflowCanvasInner = () => {
     const onDragOver = useCallback((event: React.DragEvent) => {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
-    }, []);
+        showMiniMapUI();
+    }, [showMiniMapUI]);
 
     const onDrop = useCallback(
         (event: React.DragEvent) => {
@@ -405,9 +432,15 @@ const WorkflowCanvasInner = () => {
             }
 
             createNode(type, position, event, connectorData);
+            hideMiniMapUI();
         },
-        [screenToFlowPosition, createNode],
+        [screenToFlowPosition, createNode, hideMiniMapUI],
     );
+
+    const onMoveStart = useCallback(() => showMiniMapUI(), [showMiniMapUI]);
+    const onMoveEnd = useCallback(() => hideMiniMapUI(), [hideMiniMapUI]);
+    const onNodeDragStart = useCallback(() => showMiniMapUI(), [showMiniMapUI]);
+    const onNodeDragStop = useCallback(() => hideMiniMapUI(), [hideMiniMapUI]);
 
     const isValidConnection = useCallback(
         (connection: Connection | Edge) => {
@@ -582,19 +615,19 @@ const WorkflowCanvasInner = () => {
                                 <Plus className="w-6 h-6" />
                             </Button>
                         </SheetTrigger>
-                        <SheetContent side="right" className="w-[300px] sm:w-[400px] overflow-y-auto bg-neutral-800">
+                        <SheetContent side="right" className="w-[300px] sm:w-[400px] overflow-y-auto bg-sidebar">
                             <SheetHeader className="mb-4">
                                 <SheetTitle>Add Node</SheetTitle>
                             </SheetHeader>
-                            <div className="flex flex-col gap-4 text-neutral-200">
+                            <div className="flex flex-col gap-4 text-foreground">
                                 <h3 className="font-semibold text-sm">Components</h3>
                                 <div className="space-y-4">
                                     {/* Triggers */}
                                     {(isNodeAllowed('trigger') || isNodeAllowed('webhook')) && (
                                         <div>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Triggers</div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Triggers</div>
                                             <div className="space-y-2">
-                                                {connectors?.filter(c => c.connector_type === 'trigger').map((connector) => (
+                                                {allConnectors.filter(c => c.connector_type === 'trigger').map((connector) => (
                                                     <div
                                                         key={connector.id}
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
@@ -606,23 +639,28 @@ const WorkflowCanvasInner = () => {
                                                             event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
                                                         }}
                                                     >
-                                                        {connector.icon_url ? (
-                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        {connector.icon_url_light || connector.icon_url_dark ? (
+                                                            <ThemeAwareIcon
+                                                                lightSrc={connector.icon_url_light}
+                                                                darkSrc={connector.icon_url_dark}
+                                                                alt={connector.display_name}
+                                                                className="w-4 h-4 object-contain"
+                                                            />
                                                         ) : (
-                                                            <Webhook className="w-4 h-4 text-neutral-200" />
+                                                            <Webhook className="w-4 h-4 text-foreground" />
                                                         )}
                                                         <span className="text-sm">{connector.display_name}</span>
                                                     </div>
                                                 ))}
                                                 {/* Fallback for hardcoded if needed, or if no trigger connectors yet */}
-                                                {!connectors?.some(c => c.connector_type === 'trigger') && (
+                                                {!allConnectors.some(c => c.connector_type === 'trigger') && (
                                                     <div
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
                                                         onClick={() => handleAddNodeClick('trigger')}
                                                         draggable
                                                         onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'trigger')}
                                                     >
-                                                        <Webhook className="w-4 h-4 text-neutral-200" />
+                                                        <Webhook className="w-4 h-4 text-foreground" />
                                                         <span className="text-sm">Webhook Trigger</span>
                                                     </div>
                                                 )}
@@ -631,11 +669,11 @@ const WorkflowCanvasInner = () => {
                                     )}
 
                                     {/* Actions */}
-                                    {isNodeAllowed('action') && connectors?.some(c => c.connector_type === 'action') && (
+                                    {isNodeAllowed('action') && allConnectors.some(c => c.connector_type === 'action') && (
                                         <div>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Actions</div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Actions</div>
                                             <div className="space-y-2">
-                                                {connectors?.filter(c => c.connector_type === 'action').map((connector) => (
+                                                {allConnectors.filter(c => c.connector_type === 'action').map((connector) => (
                                                     <div
                                                         key={connector.id}
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
@@ -647,8 +685,13 @@ const WorkflowCanvasInner = () => {
                                                             event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
                                                         }}
                                                     >
-                                                        {connector.icon_url ? (
-                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        {connector.icon_url_light || connector.icon_url_dark ? (
+                                                            <ThemeAwareIcon
+                                                                lightSrc={connector.icon_url_light}
+                                                                darkSrc={connector.icon_url_dark}
+                                                                alt={connector.display_name}
+                                                                className="w-4 h-4 object-contain"
+                                                            />
                                                         ) : (
                                                             <div className="w-4 h-4 bg-muted rounded-full" />
                                                         )}
@@ -662,7 +705,7 @@ const WorkflowCanvasInner = () => {
                                     {/* Logic (Condition) */}
                                     {isNodeAllowed('condition') && (
                                         <div>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Logic</div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Logic</div>
                                             <div
                                                 className="border p-2 rounded cursor-pointer bg-card hover:bg-accent transition-colors"
                                                 onClick={() => handleAddNodeClick('condition')}
@@ -677,10 +720,10 @@ const WorkflowCanvasInner = () => {
                                     {/* AI Agents */}
                                     {isNodeAllowed('agent') && (
                                         <div>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">AI Agents</div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">AI Agents</div>
                                             <div className="space-y-2">
                                                 {/* Dynamic Agent Connectors */}
-                                                {connectors?.filter(c => c.connector_type === 'agent').map((connector) => (
+                                                {allConnectors.filter(c => c.connector_type === 'agent').map((connector) => (
                                                     <div
                                                         key={connector.id}
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
@@ -692,8 +735,13 @@ const WorkflowCanvasInner = () => {
                                                             event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
                                                         }}
                                                     >
-                                                        {connector.icon_url ? (
-                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        {connector.icon_url_light || connector.icon_url_dark ? (
+                                                            <ThemeAwareIcon
+                                                                lightSrc={connector.icon_url_light}
+                                                                darkSrc={connector.icon_url_dark}
+                                                                alt={connector.display_name}
+                                                                className="w-4 h-4 object-contain"
+                                                            />
                                                         ) : (
                                                             <div className="w-4 h-4 bg-muted rounded-full" />
                                                         )}
@@ -701,7 +749,7 @@ const WorkflowCanvasInner = () => {
                                                     </div>
                                                 ))}
                                                 {/* Fallback/Generic Agent Node if no specific agent connectors or want generic option */}
-                                                {!connectors?.some(c => c.connector_type === 'agent') && (
+                                                {!allConnectors.some(c => c.connector_type === 'agent') && (
                                                     <div
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
                                                         onClick={() => handleAddNodeClick('agent')}
@@ -716,11 +764,11 @@ const WorkflowCanvasInner = () => {
                                     )}
 
                                     {/* Agent Models */}
-                                    {isNodeAllowed('modelNode') && connectors?.some(c => c.connector_type === 'agent-model') && (
+                                    {isNodeAllowed('modelNode') && allConnectors.some(c => c.connector_type === 'agent-model') && (
                                         <div>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Models</div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Models</div>
                                             <div className="space-y-2">
-                                                {connectors?.filter(c => c.connector_type === 'agent-model').map((connector) => (
+                                                {allConnectors.filter(c => c.connector_type === 'agent-model').map((connector) => (
                                                     <div
                                                         key={connector.id}
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
@@ -732,8 +780,13 @@ const WorkflowCanvasInner = () => {
                                                             event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
                                                         }}
                                                     >
-                                                        {connector.icon_url ? (
-                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        {connector.icon_url_light || connector.icon_url_dark ? (
+                                                            <ThemeAwareIcon
+                                                                lightSrc={connector.icon_url_light}
+                                                                darkSrc={connector.icon_url_dark}
+                                                                alt={connector.display_name}
+                                                                className="w-4 h-4 object-contain"
+                                                            />
                                                         ) : (
                                                             <div className="w-4 h-4 bg-muted rounded-full" />
                                                         )}
@@ -745,11 +798,11 @@ const WorkflowCanvasInner = () => {
                                     )}
 
                                     {/* Agent Memory */}
-                                    {isNodeAllowed('memoryNode') && connectors?.some(c => c.connector_type === 'agent-memory') && (
+                                    {isNodeAllowed('memoryNode') && allConnectors.some(c => c.connector_type === 'agent-memory') && (
                                         <div>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Memory</div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Memory</div>
                                             <div className="space-y-2">
-                                                {connectors?.filter(c => c.connector_type === 'agent-memory').map((connector) => (
+                                                {allConnectors.filter(c => c.connector_type === 'agent-memory').map((connector) => (
                                                     <div
                                                         key={connector.id}
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
@@ -761,8 +814,13 @@ const WorkflowCanvasInner = () => {
                                                             event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
                                                         }}
                                                     >
-                                                        {connector.icon_url ? (
-                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        {connector.icon_url_light || connector.icon_url_dark ? (
+                                                            <ThemeAwareIcon
+                                                                lightSrc={connector.icon_url_light}
+                                                                darkSrc={connector.icon_url_dark}
+                                                                alt={connector.display_name}
+                                                                className="w-4 h-4 object-contain"
+                                                            />
                                                         ) : (
                                                             <div className="w-4 h-4 bg-muted rounded-full" />
                                                         )}
@@ -774,11 +832,11 @@ const WorkflowCanvasInner = () => {
                                     )}
 
                                     {/* Agent Tools */}
-                                    {isNodeAllowed('toolsNode') && connectors?.some(c => c.connector_type === 'agent-tool') && (
+                                    {isNodeAllowed('toolsNode') && allConnectors.some(c => c.connector_type === 'agent-tool') && (
                                         <div>
-                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tools</div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Tools</div>
                                             <div className="space-y-2">
-                                                {connectors?.filter(c => c.connector_type === 'agent-tool').map((connector) => (
+                                                {allConnectors.filter(c => c.connector_type === 'agent-tool').map((connector) => (
                                                     <div
                                                         key={connector.id}
                                                         className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
@@ -790,8 +848,47 @@ const WorkflowCanvasInner = () => {
                                                             event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
                                                         }}
                                                     >
-                                                        {connector.icon_url ? (
-                                                            <img src={connector.icon_url} alt={connector.display_name} className="w-4 h-4 object-contain" />
+                                                        {connector.icon_url_light || connector.icon_url_dark ? (
+                                                            <ThemeAwareIcon
+                                                                lightSrc={connector.icon_url_light}
+                                                                darkSrc={connector.icon_url_dark}
+                                                                alt={connector.display_name}
+                                                                className="w-4 h-4 object-contain"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-4 h-4 bg-muted rounded-full" />
+                                                        )}
+                                                        <span className="text-sm">{connector.display_name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Custom Connectors (Uncategorized) */}
+                                    {allConnectors.some(c => c.connector_type === 'custom' || !['trigger', 'action', 'condition', 'agent', 'agent-model', 'agent-memory', 'agent-tool'].includes(c.connector_type)) && (
+                                        <div>
+                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Custom</div>
+                                            <div className="space-y-2">
+                                                {allConnectors.filter(c => c.connector_type === 'custom' || !['trigger', 'action', 'condition', 'agent', 'agent-model', 'agent-memory', 'agent-tool'].includes(c.connector_type)).map((connector) => (
+                                                    <div
+                                                        key={connector.id}
+                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
+                                                        onClick={() => handleAddNodeClick('custom', connector)}
+                                                        draggable
+                                                        onDragStart={(event) => {
+                                                            event.dataTransfer.setData('application/reactflow', 'custom');
+                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'custom');
+                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
+                                                        }}
+                                                    >
+                                                        {connector.icon_url_light || connector.icon_url_dark ? (
+                                                            <ThemeAwareIcon
+                                                                lightSrc={connector.icon_url_light}
+                                                                darkSrc={connector.icon_url_dark}
+                                                                alt={connector.display_name}
+                                                                className="w-4 h-4 object-contain"
+                                                            />
                                                         ) : (
                                                             <div className="w-4 h-4 bg-muted rounded-full" />
                                                         )}
@@ -832,6 +929,10 @@ const WorkflowCanvasInner = () => {
                     nodeTypes={nodeTypes}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
+                    onMoveStart={onMoveStart}
+                    onMoveEnd={onMoveEnd}
+                    onNodeDragStart={onNodeDragStart}
+                    onNodeDragStop={onNodeDragStop}
                     isValidConnection={isValidConnection}
                     snapToGrid={true}
                     snapGrid={[20, 20]} // Snap to 20px grid
@@ -847,7 +948,12 @@ const WorkflowCanvasInner = () => {
                     }}
                 >
                     <Controls />
-                    <MiniMap bgColor="#26262670" maskColor="#26262690" nodeColor="#262626" />
+                    <MiniMap
+                        bgColor="var(--background)"
+                        maskColor="var(--background)"
+                        nodeColor="var(--foreground)/0.5"
+                        className={`transition-opacity duration-500 ${showMiniMap ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                    />
                     <Background gap={20} size={1} />
                 </ReactFlow>
             </div>

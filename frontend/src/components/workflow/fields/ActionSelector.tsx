@@ -32,20 +32,20 @@ export default function ActionSelector({
         <div className="space-y-2">
             <Label htmlFor="action-selector">{label}</Label>
             <Select value={value || ''} onValueChange={onChange}>
-                <SelectTrigger id="action-selector" className="bg-neutral-800 border-neutral-700">
-                    <SelectValue placeholder="Select an action..." className="text-neutral-500" />
+                <SelectTrigger id="action-selector" className="bg-card border-border">
+                    <SelectValue placeholder="Select an action..." className="text-muted-foreground" />
                 </SelectTrigger>
-                <SelectContent className="bg-neutral-900 border-neutral-700">
+                <SelectContent className="bg-background border-border">
                     {actions.map((action) => (
                         <SelectItem
                             key={action.id}
                             value={action.id}
-                            className="text-neutral-200 hover:bg-neutral-800 focus:bg-neutral-800"
+                            className="text-foreground hover:bg-card focus:bg-card"
                         >
                             <div>
                                 <div className="font-medium">{action.name}</div>
                                 {action.description && (
-                                    <div className="text-xs text-neutral-400">
+                                    <div className="text-xs text-muted-foreground">
                                         {action.description}
                                     </div>
                                 )}
@@ -55,7 +55,7 @@ export default function ActionSelector({
                 </SelectContent>
             </Select>
             {!value && (
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-muted-foreground">
                     Please select an action to configure parameters
                 </p>
             )}

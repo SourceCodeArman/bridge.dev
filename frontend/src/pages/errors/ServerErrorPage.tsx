@@ -7,7 +7,7 @@ export function ServerErrorPage() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 p-8">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
             <div className="max-w-md text-center">
                 {/* Error Icon */}
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
@@ -48,7 +48,7 @@ export function ServerErrorPage() {
                     </Button>
                 </div>
 
-                <p className="mt-8 text-sm text-neutral-500">
+                <p className="mt-8 text-sm text-muted-foreground">
                     If the problem persists, please contact{' '}
                     <a
                         href="mailto:support@bridge.dev"

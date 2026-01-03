@@ -26,25 +26,25 @@ export function CodeBlock({
     return (
         <div
             className={cn(
-                "relative group rounded-lg overflow-hidden border border-border bg-neutral-900",
+                "relative group rounded-lg overflow-hidden border border-border bg-background",
                 className
             )}
         >
             {/* Header with filename and language */}
-            <div className="flex items-center justify-between px-4 py-2 bg-neutral-800 border-b border-border">
+            <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border">
                 <div className="flex items-center gap-2">
                     {filename && (
-                        <span className="text-sm text-neutral-400">{filename}</span>
+                        <span className="text-sm text-muted-foreground">{filename}</span>
                     )}
                     {!filename && language && (
-                        <span className="text-xs text-neutral-500 uppercase">
+                        <span className="text-xs text-muted-foreground uppercase">
                             {language}
                         </span>
                     )}
                 </div>
                 <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                     title="Copy code"
                 >
                     {copied ? (
@@ -63,7 +63,7 @@ export function CodeBlock({
 
             {/* Code content */}
             <div className="p-4 overflow-x-auto">
-                <pre className="text-sm font-mono text-neutral-200 leading-relaxed">
+                <pre className="text-sm font-mono text-foreground leading-relaxed">
                     <code>{code}</code>
                 </pre>
             </div>

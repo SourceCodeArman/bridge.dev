@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { connectorService } from '@/lib/api/services/connector';
 import { customConnectorService } from '@/lib/api/services/customConnector';
 import { type Connector } from '@/types/models';
@@ -9,10 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ConnectorDetailsSheet } from '@/components/connectors/ConnectorDetailsSheet';
+import { ThemeAwareIcon } from '@/components/connectors/ThemeAwareIcon';
 
 export default function ConnectorsPage() {
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null);
 
@@ -33,6 +33,7 @@ export default function ConnectorsPage() {
 
     const filteredConnectors = connectors?.filter(filterConnector) || [];
     const filteredCustomConnectors = customConnectors?.filter(filterConnector) || [];
+    console.log(filteredConnectors, filteredCustomConnectors);
 
     if (isLoading || isCustomLoading) {
         return (
@@ -54,16 +55,16 @@ export default function ConnectorsPage() {
         <div className="space-y-8 p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-bold tracking-tight text-foreground">
                         Connectors
                     </h1>
-                    <p className="text-muted-foreground">
+                    <p className="text-foreground">
                         Browse and manage available integrations for your workflows.
                     </p>
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <div className="relative w-full md:w-64">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-foreground" />
                         <Input
                             placeholder="Search connectors..."
                             className="pl-8"
@@ -82,7 +83,7 @@ export default function ConnectorsPage() {
                 {/* Custom Connectors Section */}
                 {filteredCustomConnectors.length > 0 && (
                     <div className="space-y-4">
-                        <h2 className="text-xl font-semibold text-neutral-200">Custom Connectors</h2>
+                        <h2 className="text-xl font-semibold text-foreground">Custom Connectors</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {filteredCustomConnectors.map((connector) => (
                                 <ConnectorCard
@@ -97,7 +98,7 @@ export default function ConnectorsPage() {
 
                 {/* System Connectors Section */}
                 <div className="space-y-4">
-                    <h2 className="text-xl font-semibold text-neutral-200">System Connectors</h2>
+                    <h2 className="text-xl font-semibold text-foreground">System Connectors</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {filteredConnectors.map((connector) => (
                             <ConnectorCard
@@ -111,7 +112,7 @@ export default function ConnectorsPage() {
             </div>
 
             {!isLoading && !isCustomLoading && filteredConnectors.length === 0 && filteredCustomConnectors.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
+                <div className="text-center py-12 text-foreground">
                     No connectors found matching your search.
                 </div>
             )}
@@ -132,19 +133,19 @@ function ConnectorCard({ connector, onClick }: { connector: Connector; onClick: 
     return (
         <div
             onClick={onClick}
-            className="group relative flex flex-col justify-between rounded-xl border border-neutral-800 bg-neutral-900/50 p-6 hover:bg-neutral-900 transition-colors cursor-pointer"
+            className="group relative flex flex-col justify-between rounded-xl border border-border bg-background/50 p-6 hover:bg-background transition-colors cursor-pointer"
         >
             <div className="space-y-4">
                 <div className="flex items-start justify-between">
-                    <div className="h-12 w-12 rounded-lg bg-neutral-800 p-2 flex items-center justify-center overflow-hidden border border-neutral-700">
-                        {connector.icon_url ? (
-                            <img
-                                src={connector.icon_url}
-                                alt={connector.display_name}
-                                className="h-full w-full object-contain"
+                    <div className="h-12 w-12 rounded-lg bg-card p-2 flex items-center justify-center overflow-hidden border border-border">
+                        {connector.icon_url_light && connector.icon_url_dark ? (
+                            <ThemeAwareIcon
+                                lightSrc={connector.icon_url_light}
+                                darkSrc={connector.icon_url_dark}
+                                className="h-6 w-6"
                             />
                         ) : (
-                            <div className="text-2xl font-bold text-neutral-500">
+                            <div className="text-2xl font-bold text-muted-foreground">
                                 {connector.display_name?.charAt(0) || '?'}
                             </div>
                         )}
@@ -156,17 +157,17 @@ function ConnectorCard({ connector, onClick }: { connector: Connector; onClick: 
                 </div>
 
                 <div className="space-y-2">
-                    <h3 className="font-semibold text-lg text-neutral-100 group-hover:text-primary transition-colors">
+                    <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">
                         {connector.display_name}
                     </h3>
-                    <p className="text-sm text-neutral-400 line-clamp-2">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
                         {connector.description || "No description available."}
                     </p>
                 </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-neutral-800">
-                <div className="flex items-center justify-between text-xs text-neutral-500">
+            <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="capitalize">{connector.connector_type || 'System'}</span>
                     <span>{connector.version || 'v1.0.0'}</span>
                 </div>

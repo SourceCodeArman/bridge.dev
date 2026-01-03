@@ -4,9 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Webhook, Zap, Database, Globe, Bolt, Bot, Plus, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { memo } from 'react';
+import { ThemeAwareIcon } from '../connectors/ThemeAwareIcon';
 
 // Common handle styles
-const handleStyle = { padding: '4px', background: '#262626' };
+const handleStyle = { padding: '4px', background: 'var(--secondary)' };
 
 export const ConnectorIcon = ({ type, className }: { type: string, className?: string }) => {
     const iconClass = className || "w-5 h-5";
@@ -53,7 +54,7 @@ const NodeShell = ({ selected, title, type, children, icon, className }: NodeShe
     <div className="relative flex flex-col items-center">
         {/* The visual node box */}
         <Card className={cn(
-            "w-[100px] h-[100px] p-0 flex items-center justify-center border border-border bg-[#1c1c1c] transition-all rounded-[18px] z-10",
+            "w-[100px] h-[100px] p-0 flex items-center justify-center border border-border bg-card transition-all rounded-[18px] z-10",
             selected ? "border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "hover:border-neutral-500",
             className
         )}>
@@ -69,7 +70,7 @@ const NodeShell = ({ selected, title, type, children, icon, className }: NodeShe
                 {title}
             </span>
 
-            <div className="text-[9px] text-muted-foreground leading-tight px-1 line-clamp-2">
+            <div className="text-[9px] text-foreground leading-tight px-1 line-clamp-2">
                 {children}
             </div>
         </div>
@@ -127,7 +128,7 @@ export const SmartPlusHandle = ({
 
     // If not full, show the Smart Plus Handle
     if (!isFull) {
-        const arrowColor = '#b1b1b7';
+        const arrowColor = 'var(--border)';
         const isDashed = lineType === 'dashed';
 
         // Calculate line styles based on position
@@ -152,7 +153,7 @@ export const SmartPlusHandle = ({
             width: 8,
             height: 8,
             borderRadius: shape === 'diamond' ? 0 : '50%',
-            background: '#1c1c1c', // Match card bg for "cutout" look or fill
+            background: 'var(--background)', // Match card bg for "cutout" look or fill
             zIndex: 11,
             transform: shape === 'diamond' ? 'translate(-50%, -50%) rotate(45deg)' : 'translate(-50%, -50%)',
         };
@@ -239,7 +240,7 @@ export const SmartPlusHandle = ({
             width: 18,
             height: 18,
             borderRadius: '15%',
-            background: '#262626',
+            background: 'var(--input)',
             border: '0',
             transition: 'all 0.2s',
             display: 'flex',
@@ -295,8 +296,8 @@ export const SmartPlusHandle = ({
             width: shape === 'diamond' ? 10 : 1,
             height: shape === 'diamond' ? 10 : 1,
             borderRadius: shape === 'diamond' ? 0 : '50%',
-            background: shape === 'diamond' ? '#1c1c1c' : 'transparent',
-            border: shape === 'diamond' ? '1px solid #b1b1b7' : 'none',
+            background: shape === 'diamond' ? 'var(--background)' : 'transparent',
+            border: shape === 'diamond' ? '1px solid var(--border)' : 'none',
             transform: shape === 'diamond' ? 'translate(-50%, -50%) rotate(45deg)' : 'translate(-50%, -50%)', // Center and rotate diamonds
             zIndex: shape === 'diamond' ? 50 : 1,
             ...diamondStyle,
@@ -381,7 +382,7 @@ export const SmartPlusHandle = ({
                         pointerEvents: 'none', // Let the invisible handle below receive events
                     }}
                 >
-                    <Plus className="w-2.5 h-2.5 text-neutral-400 pointer-events-none" />
+                    <Plus className="w-2.5 h-2.5 text-muted-foreground pointer-events-none" />
                 </div>
 
                 {/* Invisible Handle overlay for dragging - only when not full */}
@@ -410,8 +411,8 @@ export const SmartPlusHandle = ({
         width: shape === 'diamond' ? 10 : 8,
         height: shape === 'diamond' ? 10 : 8,
         borderRadius: shape === 'diamond' ? 0 : '50%',
-        background: '#1c1c1c',
-        border: '1px solid #b1b1b7',
+        background: 'var(--background)',
+        border: '1px solid var(--border)',
     };
 
     // Determine default transform based on position and shape
@@ -453,7 +454,7 @@ export const SmartPlusHandle = ({
 export const TriggerNode = memo(({ data, selected }: NodeProps) => {
     return (
         <>
-            <NodeShell selected={selected} title={data.label as string} type="Trigger" icon={<Webhook className="w-10 h-10 text-neutral-200" />} className="rounded-l-[60px]" />
+            <NodeShell selected={selected} title={data.label as string} type="Trigger" icon={<Webhook className="w-10 h-10 text-foreground" />} className="rounded-l-[60px]" />
             <Handle type="source" id="source" position={Position.Right} style={handleStyle} className="z-99" />
             <SmartPlusHandle
                 id="source"
@@ -493,8 +494,16 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
     };
 
     const display = getDisplayData();
-    const iconUrl = data.iconUrl as string;
-    const customIcon = iconUrl ? <img src={iconUrl} alt={display.title} className="w-10 h-10 object-contain" /> : undefined;
+    const iconUrlLight = data.iconUrlLight as string;
+    const iconUrlDark = data.iconUrlDark as string;
+    const customIcon = (iconUrlLight || iconUrlDark) ? (
+        <ThemeAwareIcon
+            lightSrc={iconUrlLight}
+            darkSrc={iconUrlDark}
+            alt={display.title}
+            className="w-10 h-10"
+        />
+    ) : undefined;
 
     return (
         <>
@@ -507,7 +516,7 @@ export const ActionNode = memo(({ data, selected }: NodeProps) => {
             // Let NodeShell handle the icon via connectorType if not passed
             >
                 <div className="flex flex-col gap-1">
-                    <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">{display.subtitle || "Performs an action"}</p>
+                    <p className="text-[10px] text-foreground line-clamp-2 leading-tight">{display.subtitle || "Performs an action"}</p>
                 </div>
             </NodeShell>
             <Handle type="source" id="source" position={Position.Right} style={{ ...handleStyle }} className="z-99" />
@@ -528,7 +537,7 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
     return (
         <div className="relative flex flex-col items-center">
             <Handle type="target" position={Position.Left} style={handleStyle} className="z-99" />
-            <NodeShell selected={selected} title={data.label as string || "Condition"} type="Condition" icon={<img src="/if-else-icon.svg" alt="Condition" className="w-10 h-10 text-neutral-200" />} />
+            <NodeShell selected={selected} title={data.label as string || "Condition"} type="Condition" icon={<img src="/if-else-icon.svg" alt="Condition" className="w-10 h-10 text-foreground" />} />
 
             {/* True Path */}
             <Handle
@@ -547,7 +556,7 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
                 draggingFrom={data.draggingFrom}
                 nodeWidth={100}
             />
-            <div className={`absolute top-[25%] -right-8 -translate-y-1/2 text-[9px] text-neutral-200 font-bold tracking-tighter bg-neutral-900 z-20`}>TRUE</div>
+            <div className={`absolute top-[25%] -right-8 -translate-y-1/2 text-[9px] text-foreground font-bold tracking-tighter bg-background z-20`}>TRUE</div>
 
             {/* False Path */}
             <Handle
@@ -566,7 +575,7 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
                 draggingFrom={data.draggingFrom}
                 nodeWidth={100}
             />
-            <div className="absolute top-[75%] -right-9 -translate-y-1/2 text-[9px] text-neutral-200 font-bold tracking-tighter bg-neutral-900 z-20">FALSE</div>
+            <div className="absolute top-[75%] -right-9 -translate-y-1/2 text-[9px] text-foreground font-bold tracking-tighter bg-background z-20">FALSE</div>
         </div>
     );
 });
@@ -584,12 +593,12 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
             <Handle type="target" position={Position.Left} style={handleStyle} className="z-99" />
 
             <Card className={cn(
-                "flex w-[200px] !important h-[100px] p-0 items-center border border-border bg-[#1c1c1c] transition-all rounded-[18px]",
+                "flex w-[200px] !important h-[100px] p-0 items-center border border-border bg-card transition-all rounded-[18px]",
                 selected ? "border-neutral-500 shadow-md" : ""
             )}>
                 <div className="flex items-center gap-2 pl-3">
-                    <Bot className="w-10 h-10 text-neutral-200" />
-                    <div className="font-semibold text-md text-neutral-200 mt-1">{data.label as string || "AI Agent"}</div>
+                    <Bot className="w-10 h-10 text-foreground" />
+                    <div className="font-semibold text-md text-foreground mt-1">{data.label as string || "AI Agent"}</div>
                 </div>
             </Card>
 
@@ -614,8 +623,8 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
                 <div style={{
                     width: 10,
                     height: 10,
-                    background: '#1c1c1c',
-                    border: '1px solid #b1b1b7',
+                    background: 'var(--background)',
+                    border: '1px solid var(--border)',
                     transform: 'rotate(45deg)',  // ⬅️ Rotation happens here
                     position: 'absolute',
                     top: 0,
@@ -661,8 +670,8 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
                 <div style={{
                     width: 10,
                     height: 10,
-                    background: '#1c1c1c',
-                    border: '1px solid #b1b1b7',
+                    background: 'var(--background)',
+                    border: '1px solid var(--border)',
                     transform: 'rotate(45deg)',  // ⬅️ Rotation happens here
                     position: 'absolute',
                     top: 0,
@@ -705,8 +714,8 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
                 <div style={{
                     width: 10,
                     height: 10,
-                    background: '#1c1c1c',
-                    border: '1px solid #b1b1b7',
+                    background: 'var(--card)',
+                    border: '1px solid var(--border)',
                     transform: 'rotate(45deg)',  // ⬅️ Rotation happens here
                     position: 'absolute',
                     top: 0,
@@ -732,9 +741,9 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
             />
 
             {/* Resource Labels - Positioned under handles */}
-            <div className="absolute top-full left-[30px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Model</div>
-            <div className="absolute top-full left-[90px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Memory</div>
-            <div className="absolute top-full left-[150px] -translate-x-1/2 mt-3 text-[9px] font-bold text-neutral-500 uppercase tracking-wider bg-neutral-900 px-1.5 py-0.5 backdrop-blur-sm z-20">Tools</div>
+            <div className="absolute top-full left-[30px] -translate-x-1/2 mt-3 text-[9px] font-bold text-muted-foreground uppercase tracking-wider bg-background px-1.5 py-0.5 backdrop-blur-sm z-20">Model</div>
+            <div className="absolute top-full left-[90px] -translate-x-1/2 mt-3 text-[9px] font-bold text-muted-foreground uppercase tracking-wider bg-background px-1.5 py-0.5 backdrop-blur-sm z-20">Memory</div>
+            <div className="absolute top-full left-[150px] -translate-x-1/2 mt-3 text-[9px] font-bold text-muted-foreground uppercase tracking-wider bg-background px-1.5 py-0.5 backdrop-blur-sm z-20">Tools</div>
 
             <Handle type="source" id="source" position={Position.Right} style={handleStyle} className="z-99" />
             <SmartPlusHandle
@@ -753,15 +762,22 @@ export const AgentNode = memo(({ data, selected }: NodeProps) => {
 const AgentResourceNode = memo(({ data, selected }: NodeProps) => {
     // Icon can be passed via data.icon (React element) or data.iconUrl (image URL)
     const renderIcon = () => {
-        if (data.iconUrl) {
-            return <img src={data.iconUrl as string} alt="Node Icon" style={{ width: '25px', height: '25px' }} />;
+        if (data.iconUrlLight || data.iconUrlDark) {
+            return (
+                <ThemeAwareIcon
+                    lightSrc={data.iconUrlLight as string}
+                    darkSrc={data.iconUrlDark as string}
+                    alt="Node Icon"
+                    style={{ width: '25px', height: '25px' }}
+                />
+            );
         }
         if (data.icon) {
             return data.icon as React.ReactNode;
         }
         // Default icon
         return (
-            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" className="text-neutral-200">
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" className="text-foreground">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
             </svg>
         );
@@ -788,8 +804,8 @@ const AgentResourceNode = memo(({ data, selected }: NodeProps) => {
                 <div style={{
                     width: 10,
                     height: 10,
-                    background: '#1c1c1c',
-                    border: '1px solid #b1b1b7',
+                    background: 'var(--background)',
+                    border: '1px solid var(--border)',
                     transform: 'rotate(45deg)',
                     position: 'absolute',
                     top: 0,
@@ -799,7 +815,7 @@ const AgentResourceNode = memo(({ data, selected }: NodeProps) => {
 
             {/* Circular Node */}
             <Card className={cn(
-                "w-[60px] h-[60px] rounded-full p-0 flex items-center justify-center bg-[#1c1c1c] transition-all relative border border-neutral-800",
+                "w-[60px] h-[60px] rounded-full p-0 flex items-center justify-center bg-card transition-all relative border border-border",
                 selected ? "border-neutral-500 shadow-md" : ""
             )}>
                 <div className="flex flex-col items-center justify-center gap-2">
@@ -808,7 +824,7 @@ const AgentResourceNode = memo(({ data, selected }: NodeProps) => {
                     {/* Warning Icon */}
                     {(data.hasWarning as boolean) && (
                         <div className="absolute bottom-8 right-8 w-6 h-6 bg-red-500 rounded-sm flex items-center justify-center" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}>
-                            <span className="text-white text-xs font-bold mb-1">!</span>
+                            <span className="text-foreground text-xs font-bold mb-1">!</span>
                         </div>
                     )}
                 </div>
@@ -816,44 +832,10 @@ const AgentResourceNode = memo(({ data, selected }: NodeProps) => {
 
             {/* Label below node */}
             <div className="absolute top-full mt-3 flex flex-col items-center text-center pointer-events-none z-20">
-                <span className="text-[10px] text-nowrap text-neutral-200 leading-none">
+                <span className="text-[10px] text-nowrap text-foreground leading-none">
                     {(data.label as string) || (data.defaultLabel as string) || "Resource Node"}
                 </span>
             </div>
         </div>
     );
 });
-
-// Wrapper components that pass specific defaults
-export const ModelNode = memo((props: NodeProps) => (
-    <AgentResourceNode
-        {...props}
-        data={{
-            ...props.data,
-            iconUrl: 'https://jdoswygfcisugxlzlfly.supabase.co/storage/v1/object/public/connector-logos/OpenAi.png',
-            defaultLabel: 'OpenAI Chat Model',
-        }}
-    />
-));
-
-export const MemoryNode = memo((props: NodeProps) => (
-    <AgentResourceNode
-        {...props}
-        data={{
-            ...props.data,
-            icon: <Database color="#e5e5e5" />,
-            defaultLabel: 'Window Buffer Memory',
-        }}
-    />
-));
-
-export const ToolNode = memo((props: NodeProps) => (
-    <AgentResourceNode
-        {...props}
-        data={{
-            ...props.data,
-            icon: <Wrench color="#e5e5e5" />,
-            defaultLabel: 'Tool Node',
-        }}
-    />
-));

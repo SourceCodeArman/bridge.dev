@@ -41,7 +41,7 @@ export function UserMenu() {
                         <p className="text-sm font-medium leading-none">
                             {user?.first_name} {user?.last_name}
                         </p>
-                        <p className="text-xs leading-none text-muted-foreground">
+                        <p className="text-xs leading-none text-foreground">
                             {user?.email}
                         </p>
                     </div>

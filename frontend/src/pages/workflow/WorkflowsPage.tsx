@@ -50,7 +50,7 @@ export default function WorkflowsPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Workflows</h1>
-                    <p className="text-muted-foreground mt-2">
+                    <p className="text-foreground mt-2">
                         Manage and monitor your automation workflows.
                     </p>
                 </div>
@@ -60,7 +60,7 @@ export default function WorkflowsPage() {
                 </Button>
             </div>
 
-            <div className="rounded-md border border-neutral-800 bg-card p-4">
+            <div className="rounded-md border border-border bg-card p-4">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -80,7 +80,7 @@ export default function WorkflowsPage() {
                             </TableRow>
                         ) : workflows.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                <TableCell colSpan={5} className="h-24 text-center text-foreground">
                                     No workflows found. Create one to get started.
                                 </TableCell>
                             </TableRow>
@@ -99,15 +99,15 @@ export default function WorkflowsPage() {
                                             {workflow.is_active ? "Active" : "Inactive"}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">
+                                    <TableCell className="text-foreground">
                                         {workflow.trigger_type || 'Manual'}
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">
+                                    <TableCell className="text-foreground">
                                         {workflow.last_run_at
                                             ? formatDistanceToNow(new Date(workflow.last_run_at), { addSuffix: true })
                                             : 'Never'}
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">
+                                    <TableCell className="text-foreground">
                                         {formatDistanceToNow(new Date(workflow.created_at), { addSuffix: true })}
                                     </TableCell>
                                 </TableRow>

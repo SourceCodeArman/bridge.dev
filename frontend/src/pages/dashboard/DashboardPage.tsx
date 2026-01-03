@@ -46,7 +46,7 @@ export default function DashboardPage() {
                 <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                     Dashboard
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-foreground">
                     Overview of your workflows and recent activity.
                 </p>
             </div>

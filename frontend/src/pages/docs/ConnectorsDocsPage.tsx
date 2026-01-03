@@ -105,8 +105,8 @@ export default function ConnectorsDocsPage() {
     return (
         <div className="max-w-7xl mx-auto space-y-16">
             {/* Header */}
-            <div className="space-y-6 pb-8 border-b border-neutral-800">
-                <div className="flex items-center gap-2 text-sm text-neutral-500 font-mono">
+            <div className="space-y-6 pb-8 border-b border-border">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono">
                     <span className="bg-primary/10 text-primary px-2 py-1 rounded">Reference</span>
                 </div>
 
@@ -114,7 +114,7 @@ export default function ConnectorsDocsPage() {
                     <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                         Connectors
                     </h1>
-                    <p className="text-xl text-neutral-400 max-w-3xl leading-relaxed">
+                    <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed">
                         Integrate Bridge with your favorite tools. Our pre-built connectors handle authentication
                         and schema validation so you can focus on building automation logic.
                     </p>
@@ -125,39 +125,39 @@ export default function ConnectorsDocsPage() {
             <div className="grid md:grid-cols-3 gap-8">
                 <div className="md:col-span-2 space-y-8">
                     <section>
-                        <h2 className="text-2xl font-semibold text-neutral-200 mb-6">Available Integrations</h2>
+                        <h2 className="text-2xl font-semibold text-foreground mb-6">Available Integrations</h2>
                         <div className="grid gap-4 sm:grid-cols-2">
                             {connectors.map((connector) => {
                                 const Icon = connector.icon;
                                 return (
-                                    <div key={connector.name} className="group flex flex-col p-5 rounded-xl border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-900 hover:border-neutral-700 transition-all">
+                                    <div key={connector.name} className="group flex flex-col p-5 rounded-xl border border-border bg-background/50 hover:bg-background hover:border-border transition-all">
                                         <div className="flex items-start justify-between mb-4">
                                             <div className={`p-2.5 rounded-lg border ${connector.color}`}>
                                                 <Icon className="h-6 w-6" />
                                             </div>
-                                            <Badge variant="secondary" className="bg-neutral-800 text-neutral-400 hover:bg-neutral-700">
+                                            <Badge variant="secondary" className="bg-card text-muted-foreground hover:bg-neutral-700">
                                                 {connector.category}
                                             </Badge>
                                         </div>
 
-                                        <h3 className="font-semibold text-neutral-200 mb-2">{connector.name}</h3>
-                                        <p className="text-sm text-neutral-400 mb-4 flex-1">
+                                        <h3 className="font-semibold text-foreground mb-2">{connector.name}</h3>
+                                        <p className="text-sm text-muted-foreground mb-4 flex-1">
                                             {connector.description}
                                         </p>
 
-                                        <div className="space-y-3 pt-4 border-t border-neutral-800">
-                                            <div className="flex items-center gap-2 text-xs text-neutral-500 font-mono">
+                                        <div className="space-y-3 pt-4 border-t border-border">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                                                 <Plug className="h-3 w-3" />
                                                 Auth: {connector.authType}
                                             </div>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {connector.actions.slice(0, 3).map((action) => (
-                                                    <span key={action} className="px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-neutral-800 text-neutral-400 rounded border border-neutral-700">
+                                                    <span key={action} className="px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-card text-muted-foreground rounded border border-border">
                                                         {action}
                                                     </span>
                                                 ))}
                                                 {connector.actions.length > 3 && (
-                                                    <span className="px-1.5 py-0.5 text-[10px] bg-neutral-800 text-neutral-500 rounded border border-neutral-700">
+                                                    <span className="px-1.5 py-0.5 text-[10px] bg-card text-muted-foreground rounded border border-border">
                                                         +{connector.actions.length - 3}
                                                     </span>
                                                 )}
@@ -172,30 +172,30 @@ export default function ConnectorsDocsPage() {
 
                 {/* Sidebar Info */}
                 <div className="space-y-8">
-                    <div className="p-6 rounded-xl border border-neutral-800 bg-neutral-900/50">
-                        <h3 className="font-semibold text-neutral-200 mb-4 flex items-center gap-2">
+                    <div className="p-6 rounded-xl border border-border bg-background/50">
+                        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                             <Search className="h-4 w-4 text-primary" />
                             How to Configure
                         </h3>
                         <ol className="space-y-4">
                             <li className="flex gap-3">
-                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-neutral-800 text-xs font-mono text-neutral-400 border border-neutral-700">1</span>
-                                <span className="text-sm text-neutral-400">Go to <span className="text-neutral-300">Settings → Credentials</span></span>
+                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">1</span>
+                                <span className="text-sm text-muted-foreground">Go to <span className="text-foreground">Settings → Credentials</span></span>
                             </li>
                             <li className="flex gap-3">
-                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-neutral-800 text-xs font-mono text-neutral-400 border border-neutral-700">2</span>
-                                <span className="text-sm text-neutral-400">Click "Add Credential" and choose your service</span>
+                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">2</span>
+                                <span className="text-sm text-muted-foreground">Click "Add Credential" and choose your service</span>
                             </li>
                             <li className="flex gap-3">
-                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-neutral-800 text-xs font-mono text-neutral-400 border border-neutral-700">3</span>
-                                <span className="text-sm text-neutral-400">Complete the OAuth flow or paste your API Key</span>
+                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">3</span>
+                                <span className="text-sm text-muted-foreground">Complete the OAuth flow or paste your API Key</span>
                             </li>
                         </ol>
                     </div>
 
                     <div className="p-6 rounded-xl border border-blue-500/20 bg-blue-500/5">
                         <h3 className="font-semibold text-blue-400 mb-2">Need a custom integration?</h3>
-                        <p className="text-sm text-neutral-400 mb-4">
+                        <p className="text-sm text-muted-foreground mb-4">
                             You can build custom connectors using our HTTP connector or request a new integration.
                         </p>
                         <button className="text-xs bg-blue-500/10 text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-500/20 transition-colors w-full border border-blue-500/20 font-medium">
@@ -205,13 +205,13 @@ export default function ConnectorsDocsPage() {
                 </div>
             </div>
 
-            <section className="space-y-8 pt-8 border-t border-neutral-800">
-                <h2 className="text-2xl font-semibold text-neutral-200">Configuration Examples</h2>
+            <section className="space-y-8 pt-8 border-t border-border">
+                <h2 className="text-2xl font-semibold text-foreground">Configuration Examples</h2>
                 <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div className="flex items-center gap-2">
                             <Slack className="h-5 w-5 text-purple-400" />
-                            <h3 className="font-medium text-neutral-200">Slack Message</h3>
+                            <h3 className="font-medium text-foreground">Slack Message</h3>
                         </div>
                         <CodeBlock
                             language="json"
@@ -229,7 +229,7 @@ export default function ConnectorsDocsPage() {
                     <div className="space-y-4">
                         <div className="flex items-center gap-2">
                             <Bot className="h-5 w-5 text-emerald-400" />
-                            <h3 className="font-medium text-neutral-200">OpenAI Chat</h3>
+                            <h3 className="font-medium text-foreground">OpenAI Chat</h3>
                         </div>
                         <CodeBlock
                             language="json"

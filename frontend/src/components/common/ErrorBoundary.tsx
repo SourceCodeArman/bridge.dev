@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
             const isDev = import.meta.env.DEV;
 
             return (
-                <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-neutral-50">
+                <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-background">
                     <div className="max-w-md">
                         {/* Error Icon */}
                         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
@@ -100,7 +100,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
                         {/* Error ID for support */}
                         {errorId && (
-                            <p className="text-xs text-neutral-400 mb-6">
+                            <p className="text-xs text-muted-foreground mb-6">
                                 Error ID: <code className="bg-neutral-200 px-1.5 py-0.5 rounded">{errorId}</code>
                             </p>
                         )}
@@ -123,10 +123,10 @@ export class ErrorBoundary extends Component<Props, State> {
                         {/* Development mode stack trace */}
                         {isDev && error && (
                             <details className="mt-8 text-left">
-                                <summary className="cursor-pointer text-sm text-neutral-500 hover:text-neutral-700">
+                                <summary className="cursor-pointer text-sm text-muted-foreground hover:text-neutral-700">
                                     Stack Trace (Development Only)
                                 </summary>
-                                <pre className="mt-2 p-4 bg-neutral-900 text-neutral-100 rounded-lg text-xs overflow-auto max-h-64">
+                                <pre className="mt-2 p-4 bg-background text-foreground rounded-lg text-xs overflow-auto max-h-64">
                                     {error.stack}
                                 </pre>
                             </details>

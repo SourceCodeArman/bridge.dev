@@ -13,7 +13,7 @@ function MethodBadge({ method }: { method: string }) {
     } as const;
 
     return (
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${colors[method as keyof typeof colors] || "bg-neutral-800"}`}>
+        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${colors[method as keyof typeof colors] || "bg-card"}`}>
             {method}
         </span>
     );
@@ -22,14 +22,14 @@ function MethodBadge({ method }: { method: string }) {
 // Endpoint Component
 function Endpoint({ method, path, description, title }: { method: string, path: string, description: string, title?: string }) {
     return (
-        <div className="group border border-neutral-800 rounded-lg bg-neutral-900/40 overflow-hidden hover:border-neutral-700 transition-colors">
-            <div className="flex items-center gap-3 p-3 border-b border-neutral-800/50 bg-neutral-900/80">
+        <div className="group border border-border rounded-lg bg-background/40 overflow-hidden hover:border-border transition-colors">
+            <div className="flex items-center gap-3 p-3 border-b border-border/50 bg-background/80">
                 <MethodBadge method={method} />
-                <code className="text-sm text-neutral-300 font-mono">{path}</code>
-                {title && <span className="ml-auto text-xs text-neutral-500 font-medium">{title}</span>}
+                <code className="text-sm text-foreground font-mono">{path}</code>
+                {title && <span className="ml-auto text-xs text-muted-foreground font-medium">{title}</span>}
             </div>
             <div className="p-3">
-                <p className="text-sm text-neutral-400">{description}</p>
+                <p className="text-sm text-muted-foreground">{description}</p>
             </div>
         </div>
     );
@@ -39,8 +39,8 @@ export default function ApiDocsPage() {
     return (
         <div className="max-w-7xl mx-auto space-y-16">
             {/* Header */}
-            <div className="space-y-6 pb-8 border-b border-neutral-800">
-                <div className="flex items-center gap-2 text-sm text-neutral-500 font-mono">
+            <div className="space-y-6 pb-8 border-b border-border">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono">
                     <span className="bg-primary/10 text-primary px-2 py-1 rounded">REST API</span>
                     <span className="flex items-center gap-1">
                         v1.0.0
@@ -51,9 +51,9 @@ export default function ApiDocsPage() {
                     <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                         API Reference
                     </h1>
-                    <p className="text-xl text-neutral-400 max-w-2xl leading-relaxed">
+                    <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
                         Programmatically manage your workspaces, workflows, and runs.
-                        All endpoints are prefixed with <code className="text-neutral-200 bg-neutral-800 px-1.5 py-0.5 rounded text-sm">https://api.bridge.dev/api</code>
+                        All endpoints are prefixed with <code className="text-foreground bg-card px-1.5 py-0.5 rounded text-sm">https://api.bridge.dev/api</code>
                     </p>
                 </div>
             </div>
@@ -66,16 +66,16 @@ export default function ApiDocsPage() {
                             <div className="p-2 rounded-lg bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
                                 <Shield className="h-5 w-5" />
                             </div>
-                            <h2 className="text-2xl font-semibold text-neutral-200">Authentication</h2>
+                            <h2 className="text-2xl font-semibold text-foreground">Authentication</h2>
                         </div>
 
-                        <p className="text-neutral-400">
+                        <p className="text-muted-foreground">
                             Authenticate requests using a Bearer token in the header.
                             You can obtain a token via the login endpoint or generate a persistent API key in settings.
                         </p>
 
                         <div className="space-y-4">
-                            <h3 className="text-lg font-medium text-neutral-200 mt-6">Login to get Token</h3>
+                            <h3 className="text-lg font-medium text-foreground mt-6">Login to get Token</h3>
                             <Endpoint method="POST" path="/auth/login" description="Exchange credentials for an access token." />
                             <CodeBlock
                                 language="bash"
@@ -92,7 +92,7 @@ export default function ApiDocsPage() {
                             <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20">
                                 <Server className="h-5 w-5" />
                             </div>
-                            <h2 className="text-2xl font-semibold text-neutral-200">Workflows</h2>
+                            <h2 className="text-2xl font-semibold text-foreground">Workflows</h2>
                         </div>
 
                         <div className="grid gap-4">
@@ -104,7 +104,7 @@ export default function ApiDocsPage() {
                         </div>
 
                         <div className="mt-6">
-                            <h3 className="text-sm font-medium text-neutral-300 mb-2">Example: Create Workflow</h3>
+                            <h3 className="text-sm font-medium text-foreground mb-2">Example: Create Workflow</h3>
                             <CodeBlock
                                 language="bash"
                                 code={`curl -X POST https://api.bridge.dev/api/workflows \\
@@ -123,7 +123,7 @@ export default function ApiDocsPage() {
                             <div className="p-2 rounded-lg bg-green-500/10 text-green-500 border border-green-500/20">
                                 <Activity className="h-5 w-5" />
                             </div>
-                            <h2 className="text-2xl font-semibold text-neutral-200">Runs</h2>
+                            <h2 className="text-2xl font-semibold text-foreground">Runs</h2>
                         </div>
 
                         <div className="grid gap-4">
@@ -140,7 +140,7 @@ export default function ApiDocsPage() {
                             <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500 border border-purple-500/20">
                                 <Key className="h-5 w-5" />
                             </div>
-                            <h2 className="text-2xl font-semibold text-neutral-200">Credentials</h2>
+                            <h2 className="text-2xl font-semibold text-foreground">Credentials</h2>
                         </div>
 
                         <div className="grid gap-4">
@@ -166,8 +166,8 @@ export default function ApiDocsPage() {
                 <div className="hidden lg:block">
                     <div className="sticky top-32 space-y-8">
                         <div className="space-y-4">
-                            <h3 className="text-sm font-semibold text-neutral-200 uppercase tracking-wider">On this page</h3>
-                            <nav className="flex flex-col gap-2 text-sm text-neutral-400">
+                            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">On this page</h3>
+                            <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
                                 <a href="#auth" className="hover:text-primary transition-colors">Authentication</a>
                                 <a href="#workflows" className="hover:text-primary transition-colors">Workflows</a>
                                 <a href="#runs" className="hover:text-primary transition-colors">Runs</a>
@@ -175,13 +175,13 @@ export default function ApiDocsPage() {
                             </nav>
                         </div>
 
-                        <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/50">
-                            <div className="flex items-center gap-2 mb-2 text-neutral-200 font-medium">
+                        <div className="p-4 rounded-xl border border-border bg-background/50">
+                            <div className="flex items-center gap-2 mb-2 text-foreground font-medium">
                                 <AlertCircle className="h-4 w-4 text-orange-400" />
                                 Rate Limits
                             </div>
-                            <p className="text-sm text-neutral-500">
-                                API requests are capped at <span className="text-neutral-300">1000/hr</span> per user.
+                            <p className="text-sm text-muted-foreground">
+                                API requests are capped at <span className="text-foreground">1000/hr</span> per user.
                                 Monitor <code className="text-xs">X-RateLimit</code> headers.
                             </p>
                         </div>

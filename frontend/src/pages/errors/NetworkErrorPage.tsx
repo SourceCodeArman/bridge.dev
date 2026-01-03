@@ -34,7 +34,7 @@ export function NetworkErrorPage() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 p-8">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
             <div className="max-w-md text-center">
                 {/* Network Icon */}
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
@@ -70,7 +70,7 @@ export function NetworkErrorPage() {
                         className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'
                             }`}
                     />
-                    <span className="text-sm text-neutral-500">
+                    <span className="text-sm text-muted-foreground">
                         {isOnline ? 'Online' : 'Offline'}
                     </span>
                 </div>
@@ -86,7 +86,7 @@ export function NetworkErrorPage() {
                     </Button>
                 </div>
 
-                <p className="mt-8 text-sm text-neutral-500">
+                <p className="mt-8 text-sm text-muted-foreground">
                     This page will automatically reconnect when your connection is restored.
                 </p>
             </div>

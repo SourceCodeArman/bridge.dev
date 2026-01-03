@@ -50,16 +50,16 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex min-h-screen w-full bg-neutral-900">
+        <div className="flex min-h-screen w-full bg-background">
             {/* Left Column - Branding & Animation */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-neutral-800 overflow-hidden items-center justify-center">
+            <div className="hidden lg:flex lg:w-1/2 relative bg-card overflow-hidden items-center justify-center">
                 <div className="absolute inset-0 z-0">
                     <AuthBackground />
-                    <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[1px]" />
+                    <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px]" />
                 </div>
-                <div className="relative z-10 p-12 text-white max-w-lg">
+                <div className="relative z-10 p-12 text-foreground max-w-lg">
                     <h1 className="text-5xl font-bold mb-6 tracking-tight">Bridge.dev</h1>
-                    <p className="text-xl text-neutral-300 leading-relaxed">
+                    <p className="text-xl text-foreground leading-relaxed">
                         The open-source no-code integration platform.
                         Connect your apps, automate your workflows, and build faster.
                     </p>
@@ -67,11 +67,11 @@ export default function LoginPage() {
             </div>
 
             {/* Right Column - Form */}
-            <div className="flex-1 flex text-white flex-col justify-center px-4 sm:px-12 lg:px-24 bg-neutral-900">
+            <div className="flex-1 flex text-foreground flex-col justify-center px-4 sm:px-12 lg:px-24 bg-background">
                 <div className="w-full max-w-md mx-auto space-y-8">
                     <div className="text-center lg:text-left">
                         <h2 className="text-3xl font-bold tracking-tight">Welcome back</h2>
-                        <p className="mt-2 text-neutral-400">
+                        <p className="mt-2 text-muted-foreground">
                             Sign in to your account to continue
                         </p>
                     </div>
@@ -85,7 +85,7 @@ export default function LoginPage() {
 
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-neutral-300">Email</label>
+                                <label className="text-sm font-medium text-foreground">Email</label>
                                 <Input
                                     type="email"
                                     placeholder="name@example.com"
@@ -93,7 +93,7 @@ export default function LoginPage() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     error={!!fieldErrors.email}
                                     disabled={loading}
-                                    className="h-12 rounded-xl border-neutral-800 focus:border-primary/50 bg-neutral-900 transition-all text-white placeholder:text-neutral-500"
+                                    className="h-12 rounded-xl border-border focus:border-primary/50 bg-background transition-all text-foreground placeholder:text-muted-foreground"
                                     autoComplete="email"
                                     autoFocus
                                 />
@@ -104,7 +104,7 @@ export default function LoginPage() {
 
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-sm font-medium text-neutral-300">Password</label>
+                                    <label className="text-sm font-medium text-foreground">Password</label>
                                     <Link
                                         to="/forgot-password"
                                         className="text-sm text-primary hover:text-primary/80 transition-colors font-medium"
@@ -119,7 +119,7 @@ export default function LoginPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     error={!!fieldErrors.password}
                                     disabled={loading}
-                                    className="h-12 rounded-xl border-neutral-800 focus:border-primary/50 bg-neutral-900 transition-all text-white placeholder:text-neutral-500"
+                                    className="h-12 rounded-xl border-border focus:border-primary/50 bg-background transition-all text-foreground placeholder:text-muted-foreground"
                                     autoComplete="current-password"
                                 />
                                 {fieldErrors.password && (
@@ -130,13 +130,13 @@ export default function LoginPage() {
 
                         <Button
                             type="submit"
-                            className="w-full h-12 rounded-xl text-base font-semibold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            className="w-full h-12 rounded-xl text-base font-semibold bg-primary hover:bg-primary/90 text-foreground shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                             disabled={loading}
                         >
                             {loading ? 'Signing in...' : 'Sign In'}
                         </Button>
 
-                        <div className="text-center text-sm text-neutral-400">
+                        <div className="text-center text-sm text-muted-foreground">
                             Don't have an account?{' '}
                             <Link to={ROUTES.REGISTER} className="text-primary hover:text-primary/80 font-medium transition-colors">
                                 Create account

@@ -22,32 +22,32 @@ const docSections: DocSection[] = [
     {
         label: "Documentation Home",
         href: ROUTES.DOCS,
-        icon: <BookOpen className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <BookOpen className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Getting Started",
         href: ROUTES.DOCS_GETTING_STARTED,
-        icon: <Rocket className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Rocket className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "API Reference",
         href: ROUTES.DOCS_API,
-        icon: <Code className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Code className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Connectors",
         href: ROUTES.DOCS_CONNECTORS,
-        icon: <Plug className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Plug className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Workflow Examples",
         href: ROUTES.DOCS_WORKFLOWS,
-        icon: <Workflow className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Workflow className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "FAQ",
         href: ROUTES.DOCS_FAQ,
-        icon: <HelpCircle className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <HelpCircle className="text-foreground h-5 w-5 shrink-0" />,
     },
 ];
 
@@ -64,7 +64,7 @@ export function DocsSidebar() {
                             display: animate ? (open ? "inline-block" : "none") : "inline-block",
                             opacity: animate ? (open ? 1 : 0) : 1,
                         }}
-                        className="text-lg font-semibold text-neutral-200 whitespace-pre"
+                        className="text-lg font-semibold text-foreground whitespace-pre"
                     >
                         ridge Docs
                     </motion.span>
@@ -77,12 +77,12 @@ export function DocsSidebar() {
                 </div>
             </div>
 
-            <div className="mt-auto border-t border-neutral-800 pt-4">
+            <div className="mt-auto border-t border-border pt-4">
                 <SidebarLink
                     link={{
                         label: "Back to App",
                         href: ROUTES.DASHBOARD,
-                        icon: <ArrowLeft className="text-muted-foreground h-5 w-5 shrink-0" />
+                        icon: <ArrowLeft className="text-foreground h-5 w-5 shrink-0" />
                     }}
                 />
             </div>

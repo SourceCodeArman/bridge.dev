@@ -1,21 +1,37 @@
 import { Moon, Sun } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
 import { useTheme } from "@/components/theme/theme-provider"
+import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
+import { useSidebar } from "@/components/ui/sidebar"
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const { open, animate } = useSidebar();
 
   return (
-    <Button
-      variant="outline"
-      size="icon"
+    <button
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-      className="text-neutral-200 w-full pl-0 flex justify-start text-sm"
+      className={cn(
+        "flex items-center justify-start gap-2 group/sidebar py-2"
+      )}
     >
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
+      <div className="h-5 w-5 shrink-0">
+        {theme === "dark" ? (
+          <Moon className="h-5 w-5 text-foreground" />
+        ) : (
+          <Sun className="h-5 w-5 text-foreground" />
+        )}
+      </div>
+
+      <motion.span
+        animate={{
+          display: animate ? (open ? "inline-block" : "none") : "inline-block",
+          opacity: animate ? (open ? 1 : 0) : 1,
+        }}
+        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block p-0! m-0!"
+      >
+        Theme
+      </motion.span>
+    </button>
   )
 }

@@ -9,39 +9,38 @@ import {
 } from "lucide-react"
 import { SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "../theme/theme-toggle";
 
 // Menu items.
 const items = [
     {
         label: "Home",
         href: "/dashboard",
-        icon: <Home className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Home className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Workflows",
         href: "/workflows",
-        icon: <Inbox className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Inbox className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Connectors",
         href: "/connectors",
-        icon: <Calendar className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Calendar className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Activity",
         href: "/activity",
-        icon: <Search className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Search className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Docs",
         href: "/docs",
-        icon: <BookOpen className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <BookOpen className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Settings",
         href: "/settings",
-        icon: <Settings className="text-muted-foreground h-5 w-5 shrink-0" />,
+        icon: <Settings className="text-foreground h-5 w-5 shrink-0" />,
     },
 ]
 
@@ -49,16 +48,16 @@ const items = [
 export function AppSidebar() {
     const { open, animate } = useSidebar();
     return (
-        <SidebarBody className="justify-between gap-10">
+        <SidebarBody className="justify-between gap-10 bg-sidebar">
             <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-                <div className={cn("flex items-center py-4 overflow-hidden", open ? "justify-start" : "justify-center")}>
-                    <h1 className="text-lg font-bold text-primary shrink-0">B</h1>
+                <div className={cn("flex items-end justify-start py-4 overflow-hidden")}>
+                    <h1 className="text-2xl font-bold text-primary shrink-0 transform transition duration-150">B</h1>
                     <motion.span
                         animate={{
                             display: animate ? (open ? "inline-block" : "none") : "inline-block",
                             opacity: animate ? (open ? 1 : 0) : 1,
                         }}
-                        className="text-lg font-semibold text-neutral-200 whitespace-pre"
+                        className="text-2xl font-semibold text-sidebar-foreground group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block p-0! m-0!"
                     >
                         ridge
                     </motion.span>
@@ -67,7 +66,6 @@ export function AppSidebar() {
                     {items.map((item, idx) => (
                         <SidebarLink key={idx} link={item} />
                     ))}
-                    <ThemeToggle />
                 </div>
             </div>
         </SidebarBody>

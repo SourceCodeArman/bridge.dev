@@ -52,7 +52,7 @@ export default function DocsHomePage() {
                 <h1 className="text-4xl font-bold tracking-tight mb-4">
                     Bridge Documentation
                 </h1>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                <p className="text-lg text-foreground max-w-2xl mx-auto">
                     Everything you need to build powerful automations with Bridge.
                     From getting started to advanced workflows, we've got you covered.
                 </p>
@@ -72,12 +72,12 @@ export default function DocsHomePage() {
                                     <div className="flex-1">
                                         <CardTitle className="text-base flex items-center gap-2">
                                             {link.title}
-                                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                            <ArrowRight className="h-4 w-4 text-foreground" />
                                         </CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-foreground">
                                         {link.description}
                                     </p>
                                 </CardContent>
@@ -91,11 +91,11 @@ export default function DocsHomePage() {
             <div className="bg-muted/50 rounded-xl p-6">
                 <div className="flex items-start gap-4">
                     <div className="p-2 bg-muted/70 rounded-lg shadow-sm border-muted">
-                        <HelpCircle className="h-6 w-6 text-muted-foreground" />
+                        <HelpCircle className="h-6 w-6 text-foreground" />
                     </div>
                     <div className="flex-1">
                         <h3 className="font-semibold mb-1">Have Questions?</h3>
-                        <p className="text-sm text-muted-foreground mb-3">
+                        <p className="text-sm text-foreground mb-3">
                             Check out our frequently asked questions for quick answers.
                         </p>
                         <Link

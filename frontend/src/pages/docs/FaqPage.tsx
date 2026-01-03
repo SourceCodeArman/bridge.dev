@@ -176,13 +176,13 @@ export default function FaqPage() {
         <div className="max-w-7xl mx-auto space-y-16">
             {/* Header */}
             <div className="text-center space-y-4 pb-8">
-                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-neutral-900 border border-neutral-800 mb-2">
-                    <HelpCircle className="h-8 w-8 text-neutral-400" />
+                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-background border border-border mb-2">
+                    <HelpCircle className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                     Frequently Asked Questions
                 </h1>
-                <p className="text-xl text-neutral-400 max-w-xl mx-auto">
+                <p className="text-xl text-muted-foreground max-w-xl mx-auto">
                     Everything you need to know about the product and billing.
                 </p>
             </div>
@@ -190,7 +190,7 @@ export default function FaqPage() {
             <div className="grid gap-12">
                 {categories.map((category) => (
                     <div key={category} className="space-y-6">
-                        <h2 className="text-xl font-semibold text-neutral-200 border-l-2 border-primary pl-4">{category}</h2>
+                        <h2 className="text-xl font-semibold text-foreground border-l-2 border-primary pl-4">{category}</h2>
                         <Accordion type="single" collapsible className="w-full">
                             {faqItems
                                 .filter((item) => item.category === category)
@@ -198,12 +198,12 @@ export default function FaqPage() {
                                     <AccordionItem
                                         key={index}
                                         value={`${category}-${index}`}
-                                        className="border-neutral-800 bg-neutral-900/30 px-4 rounded-lg mb-2 data-[state=open]:bg-neutral-900 data-[state=open]:border-neutral-700 transition-all"
+                                        className="border-border bg-background/30 px-4 rounded-lg mb-2 data-[state=open]:bg-background data-[state=open]:border-border transition-all"
                                     >
-                                        <AccordionTrigger className="text-left text-neutral-300 hover:text-neutral-100 py-4 hover:no-underline font-medium">
+                                        <AccordionTrigger className="text-left text-foreground hover:text-foreground py-4 hover:no-underline font-medium">
                                             {item.question}
                                         </AccordionTrigger>
-                                        <AccordionContent className="text-neutral-400 pb-4 leading-relaxed">
+                                        <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
                                             {item.answer}
                                         </AccordionContent>
                                     </AccordionItem>
@@ -214,18 +214,18 @@ export default function FaqPage() {
             </div>
 
             {/* Support CTA */}
-            <div className="mt-16 bg-neutral-900 rounded-2xl border border-neutral-800 p-8 text-center space-y-4">
-                <div className="flex justify-center gap-4 text-neutral-400">
+            <div className="mt-16 bg-background rounded-2xl border border-border p-8 text-center space-y-4">
+                <div className="flex justify-center gap-4 text-muted-foreground">
                     <MessageSquarePlus className="h-6 w-6" />
                     <Book className="h-6 w-6" />
                     <Github className="h-6 w-6" />
                 </div>
-                <h3 className="text-xl font-semibold text-neutral-200">Still have questions?</h3>
-                <p className="text-neutral-400 max-w-md mx-auto">
+                <h3 className="text-xl font-semibold text-foreground">Still have questions?</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
                     Can't find the answer you're looking for? Please check our full documentation or chat to our friendly team.
                 </p>
                 <div className="flex justify-center gap-3 pt-2">
-                    <Link to={ROUTES.DOCS} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-sm font-medium transition-colors">
+                    <Link to={ROUTES.DOCS} className="px-4 py-2 bg-card hover:bg-neutral-700 text-foreground rounded-lg text-sm font-medium transition-colors">
                         Documentation
                     </Link>
                     <a href="mailto:support@bridge.dev" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium transition-colors">

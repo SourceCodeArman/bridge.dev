@@ -130,11 +130,11 @@ export function DocsSearch({ className }: DocsSearchProps) {
                     setIsOpen(true);
                     setTimeout(() => inputRef.current?.focus(), 0);
                 }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-neutral-400 bg-neutral-700/50 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-muted-foreground bg-neutral-700/50 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors"
             >
                 <Search className="h-4 w-4" />
                 <span className="flex-1 text-left">Search docs...</span>
-                <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-neutral-800 border border-neutral-600 rounded text-neutral-400">
+                <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-card border border-neutral-600 rounded text-muted-foreground">
                     <Command className="h-3 w-3" />K
                 </kbd>
             </button>
@@ -142,7 +142,7 @@ export function DocsSearch({ className }: DocsSearchProps) {
             {/* Search modal overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 z-50 bg-neutral-900/80 backdrop-blur-sm"
+                    className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
                     onClick={() => {
                         setIsOpen(false);
                         setQuery("");
@@ -152,19 +152,19 @@ export function DocsSearch({ className }: DocsSearchProps) {
                         className="fixed left-1/2 top-1/4 -translate-x-1/2 w-full max-w-lg"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-neutral-800 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden">
+                        <div className="bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
                             {/* Search input */}
-                            <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-700">
-                                <Search className="h-5 w-5 text-neutral-400" />
+                            <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+                                <Search className="h-5 w-5 text-muted-foreground" />
                                 <input
                                     ref={inputRef}
                                     type="text"
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
                                     placeholder="Search documentation..."
-                                    className="flex-1 bg-transparent outline-none text-neutral-200 placeholder:text-neutral-500"
+                                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
                                 />
-                                <kbd className="px-1.5 py-0.5 text-xs bg-neutral-700 border border-neutral-600 rounded text-neutral-400">
+                                <kbd className="px-1.5 py-0.5 text-xs bg-neutral-700 border border-neutral-600 rounded text-muted-foreground">
                                     ESC
                                 </kbd>
                             </div>
@@ -172,7 +172,7 @@ export function DocsSearch({ className }: DocsSearchProps) {
                             {/* Results */}
                             <div className="max-h-80 overflow-y-auto">
                                 {query.length >= 2 && results.length === 0 && (
-                                    <div className="px-4 py-8 text-center text-neutral-400">
+                                    <div className="px-4 py-8 text-center text-muted-foreground">
                                         No results found for "{query}"
                                     </div>
                                 )}
@@ -183,20 +183,20 @@ export function DocsSearch({ className }: DocsSearchProps) {
                                         className="flex items-start gap-3 w-full px-4 py-3 text-left hover:bg-neutral-700/50 transition-colors"
                                     >
                                         <div className="flex-1">
-                                            <div className="font-medium text-neutral-200">
+                                            <div className="font-medium text-foreground">
                                                 {result.title}
                                             </div>
-                                            <div className="text-sm text-neutral-400">
+                                            <div className="text-sm text-muted-foreground">
                                                 {result.description}
                                             </div>
                                         </div>
-                                        <span className="px-2 py-0.5 text-xs bg-neutral-700 rounded-full text-neutral-300">
+                                        <span className="px-2 py-0.5 text-xs bg-neutral-700 rounded-full text-foreground">
                                             {result.category}
                                         </span>
                                     </button>
                                 ))}
                                 {query.length < 2 && (
-                                    <div className="px-4 py-8 text-center text-neutral-400">
+                                    <div className="px-4 py-8 text-center text-muted-foreground">
                                         Type at least 2 characters to search
                                     </div>
                                 )}

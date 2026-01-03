@@ -40,9 +40,10 @@ export const customConnectorService = {
             slug: c.slug,
             display_name: c.display_name,
             description: c.description,
-            type: 'custom',
-            connector_type: 'custom',
-            icon_url: c.icon,
+            type: c.current_version_info?.manifest?.connector_type || 'custom',
+            connector_type: c.current_version_info?.manifest?.connector_type || 'custom',
+            icon_url_light: c.icon_url_light,
+            icon_url_dark: c.icon_url_dark,
             is_custom: true,
             is_active: true, // Custom connectors are active by default in the list
             manifest: c.current_version_info?.manifest || {} as ConnectorManifest,
