@@ -23,7 +23,7 @@ import type {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
-import { TriggerNode, ActionNode, ConditionNode, AgentNode } from '@/components/workflow/CustomNodes';
+import { TriggerNode, ActionNode, ConditionNode, AgentNode, ModelNode, MemoryNode, ToolNode } from '@/components/workflow/CustomNodes';
 import { CustomNode } from '@/components/workflow/CustomNode';
 import { ThemeAwareIcon } from '@/components/connectors/ThemeAwareIcon';
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel';
@@ -42,6 +42,9 @@ const nodeTypes = {
     action: ActionNode,
     condition: ConditionNode,
     agent: AgentNode,
+    modelNode: ModelNode,
+    memoryNode: MemoryNode,
+    toolsNode: ToolNode,
     custom: CustomNode,
 };
 
@@ -117,7 +120,7 @@ const WorkflowCanvasInner = () => {
     }, []);
 
     // Fetch workflow data if ID is present
-    const { data: workflow, isLoading } = useQuery({
+    const { data: workflow } = useQuery({
         queryKey: ['workflow', id],
         queryFn: () => workflowService.get(id!),
         enabled: !!id,

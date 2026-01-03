@@ -839,3 +839,37 @@ const AgentResourceNode = memo(({ data, selected }: NodeProps) => {
         </div>
     );
 });
+
+// Wrapper components that pass specific defaults
+export const ModelNode = memo((props: NodeProps) => (
+    <AgentResourceNode
+        {...props}
+        data={{
+            ...props.data,
+            iconUrl: 'https://jdoswygfcisugxlzlfly.supabase.co/storage/v1/object/public/connector-logos/OpenAi.png',
+            defaultLabel: 'OpenAI Chat Model',
+        }}
+    />
+));
+
+export const MemoryNode = memo((props: NodeProps) => (
+    <AgentResourceNode
+        {...props}
+        data={{
+            ...props.data,
+            icon: <Database className="text-foreground" />,
+            defaultLabel: 'Window Buffer Memory',
+        }}
+    />
+));
+
+export const ToolNode = memo((props: NodeProps) => (
+    <AgentResourceNode
+        {...props}
+        data={{
+            ...props.data,
+            icon: <Wrench className="text-foreground" />,
+            defaultLabel: 'Tool Node',
+        }}
+    />
+));

@@ -42,12 +42,10 @@ from .models import (
 )
 from .serializers import (
     WorkflowSerializer,
-    WorkflowListSerializer,
     WorkflowVersionSerializer,
     RunSerializer,
     RunStepSerializer,
     TriggerSerializer,
-    WebhookTriggerSerializer,
     ManualTriggerSerializer,
     ConnectorSerializer,
     CredentialListSerializer,
@@ -132,7 +130,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter workflows by workspace with optimized query"""
-        from django.db.models import Prefetch, Q, Max
+        from django.db.models import Prefetch, Max
 
         workspace = self._get_workspace_context()
         if workspace:
@@ -255,7 +253,6 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
             nodes = definition.get("nodes", [])
             for node in nodes:
-                node_type = node.get("type")
                 node_data = node.get("data", {})
                 connector_id = node_data.get("connectorType")
                 action_id = node_data.get("action_id")
@@ -396,7 +393,6 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
             nodes = workflow_definition.get("nodes", [])
             for node in nodes:
-                node_type = node.get("type")
                 node_data = node.get("data", {})
                 connector_id = node_data.get("connectorType")
                 action_id = node_data.get("action_id")
@@ -524,7 +520,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                             from .models import Credential
 
                             try:
-                                credential = Credential.objects.get(
+                                Credential.objects.get(
                                     id=field_value, workspace=workspace
                                 )
                             except Credential.DoesNotExist:
@@ -607,7 +603,6 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
                 nodes = definition.get("nodes", [])
                 for node in nodes:
-                    node_type = node.get("type")
                     node_data = node.get("data", {})
                     connector_id = node_data.get("connectorType")
                     action_id = node_data.get("action_id")
@@ -668,7 +663,6 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
             nodes = definition.get("nodes", [])
             for node in nodes:
-                node_type = node.get("type")
                 node_data = node.get("data", {})
                 connector_id = node_data.get("connectorType")
                 action_id = node_data.get("action_id")
