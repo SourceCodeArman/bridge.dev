@@ -42,6 +42,19 @@ class Workflow(models.Model):
         null=True,
         related_name="created_workflows",
     )
+    is_active = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether this workflow is active and can be triggered",
+    )
+    current_version = models.ForeignKey(
+        "WorkflowVersion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The current working version being edited",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -60,7 +73,47 @@ class Workflow(models.Model):
 
     def get_active_version(self):
         """Get the currently active version of this workflow"""
+        # Return current_version if set, otherwise fall back to is_active filter
+        if self.current_version:
+            return self.current_version
         return self.versions.filter(is_active=True).first()
+
+    def validate_for_activation(self):
+        """Validate workflow can be activated"""
+        from .utils.graph_validation import validate_workflow_graph
+        from .node_editor import NodeEditor
+
+        if not self.current_version:
+            return False, ["No current version exists"]
+
+        # Validate graph structure
+        is_valid, errors = validate_workflow_graph(self.current_version.definition)
+        if not is_valid:
+            return False, errors
+
+        # Validate node configurations
+        editor = NodeEditor()
+        node_errors = []
+        nodes = self.current_version.definition.get("nodes", [])
+
+        for node in nodes:
+            node_data = node.get("data", {})
+            connector_id = node_data.get("connectorType")
+            action_id = node_data.get("action_id")
+
+            if connector_id and action_id:
+                validation_result = editor.validate_node_config(
+                    connector_id, action_id, node_data
+                )
+                if not validation_result["valid"]:
+                    node_id = node.get("id", "unknown")
+                    for error in validation_result["errors"]:
+                        node_errors.append(f"Node {node_id}: {error}")
+
+        if node_errors:
+            return False, node_errors
+
+        return True, []
 
 
 class WorkflowVersion(models.Model):
@@ -85,6 +138,14 @@ class WorkflowVersion(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name="created_workflow_versions",
+    )
+    created_manually = models.BooleanField(
+        default=False, help_text="Whether this version was manually created by user"
+    )
+    version_label = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Optional label for manually created versions (e.g., 'Before refactor')",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -524,8 +585,12 @@ class CustomConnector(models.Model):
     description = models.TextField(
         blank=True, help_text="Description of what this connector does"
     )
-    icon_url_light = models.URLField(blank=True, null=True, help_text="URL to connector icon")
-    icon_url_dark = models.URLField(blank=True, null=True, help_text="URL to connector icon")
+    icon_url_light = models.URLField(
+        blank=True, null=True, help_text="URL to connector icon"
+    )
+    icon_url_dark = models.URLField(
+        blank=True, null=True, help_text="URL to connector icon"
+    )
     visibility = models.CharField(
         max_length=20,
         choices=VISIBILITY_CHOICES,
@@ -603,8 +668,12 @@ class Connector(models.Model):
     description = models.TextField(blank=True)
     version = models.CharField(max_length=50, default="1.0.0")
     manifest = models.JSONField(help_text="Connector manifest definition")
-    icon_url_light = models.URLField(blank=True, null=True, help_text="URL to connector icon")
-    icon_url_dark = models.URLField(blank=True, null=True, help_text="URL to connector icon")
+    icon_url_light = models.URLField(
+        blank=True, null=True, help_text="URL to connector icon"
+    )
+    icon_url_dark = models.URLField(
+        blank=True, null=True, help_text="URL to connector icon"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

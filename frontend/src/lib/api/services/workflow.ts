@@ -1,6 +1,6 @@
 import client from '../client';
 import { API_ENDPOINTS } from '@/lib/constants';
-import type { PaginatedResponse, Workflow, CreateWorkflowRequest, UpdateWorkflowRequest, WorkflowListParams } from '@/types';
+import type { PaginatedResponse, Workflow, CreateWorkflowRequest, UpdateWorkflowRequest, WorkflowListParams, WorkflowVersion } from '@/types';
 
 export const workflowService = {
     list: async (params?: WorkflowListParams) => {
@@ -30,11 +30,6 @@ export const workflowService = {
         return response.data;
     },
 
-    publish: async (id: string, definition: { nodes: any[]; edges: any[] }) => {
-        const response = await client.post(API_ENDPOINTS.WORKFLOWS.PUBLISH_VERSION(id), { definition });
-        return response.data;
-    },
-
     getDraft: async (id: string) => {
         const response = await client.get(API_ENDPOINTS.WORKFLOWS.DRAFTS(id));
         return response.data;
@@ -43,4 +38,26 @@ export const workflowService = {
     delete: async (id: string) => {
         await client.delete(API_ENDPOINTS.WORKFLOWS.DETAIL(id));
     },
+
+    // New versioning methods
+    activate: async (id: string, isActive: boolean) => {
+        const response = await client.patch<{ data: Workflow }>(API_ENDPOINTS.WORKFLOWS.ACTIVATE(id), { is_active: isActive });
+        return response.data;
+    },
+
+    createVersion: async (id: string, versionLabel?: string) => {
+        const response = await client.post<{ data: WorkflowVersion }>(API_ENDPOINTS.WORKFLOWS.VERSIONS(id), { version_label: versionLabel });
+        return response.data;
+    },
+
+    restoreVersion: async (id: string, versionId: string) => {
+        const response = await client.post<{ data: WorkflowVersion }>(API_ENDPOINTS.WORKFLOWS.RESTORE_VERSION(id, versionId));
+        return response.data;
+    },
+
+    listVersions: async (id: string) => {
+        const response = await client.get<{ data: WorkflowVersion[] }>(API_ENDPOINTS.WORKFLOWS.VERSIONS(id));
+        return response.data;
+    },
 };
+

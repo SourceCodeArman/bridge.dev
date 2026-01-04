@@ -14,9 +14,9 @@ export const API_ENDPOINTS = {
         UPDATE: (id: string) => `/api/v1/core/workflows/${id}/`,
         DELETE: (id: string) => `/api/v1/core/workflows/${id}/`,
         ACTIVATE: (id: string) => `/api/v1/core/workflows/${id}/activate/`,
-        DEACTIVATE: (id: string) => `/api/v1/core/workflows/${id}/deactivate/`,
         DRAFTS: (id: string) => `/api/v1/core/workflows/${id}/drafts/`,
-        PUBLISH_VERSION: (id: string) => `/api/v1/core/workflows/${id}/publish_version/`,
+        VERSIONS: (id: string) => `/api/v1/core/workflows/${id}/versions/`,
+        RESTORE_VERSION: (id: string, versionId: string) => `/api/v1/core/workflows/${id}/versions/${versionId}/restore/`,
     },
     RUNS: {
         LIST: '/api/v1/core/runs/',

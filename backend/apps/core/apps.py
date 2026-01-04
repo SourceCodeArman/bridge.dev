@@ -16,11 +16,14 @@ class CoreConfig(AppConfig):
             from apps.core.connectors.base import ConnectorRegistry
             from apps.core.connectors.supabase.connector import SupabaseConnector
             from apps.core.connectors.http.connector import HTTPConnector
-            from apps.core.connectors.http.webhook_connector import WebhookConnector
+            from apps.core.connectors.webhook.connector import WebhookConnector
             from apps.core.connectors.slack.connector import SlackConnector
             from apps.core.connectors.google.gmail.connector import GmailConnector
             from apps.core.connectors.google.sheets.connector import (
                 GoogleSheetsConnector,
+            )
+            from apps.core.connectors.google.calendar.connector import (
+                GoogleCalendarConnector,
             )
             from apps.core.connectors.openai.connector import OpenAIConnector
             from apps.core.connectors.anthropic.connector import AnthropicConnector
@@ -36,6 +39,7 @@ class CoreConfig(AppConfig):
             registry.register(SlackConnector)
             registry.register(GmailConnector)
             registry.register(GoogleSheetsConnector)
+            registry.register(GoogleCalendarConnector)
             registry.register(OpenAIConnector)
             registry.register(AnthropicConnector)
             registry.register(GeminiConnector)

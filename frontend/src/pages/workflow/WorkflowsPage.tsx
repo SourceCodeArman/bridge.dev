@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { workflowService } from "@/lib/api/services/workflow";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/router/routes";
@@ -18,6 +19,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export default function WorkflowsPage() {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { data, isLoading } = useQuery({
         queryKey: ['workflows'],
         queryFn: () => workflowService.list({ page: 1, page_size: 50 })
@@ -66,9 +68,8 @@ export default function WorkflowsPage() {
                         <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Triggers</TableHead>
                             <TableHead>Last Run</TableHead>
-                            <TableHead>Created</TableHead>
+                            <TableHead>Updated</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -94,13 +95,24 @@ export default function WorkflowsPage() {
                                     <TableCell className="font-medium">
                                         {workflow.name}
                                     </TableCell>
-                                    <TableCell>
-                                        <Badge variant={workflow.is_active ? "default" : "secondary"}>
-                                            {workflow.is_active ? "Active" : "Inactive"}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-foreground">
-                                        {workflow.trigger_type || 'Manual'}
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={workflow.is_active}
+                                                onCheckedChange={async (checked) => {
+                                                    try {
+                                                        await workflowService.activate(workflow.id, checked);
+                                                        queryClient.invalidateQueries({ queryKey: ['workflows'] });
+                                                    } catch (err: any) {
+                                                        const errorMsg = err?.response?.data?.message || err?.response?.data?.data?.validation_errors?.join('\n') || 'Failed to toggle';
+                                                        alert(errorMsg);
+                                                    }
+                                                }}
+                                            />
+                                            <Badge variant={workflow.is_active ? "default" : "secondary"}>
+                                                {workflow.is_active ? "Active" : "Inactive"}
+                                            </Badge>
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-foreground">
                                         {workflow.last_run_at
@@ -108,7 +120,7 @@ export default function WorkflowsPage() {
                                             : 'Never'}
                                     </TableCell>
                                     <TableCell className="text-foreground">
-                                        {formatDistanceToNow(new Date(workflow.created_at), { addSuffix: true })}
+                                        {formatDistanceToNow(new Date(workflow.updated_at), { addSuffix: true })}
                                     </TableCell>
                                 </TableRow>
                             ))

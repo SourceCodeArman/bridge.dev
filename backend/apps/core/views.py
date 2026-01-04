@@ -193,31 +193,27 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         """
         Get or save workflow draft.
 
-        GET /api/v1/workflows/{id}/drafts/ - Get current draft
-        POST /api/v1/workflows/{id}/drafts/ - Save draft
+        GET /api/v1/workflows/{id}/drafts/ - Get current version
+        POST /api/v1/workflows/{id}/drafts/ - Save to current version
         Body: {"definition": {...}}
         """
         workflow = self.get_object()
 
         if request.method == "GET":
-            # Get latest draft (inactive version)
-            draft_version = (
-                workflow.versions.filter(is_active=False)
-                .order_by("-created_at")
-                .first()
-            )
+            # Get current version
+            current_version = workflow.current_version
 
-            if not draft_version:
+            if not current_version:
                 return Response(
-                    {"status": "success", "data": None, "message": "No draft found"}
+                    {"status": "success", "data": None, "message": "No version found"}
                 )
 
-            serializer = WorkflowVersionSerializer(draft_version)
+            serializer = WorkflowVersionSerializer(current_version)
             return Response(
                 {
                     "status": "success",
                     "data": serializer.data,
-                    "message": "Draft retrieved successfully",
+                    "message": "Version retrieved successfully",
                 }
             )
 
@@ -281,51 +277,37 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                     f"Draft saved with {len(node_validation_errors)} validation errors"
                 )
 
-            # Get or create draft version
-            draft_version = (
-                workflow.versions.filter(is_active=False)
-                .order_by("-created_at")
-                .first()
-            )
+            # Get or create current version
+            current_version = workflow.current_version
 
-            if draft_version:
-                # Update existing draft
-                print(f"DEBUG: Updating existing draft {draft_version.id}")
-                print(
-                    f"DEBUG: Old definition keys: {draft_version.definition.keys() if isinstance(draft_version.definition, dict) else 'not dict'}"
-                )
-                print(
-                    f"DEBUG: New definition keys: {definition.keys() if isinstance(definition, dict) else 'not dict'}"
-                )
-                draft_version.definition = definition
-                draft_version.save(update_fields=["definition", "updated_at"])
-                print("DEBUG: Saved draft")
+            if current_version:
+                # Update existing current version
+                print(f"DEBUG: Updating current version {current_version.id}")
+                current_version.definition = definition
+                current_version.save(update_fields=["definition", "updated_at"])
+                print("DEBUG: Saved current version")
             else:
-                print("DEBUG: Creating new draft")
-                # Create new draft version
-                max_version = (
-                    workflow.versions.aggregate(
-                        max_version=models.Max("version_number")
-                    )["max_version"]
-                    or 0
-                )
-
-                draft_version = WorkflowVersion.objects.create(
+                # Create first version (version 1)
+                print("DEBUG: Creating first version")
+                current_version = WorkflowVersion.objects.create(
                     workflow=workflow,
-                    version_number=max_version + 1,
+                    version_number=1,
                     definition=definition,
                     is_active=False,
                     created_by=request.user,
                 )
 
-            serializer = WorkflowVersionSerializer(draft_version)
+                # Set as current version
+                workflow.current_version = current_version
+                workflow.save(update_fields=["current_version", "updated_at"])
+
             return Response(
                 {
                     "status": "success",
-                    "data": serializer.data,
+                    "saved": True,
                     "message": "Draft saved successfully",
                 },
-                status=status.HTTP_201_CREATED,
+                status=status.HTTP_200_OK,
             )
 
     @action(detail=True, methods=["post"])
@@ -741,6 +723,136 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 "status": "success",
                 "data": serializer.data,
                 "message": "Version published successfully",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["patch"])
+    def activate(self, request, pk=None):
+        """
+        Activate or deactivate workflow.
+
+        PATCH /api/v1/workflows/{id}/activate/
+        Body: {"is_active": true/false}
+        """
+        workflow = self.get_object()
+        is_active = request.data.get("is_active")
+
+        if is_active is None:
+            return Response(
+                {"status": "error", "message": "is_active field required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate workflow if activating
+        if is_active and not workflow.is_active:
+            is_valid, errors = workflow.validate_for_activation()
+            if not is_valid:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Workflow has validation errors",
+                        "data": {"validation_errors": errors},
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        workflow.is_active = is_active
+        workflow.save(update_fields=["is_active", "updated_at"])
+
+        serializer = WorkflowSerializer(workflow, context={"request": request})
+        return Response(
+            {
+                "status": "success",
+                "data": serializer.data,
+                "message": f"Workflow {'activated' if is_active else 'deactivated'} successfully",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="versions")
+    def create_version(self, request, pk=None):
+        """
+        Create new version snapshot.
+
+        POST /api/v1/workflows/{id}/versions/
+        Body: {"version_label": "Before major refactor"}
+        """
+        workflow = self.get_object()
+        current_version = workflow.current_version
+
+        if not current_version:
+            return Response(
+                {"status": "error", "message": "No current version to snapshot"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create new version as snapshot
+        max_version = (
+            workflow.versions.aggregate(max_version=models.Max("version_number"))[
+                "max_version"
+            ]
+            or 0
+        )
+
+        new_version = WorkflowVersion.objects.create(
+            workflow=workflow,
+            version_number=max_version + 1,
+            definition=current_version.definition.copy(),
+            created_manually=True,
+            version_label=request.data.get("version_label", ""),
+            created_by=request.user,
+            is_active=False,
+        )
+
+        serializer = WorkflowVersionSerializer(new_version)
+        return Response(
+            {
+                "status": "success",
+                "data": serializer.data,
+                "message": "Version created successfully",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="versions/(?P<version_id>[^/.]+)/restore",
+    )
+    def restore_version(self, request, pk=None, version_id=None):
+        """
+        Restore a previous version.
+
+        POST /api/v1/workflows/{id}/versions/{version_id}/restore/
+        """
+        workflow = self.get_object()
+
+        try:
+            version_to_restore = workflow.versions.get(id=version_id)
+        except WorkflowVersion.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Version not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        current_version = workflow.current_version
+        if not current_version:
+            return Response(
+                {"status": "error", "message": "No current version exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Copy definition from old version to current version
+        current_version.definition = version_to_restore.definition.copy()
+        current_version.save(update_fields=["definition", "updated_at"])
+
+        serializer = WorkflowVersionSerializer(current_version)
+        return Response(
+            {
+                "status": "success",
+                "data": serializer.data,
+                "message": f"Restored from version {version_to_restore.version_number}",
             },
             status=status.HTTP_200_OK,
         )
@@ -1195,11 +1307,15 @@ class WebhookTriggerView(APIView):
             workflow_version = None
             webhook_node = None
 
-            active_versions = WorkflowVersion.objects.filter(
-                is_active=True
-            ).select_related("workflow")
+            # Look for active workflows with current_version
+            from .models import Workflow
 
-            for version in active_versions:
+            active_workflows = Workflow.objects.filter(
+                is_active=True, current_version__isnull=False
+            ).select_related("current_version")
+
+            for workflow in active_workflows:
+                version = workflow.current_version
                 definition = version.definition or {}
                 nodes = definition.get("nodes", [])
 
@@ -1224,22 +1340,21 @@ class WebhookTriggerView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            # Check if workflow is active
-            if workflow_version.workflow.status != "active":
-                return Response(
-                    {"status": "error", "message": "Workflow is not active"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             # Get webhook configuration from node data
-            webhook_config = webhook_node.get("data", {}).get("config", {})
+            node_data = webhook_node.get("data", {})
+            webhook_config = node_data.get("config", {})
 
             # Validate HTTP method
-            # Default to POST if not configured (backward compatibility)
-            # Note: Manifest uses 'http_method', checking both for safety
-            configured_method = webhook_config.get(
-                "http_method", webhook_config.get("method", "POST")
+            # Check in config first, then in node data directly (for different storage patterns)
+            # Default to GET per webhook manifest default
+            configured_method = (
+                webhook_config.get("http_method")
+                or webhook_config.get("method")
+                or node_data.get("http_method")
+                or node_data.get("method")
+                or "GET"  # Default from webhook manifest
             ).upper()
+
             if request.method != configured_method:
                 return Response(
                     {
@@ -2272,6 +2387,7 @@ class WorkflowPresenceViewSet(viewsets.ModelViewSet):
             {"status": "success", "message": "Presence removed successfully"},
             status=status.HTTP_200_OK,
         )
+
 
 class CustomConnectorViewSet(viewsets.ModelViewSet):
     """

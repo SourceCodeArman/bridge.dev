@@ -18,7 +18,9 @@ export interface WorkflowVersion {
     version_number: number;
     graph: WorkflowGraph;
     created_at: string;
-    is_published: boolean;
+    is_active: boolean;
+    created_manually: boolean;
+    version_label?: string;
 }
 
 export interface WorkflowGraph {

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { workflowService } from '@/lib/api/services/workflow';
 import { connectorService } from '@/lib/api/services/connector';
@@ -23,11 +23,12 @@ import type {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { TriggerNode, ActionNode, ConditionNode, AgentNode, ModelNode, MemoryNode, ToolNode } from '@/components/workflow/CustomNodes';
 import { CustomNode } from '@/components/workflow/CustomNode';
 import { ThemeAwareIcon } from '@/components/connectors/ThemeAwareIcon';
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel';
-import { Save, Layout, Rocket, Webhook, Plus } from 'lucide-react';
+import { Save, Layout, Webhook, Plus } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
 import {
     Sheet,
@@ -80,6 +81,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
 
 const WorkflowCanvasInner = () => {
     const { id } = useParams();
+    const queryClient = useQueryClient();
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -93,6 +95,7 @@ const WorkflowCanvasInner = () => {
     const [initialDefinition, setInitialDefinition] = useState<string | null>(null);
     const [showMiniMap, setShowMiniMap] = useState(false);
     const miniMapTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const hasUserEdited = useRef(false);  // Track if user has made changes
 
     const showMiniMapUI = useCallback(() => {
         if (miniMapTimeoutRef.current) {
@@ -514,13 +517,17 @@ const WorkflowCanvasInner = () => {
         if (!id) return;
         setSaving(true);
         try {
-            // Map ReactFlow nodes to WorkflowNodes to ensure type safety
-            const workflowNodes = nodes.map(node => ({
-                id: node.id,
-                type: node.type || 'default',
-                position: node.position,
-                data: node.data,
-            }));
+            // Map ReactFlow nodes to WorkflowNodes, stripping out callbacks
+            const workflowNodes = nodes.map(node => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { onAddClick, draggingFrom, ...cleanData } = node.data as Record<string, any>;
+                return {
+                    id: node.id,
+                    type: node.type || 'default',
+                    position: node.position,
+                    data: cleanData,
+                };
+            });
 
             const definition = {
                 nodes: workflowNodes,
@@ -558,47 +565,35 @@ const WorkflowCanvasInner = () => {
         }
     }, [id, nodes, edges, initialDefinition]);
 
-    const handlePublish = useCallback(async () => {
+    const [activating, setActivating] = useState(false);
+
+    const handleActivate = useCallback(async (activate: boolean) => {
         if (!id) return;
-        setSaving(true);
+        setActivating(true);
         try {
-            // Map ReactFlow nodes to WorkflowNodes to ensure type safety
-            const workflowNodes = nodes.map(node => ({
-                id: node.id,
-                type: node.type || 'default',
-                position: node.position,
-                data: node.data,
-            }));
-
-            const definition = {
-                nodes: workflowNodes,
-                edges: edges.map(edge => ({
-                    id: edge.id,
-                    source: edge.source,
-                    target: edge.target,
-                    sourceHandle: edge.sourceHandle,
-                    targetHandle: edge.targetHandle,
-                }))
-            };
-
-            // Publish the workflow version (activates it)
-            await workflowService.publish(id, definition);
-
-            setLastSaved(new Date());
-            alert('Workflow published and activated successfully!');
-            console.log('Workflow published successfully');
+            await workflowService.activate(id, activate);
+            // Invalidate the workflow query to refresh data
+            queryClient.invalidateQueries({ queryKey: ['workflow', id] });
+            console.log(`Workflow ${activate ? 'activated' : 'deactivated'} successfully`);
         } catch (err: any) {
-            console.error('Failed to publish workflow', err);
-            alert(`Failed to publish workflow: ${err?.message || err?.response?.data?.message || 'Unknown error'}`);
+            console.error('Failed to toggle activation', err);
+            const errorMsg = err?.response?.data?.message || err?.response?.data?.data?.validation_errors?.join('\n') || err?.message || 'Unknown error';
+            alert(`Failed to ${activate ? 'activate' : 'deactivate'} workflow: ${errorMsg}`);
         } finally {
-            setSaving(false);
+            setActivating(false);
         }
-    }, [id, nodes, edges]);
+    }, [id, queryClient]);
 
 
-    // Autosave effect
+    // Autosave effect - only triggers after user makes changes, not on initial load
     useEffect(() => {
         if (!isHydrated || !id) return;
+
+        // Skip autosave on initial hydration
+        if (!hasUserEdited.current) {
+            hasUserEdited.current = true;
+            return;
+        }
 
         const timer = setTimeout(() => {
             handleSave();
@@ -914,10 +909,16 @@ const WorkflowCanvasInner = () => {
                         <Save className="w-4 h-4 mr-2" />
                         {saving ? 'Saving...' : lastSaved ? 'Saved' : 'Save'}
                     </Button>
-                    <Button size="sm" onClick={handlePublish}>
-                        <Rocket className="w-4 h-4 mr-2" />
-                        Publish
-                    </Button>
+                    <div className="flex items-center gap-2 bg-background/80 backdrop-blur px-3 py-1.5 rounded-md border">
+                        <span className="text-sm text-muted-foreground">
+                            {workflow?.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <Switch
+                            checked={workflow?.is_active ?? false}
+                            onCheckedChange={handleActivate}
+                            disabled={activating}
+                        />
+                    </div>
                 </div>
 
                 <ReactFlow
