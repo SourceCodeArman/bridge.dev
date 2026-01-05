@@ -271,6 +271,7 @@ class Run(models.Model):
             models.Index(fields=["idempotency_key"]),
             models.Index(fields=["original_run", "created_at"]),
             models.Index(fields=["replay_type", "created_at"]),
+            models.Index(fields=["trigger_type", "status"]),
         ]
 
     def __str__(self):
