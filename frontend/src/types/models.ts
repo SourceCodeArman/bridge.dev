@@ -258,9 +258,11 @@ export interface Template {
     category: string;
     tags: string[];
     graph: WorkflowGraph;
-    preview_image?: string;
+    preview_image_url?: string;
     usage_count: number;
     created_at: string;
+    updated_at: string;
+    version?: string;
 }
 
 export interface TemplateListParams {
@@ -271,7 +273,7 @@ export interface TemplateListParams {
 }
 
 export interface CloneTemplateRequest {
-    name: string;
+    workflow_name?: string;
     workspace_id?: string;
 }
 

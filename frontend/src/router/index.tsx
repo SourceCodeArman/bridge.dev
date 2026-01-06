@@ -9,7 +9,7 @@ import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import WorkflowsPage from '@/pages/workflow/WorkflowsPage';
-import WorkflowCanvas from '@/pages/workflow/WorkflowCanvas';
+// Removed: import WorkflowCanvas from '@/pages/workflow/WorkflowCanvas'; // Now lazy loaded
 import DocsHomePage from '@/pages/docs/DocsHomePage';
 import GettingStartedPage from '@/pages/docs/GettingStartedPage';
 import ApiDocsPage from '@/pages/docs/ApiDocsPage';
@@ -20,6 +20,13 @@ import WorkflowsDocsPage from '@/pages/docs/WorkflowsDocsPage';
 import FaqPage from '@/pages/docs/FaqPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import TestPage from '@/pages/connectors/TestPage';
+import WorkflowCanvas from '@/pages/workflow/WorkflowCanvas';
+import RunsPage from '@/pages/runs/RunsPage';
+import TemplatesPage from '@/pages/templates/TemplatesPage';
+import SettingsPage from '@/pages/settings/SettingsPage';
+import CredentialsPage from '@/pages/credentials/CredentialsPage';
+import AlertsPage from '@/pages/alerts/AlertsPage';
+import ProfilePage from '@/pages/profile/ProfilePage';
 
 export const router = createBrowserRouter([
     {
@@ -62,7 +69,7 @@ export const router = createBrowserRouter([
                 element: <WorkflowsPage />,
             },
             {
-                path: '/connectors/create',
+                path: ROUTES.CONNECTORS_CREATE,
                 element: <CreateCustomConnectorPage />,
             },
             {
@@ -72,6 +79,30 @@ export const router = createBrowserRouter([
             {
                 path: ROUTES.WORKFLOWS_CREATE,
                 element: <WorkflowCanvas />,
+            },
+            {
+                path: ROUTES.RUNS,
+                element: <RunsPage />,
+            },
+            {
+                path: ROUTES.TEMPLATES,
+                element: <TemplatesPage />,
+            },
+            {
+                path: ROUTES.SETTINGS,
+                element: <SettingsPage />,
+            },
+            {
+                path: ROUTES.CREDENTIALS,
+                element: <CredentialsPage />,
+            },
+            {
+                path: ROUTES.ALERTS,
+                element: <AlertsPage />,
+            },
+            {
+                path: ROUTES.PROFILE,
+                element: <ProfilePage />,
             },
             {
                 path: ROUTES.WORKFLOWS_DETAIL,

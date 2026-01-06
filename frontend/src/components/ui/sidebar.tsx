@@ -4,6 +4,11 @@ import React, { useState, createContext, useContext } from "react";
 import { motion } from "motion/react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ThemeToggle } from "../theme/theme-toggle";
+import { useQuery } from "@tanstack/react-query";
+import { userService } from "@/lib/api/services/user";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Link } from "react-router-dom";
+import { ROUTES } from "@/router/routes";
 
 interface Links {
   label: string;
@@ -99,6 +104,7 @@ export const DesktopSidebar = ({
       >
         {children}
         <div className="flex flex-col gap-2">
+          <ProfileLink />
           <ThemeToggle />
           <SidebarToggle />
         </div>
@@ -171,4 +177,40 @@ export const SidebarToggle = () => {
       </motion.span>
     </button>
   )
+}
+
+export const ProfileLink = () => {
+  const { open, animate } = useSidebar();
+
+  const { data: user } = useQuery({
+    queryKey: ['user', 'profile'],
+    queryFn: userService.getProfile
+  });
+
+  const fullName = user ? `${user.first_name} ${user.last_name}` : 'Profile';
+  const initials = user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}` : 'U';
+
+  return (
+    <Link
+      to={ROUTES.PROFILE}
+      className={cn(
+        "flex items-center justify-start gap-2 group/sidebar py-2"
+      )}
+    >
+      <Avatar className="h-5 w-5 shrink-0">
+        <AvatarImage src={user?.avatar_url || ''} />
+        <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+      </Avatar>
+
+      <motion.span
+        animate={{
+          width: animate ? (open ? "auto" : 0) : "auto",
+          opacity: animate ? (open ? 1 : 0) : 1,
+        }}
+        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre overflow-hidden inline-block p-0! m-0!"
+      >
+        {fullName}
+      </motion.span>
+    </Link>
+  );
 }

@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { router } from './router';
 import './index.css';
 import { ThemeProvider } from './components/theme/theme-provider';
+import { Toaster } from './components/ui/sonner';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -20,6 +21,7 @@ function App() {
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <AuthProvider>
           <RouterProvider router={router} />
+          <Toaster />
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
