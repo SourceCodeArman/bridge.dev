@@ -91,7 +91,7 @@ class SandboxExecutor:
             monitor.stop()
             
             logger.info(
-                f"Sandbox execution completed successfully",
+                "Sandbox execution completed successfully",
                 extra={
                     'connector_id': connector.connector_id,
                     'action_id': action_id,
@@ -189,7 +189,7 @@ class SandboxExecutor:
             monitor.stop()
             
             logger.info(
-                f"Subprocess execution completed",
+                "Subprocess execution completed",
                 extra={
                     'script_path': script_path,
                     'metrics': monitor.get_metrics()

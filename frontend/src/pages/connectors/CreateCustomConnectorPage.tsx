@@ -8,15 +8,13 @@ import { NodePreview } from '@/components/connectors/NodePreview';
 import { type ConnectorManifest } from '@/types/models';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import nodeTypesData from './node-types.json';
-import BasicInfoStep from '../../components/connectors/wizard-steps/basic-info';
-import AssetsStep from '../../components/connectors/wizard-steps/assets';
-import AppearanceStep from '../../components/connectors/wizard-steps/appearance';
-import StructureStep from '../../components/connectors/wizard-steps/structure';
-import DetailsStep from '../../components/connectors/wizard-steps/details';
-import ConfirmStep from '../../components/connectors/wizard-steps/confirm';
-
-
+import nodeTypesData from '@/components/nodes/node-types.json';
+import BasicInfoStep from '@/components/connectors/wizard-steps/basic-info';
+import AssetsStep from '@/components/connectors/wizard-steps/assets';
+import AppearanceStep from '@/components/connectors/wizard-steps/appearance';
+import StructureStep from '@/components/connectors/wizard-steps/structure';
+import DetailsStep from '@/components/connectors/wizard-steps/details';
+import ConfirmStep from '@/components/connectors/wizard-steps/confirm';
 
 // Define the steps
 const STEPS = [
@@ -179,11 +177,15 @@ export default function CreateCustomConnectorPage() {
 
 
 
+                const selectedStyling = nodeTypesData.nodeTypes.find(t => t.id === connectorType)?.handles?.styling?.[handleStylingIndex];
+
                 // Merge UI settings
                 manifestJson.ui = {
                     nodeSize,
                     handles: handleCounts, // New handle counts
                     handleNames: handleNames, // Inject user-defined names
+                    handleStyling: selectedStyling, // Inject selected styling
+                    customRadius: customRadius, // Inject custom radius
                     handleLocations: Object.keys(handleCounts).filter(k => (handleCounts[k] ?? 0) > 0) as any, // Backwards compat
                     outputHandles: -1
                 };
@@ -378,7 +380,7 @@ export default function CreateCustomConnectorPage() {
 
             {/* Footer */}
             < div className="sticky bottom-0 w-full border-t border-border bg-background backdrop-blur-sm mt-auto z-10" >
-                <div className={`container mx-auto px-6 py-4 grid grid-cols-[1fr_${STEPS.length}fr_1fr]`}>
+                <div className="container mx-auto px-6 py-4 grid grid-cols-[1fr_6fr_1fr]">
                     <div className="w-full flex justify-end">
                         {currentStep > 1 ? (
                             <Button type="button" variant="outline" onClick={handleBack} disabled={isSubmitting}>
@@ -387,7 +389,7 @@ export default function CreateCustomConnectorPage() {
                         ) : (<div className="w-25 h-[36px]"></div>)}
                     </div>
                     {/* Stepper */}
-                    <div className={`grid grid-cols-${STEPS.length}`}>
+                    <div className="grid grid-cols-6">
                         {STEPS.map((step, index) => (
                             <div key={step.id} className="flex items-center cursor-pointer relative" onClick={() => setCurrentStep(step.id)}>
                                 <div className="flex flex-col items-center w-full">
@@ -407,7 +409,7 @@ export default function CreateCustomConnectorPage() {
                                 {index < STEPS.length - 1 && (
                                     <div className={cn(
                                         "absolute -right-1/4 z-10 w-16 h-0.5 mx-2 mb-6 transition-colors",
-                                        currentStep > step.id ? 'bg-primary' : 'bg-muted'
+                                        currentStep > step.id ? 'bg-primary' : 'bg-muted-foreground/40'
                                     )} />
                                 )}
                             </div>

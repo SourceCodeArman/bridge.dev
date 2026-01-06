@@ -320,6 +320,7 @@
   ::file-selector-button {
     border-color: var(--color-gray-200, currentColor);
   }
+
   body {
     letter-spacing: var(--tracking-normal);
   }
@@ -378,11 +379,16 @@
 
 /* e.g. in your global CSS */
 .react-flow {
-  --xy-controls-button-background-color-default: var(--background);  /* button bg */
-  --xy-controls-button-background-color-hover-default: var(--background); /* hover bg */
-  --xy-controls-button-color-default: var(--foreground);  /* icon color */
-  --xy-controls-button-color-hover-default: var(--foreground); /* hover icon color */
-  --xy-controls-button-border-color-default: var(--border); /* border */
+  /* button bg */
+  --xy-controls-button-background-color-default: var(--background);
+  /* hover bg */
+  --xy-controls-button-background-color-hover-default: var(--background);
+  /* icon color */
+  --xy-controls-button-color-default: var(--foreground);
+  /* hover icon color */
+  --xy-controls-button-color-hover-default: var(--foreground);
+  /* border */
+  --xy-controls-button-border-color-default: var(--border);
   --xy-controls-box-shadow-default: 0 0 4px 1px rgba(0, 0, 0, 0.4);
   --xy-controls-box-shadow-hover-default: 0 0 4px 1px rgba(0, 0, 0, 0.4);
 }
@@ -390,4 +396,12 @@
 .react-flow__attribution {
   background: var(--background);
   color: var(--foreground);
+}
+
+.react-flow__handle {
+  transition: scale 0.2s ease-in-out;
+}
+
+.react-flow__handle:hover {
+  scale: 1.5;
 }

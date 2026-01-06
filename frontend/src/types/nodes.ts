@@ -37,6 +37,29 @@ export interface NodeType {
             top: number;
             bottom: number;
         };
+        maxConnections?: {
+            left: number;
+            right: number;
+            top: number;
+            bottom: number;
+        };
+        handleTypes?: {
+            left?: 'source' | 'target';
+            right?: 'source' | 'target';
+            top?: 'source' | 'target';
+            bottom?: 'source' | 'target';
+        };
+        labeledHandles?: Array<{
+            id: string;
+            label: string;
+            position: 'left' | 'right' | 'top' | 'bottom';
+            type: 'source' | 'target';
+            offsetPx: number;
+            shape: 'circle' | 'diamond' | 'square';
+            maxConnections: number;
+            allowedNodeTypes?: string[];
+            lineHeight?: number;
+        }>;
     };
 }
 

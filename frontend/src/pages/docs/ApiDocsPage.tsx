@@ -48,7 +48,7 @@ export default function ApiDocsPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                         API Reference
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">

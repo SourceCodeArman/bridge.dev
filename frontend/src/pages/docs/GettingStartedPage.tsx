@@ -66,7 +66,7 @@ export default function GettingStartedPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                         Getting Started with Bridge
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">

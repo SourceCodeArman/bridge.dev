@@ -31,6 +31,9 @@ from django.conf import settings
 from supabase import create_client
 import uuid
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectorSerializer(serializers.ModelSerializer):
@@ -920,7 +923,8 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
     current_version_info = serializers.SerializerMethodField()
     manifest_file = serializers.FileField(write_only=True)
-    icon = serializers.ImageField(write_only=True, required=False)
+    light_icon = serializers.ImageField(write_only=True, required=False)
+    dark_icon = serializers.ImageField(write_only=True, required=False)
     slug = serializers.SlugField(required=False, allow_blank=True)
 
     class Meta:
@@ -943,7 +947,8 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "manifest_file",
-            "icon",
+            "light_icon",
+            "dark_icon",
         )
         read_only_fields = (
             "id",
@@ -955,13 +960,30 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Ensure slug is unique per workspace at the serializer level."""
+        request = self.context.get("request")
         workspace = attrs.get("workspace") or getattr(self.instance, "workspace", None)
+
+        # If workspace not in attrs/instance, try to get from request like the view does
+        if not workspace and request:
+            workspace = getattr(request, "workspace", None)
+
+            # Fallback logic for workspace matching view logic
+            if not workspace and request.user and request.user.is_authenticated:
+                from apps.accounts.models import OrganizationMember
+
+                membership = OrganizationMember.objects.filter(
+                    user=request.user, is_active=True
+                ).first()
+                if membership:
+                    workspace = membership.organization.workspaces.first()
 
         # Auto-generate slug if not provided
         if not attrs.get("slug"):
             display_name = attrs.get("display_name")
             if display_name:
-                attrs["slug"] = slugify(display_name)
+                slug_candidate = slugify(display_name)
+                # Ensure we have a valid slug, default to "custom-connector" if empty
+                attrs["slug"] = slug_candidate or "custom-connector"
 
         slug = attrs.get("slug") or getattr(self.instance, "slug", None)
 
@@ -973,7 +995,7 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "slug": [
-                            "A connector with this slug already exists in the workspace."
+                            f"A connector with the slug '{slug}' already exists in this workspace."
                         ]
                     }
                 )
@@ -981,42 +1003,77 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         manifest_file = validated_data.pop("manifest_file")
-        icon = validated_data.pop("icon", None)
+        light_icon = validated_data.pop("light_icon", None)
+        dark_icon = validated_data.pop("dark_icon", None)
 
-        # Handle icon upload to Supabase Storage
-        if icon:
+        # Handle icon uploads to Supabase Storage
+        supabase_url = settings.SUPABASE_URL
+        supabase_key = (
+            settings.SUPABASE_SERVICE_KEY
+            or settings.SUPABASE_KEY
+            or os.environ.get("SUPABASE_API_KEY")
+        )
+
+        has_supabase = bool(supabase_url and supabase_key)
+
+        if has_supabase:
             try:
-                supabase = create_client(
-                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY
-                )
-                file_ext = os.path.splitext(icon.name)[1]
-                file_path = f"connectors/{uuid.uuid4()}{file_ext}"
+                supabase = create_client(supabase_url, supabase_key)
 
-                # Read file content
-                file_content = icon.read()
+                # Helper function to upload icon
+                def upload_icon(icon_file):
+                    if not icon_file:
+                        return None
 
-                # Upload to Supabase
-                supabase.storage.from_("connector-icons").upload(
-                    file_path, file_content, {"content-type": icon.content_type}
-                )
+                    file_ext = os.path.splitext(icon_file.name)[1]
+                    file_path = f"connectors/{uuid.uuid4()}{file_ext}"
 
-                # Get public URL
-                public_url_response = supabase.storage.from_(
-                    "connector-icons"
-                ).get_public_url(file_path)
+                    # Read file content
+                    file_content = icon_file.read()
 
-                # Use public URL directly if it's a string, or check response
-                icon_url = public_url_response
+                    # Upload to Supabase
+                    supabase.storage.from_("custom-connector-icons").upload(
+                        file_path,
+                        file_content,
+                        {"content-type": icon_file.content_type},
+                    )
 
-                validated_data["icon_url_light"] = icon_url
-                validated_data["icon_url_dark"] = icon_url
+                    # Get public URL
+                    return supabase.storage.from_(
+                        "custom-connector-icons"
+                    ).get_public_url(file_path)
 
-            except Exception as e:
-                # Log error but proceed without icon
+                # Upload icons if present
                 import logging
 
                 logger = logging.getLogger(__name__)
-                logger.error(f"Failed to upload icon to Supabase: {str(e)}")
+                logger.info(
+                    f"Supabase configured: {has_supabase}. Light icon: {bool(light_icon)}, Dark icon: {bool(dark_icon)}"
+                )
+
+                if light_icon:
+                    try:
+                        validated_data["icon_url_light"] = upload_icon(light_icon)
+                        logger.info(
+                            f"Uploaded light icon: {validated_data.get('icon_url_light')}"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to upload light icon: {e}")
+
+                if dark_icon:
+                    try:
+                        validated_data["icon_url_dark"] = upload_icon(dark_icon)
+                        logger.info(
+                            f"Uploaded dark icon: {validated_data.get('icon_url_dark')}"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to upload dark icon: {e}")
+
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to upload icons to Supabase: {str(e)}")
 
         try:
             import json

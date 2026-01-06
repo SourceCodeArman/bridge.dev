@@ -13,10 +13,9 @@ interface NodeConfigPanelProps {
     selectedNode: Node | null;
     onClose: () => void;
     onUpdateNode: (nodeId: string, data: Record<string, unknown>) => void;
-    workflowId?: string;
 }
 
-export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, workflowId }: NodeConfigPanelProps) {
+export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode }: NodeConfigPanelProps) {
     const [label, setLabel] = useState(selectedNode?.data.label as string || '');
     const [description, setDescription] = useState(selectedNode?.data.description as string || '');
     const [credentialId, setCredentialId] = useState<string>(selectedNode?.data.credential_id as string || '');

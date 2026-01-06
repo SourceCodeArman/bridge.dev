@@ -147,6 +147,8 @@ export interface ConnectorManifest {
         handles?: { left?: number; right?: number; top?: number; bottom?: number; }; // Granular handle counts
         handleNames?: Record<string, string>; // Map of "side-index" to name (e.g., "left-0": "My Input")
         handleLocations?: string[]; // Legacy
+        handleStyling?: any;
+        customRadius?: string;
     };
     connector_type?: string;
 }

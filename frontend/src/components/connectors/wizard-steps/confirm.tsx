@@ -58,7 +58,7 @@ export default function ConfirmStep({
             <div className="text-destructive text-xs mt-1 space-y-1">
                 {errorList.map((err, idx) => (
                     <div key={idx} className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
                         <span>{err}</span>
                     </div>
                 ))}

@@ -168,6 +168,44 @@ class ManifestValidator:
 
         return errors
 
+    def _validate_triggers(self, manifest: Dict[str, Any]) -> List[str]:
+        """Validate triggers array"""
+        errors = []
+        triggers = manifest.get("triggers", [])
+
+        if manifest.get("connector_type") in ["trigger", "both"] and not triggers:
+            errors.append(
+                "Connector type is 'trigger' or 'both' but no triggers defined"
+            )
+
+        trigger_ids = []
+        for i, trigger in enumerate(triggers):
+            trigger_id = trigger.get("id")
+            if not trigger_id:
+                errors.append(f"Trigger at index {i} missing 'id' field")
+            elif trigger_id in trigger_ids:
+                errors.append(f"Duplicate trigger ID: {trigger_id}")
+            else:
+                trigger_ids.append(trigger_id)
+
+        return errors
+
+    def _validate_auth_config(self, manifest: Dict[str, Any]) -> List[str]:
+        """Validate auth_config"""
+        errors = []
+        auth_config = manifest.get("auth_config")
+
+        if auth_config:
+            auth_type = auth_config.get("type")
+            if auth_type == "api_key":
+                fields = auth_config.get("fields", [])
+                if not any(f.get("name") == "api_key" for f in fields):
+                    errors.append(
+                        "auth_config type is 'api_key' but no 'api_key' field defined"
+                    )
+
+        return errors
+
 
 def validate_custom_connector_manifest(
     manifest: Dict[str, Any],
@@ -214,41 +252,3 @@ def validate_custom_connector_manifest(
         )
 
     return (len(errors) == 0, errors)
-
-    def _validate_triggers(self, manifest: Dict[str, Any]) -> List[str]:
-        """Validate triggers array"""
-        errors = []
-        triggers = manifest.get("triggers", [])
-
-        if manifest.get("connector_type") in ["trigger", "both"] and not triggers:
-            errors.append(
-                "Connector type is 'trigger' or 'both' but no triggers defined"
-            )
-
-        trigger_ids = []
-        for i, trigger in enumerate(triggers):
-            trigger_id = trigger.get("id")
-            if not trigger_id:
-                errors.append(f"Trigger at index {i} missing 'id' field")
-            elif trigger_id in trigger_ids:
-                errors.append(f"Duplicate trigger ID: {trigger_id}")
-            else:
-                trigger_ids.append(trigger_id)
-
-        return errors
-
-    def _validate_auth_config(self, manifest: Dict[str, Any]) -> List[str]:
-        """Validate auth_config"""
-        errors = []
-        auth_config = manifest.get("auth_config")
-
-        if auth_config:
-            auth_type = auth_config.get("type")
-            if auth_type == "api_key":
-                fields = auth_config.get("fields", [])
-                if not any(f.get("name") == "api_key" for f in fields):
-                    errors.append(
-                        "auth_config type is 'api_key' but no 'api_key' field defined"
-                    )
-
-        return errors

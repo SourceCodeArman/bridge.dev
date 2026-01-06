@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,6 +10,7 @@ import {
     MiniMap,
     Controls,
     Background,
+    Panel,
     useNodesState,
     useEdgesState,
     addEdge,
@@ -24,30 +25,14 @@ import type {
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { TriggerNode, ActionNode, ConditionNode, AgentNode, ModelNode, MemoryNode, ToolNode } from '@/components/workflow/CustomNodes';
-import { CustomNode } from '@/components/workflow/CustomNode';
-import { ThemeAwareIcon } from '@/components/connectors/ThemeAwareIcon';
+import { UnifiedNode } from '@/components/nodes';
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel';
-import { Save, Layout, Webhook, Plus } from 'lucide-react';
+import { Save, Layout, Plus, Sparkles } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
 
-const nodeTypes = {
-    trigger: TriggerNode,
-    action: ActionNode,
-    condition: ConditionNode,
-    agent: AgentNode,
-    modelNode: ModelNode,
-    memoryNode: MemoryNode,
-    toolsNode: ToolNode,
-    custom: CustomNode,
-};
+import { AddNodeSheet } from './components/AddNodeSheet';
+
+
 
 const initialNodes: Node[] = [];
 
@@ -95,7 +80,20 @@ const WorkflowCanvasInner = () => {
     const [initialDefinition, setInitialDefinition] = useState<string | null>(null);
     const [showMiniMap, setShowMiniMap] = useState(false);
     const miniMapTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const hasUserEdited = useRef(false);  // Track if user has made changes
+    const [isReady, setIsReady] = useState(false);
+    const [activating, setActivating] = useState(false);
+
+    // Memoize nodeTypes to prevent React Flow warning
+    const nodeTypes = useMemo(() => ({
+        trigger: UnifiedNode,
+        action: UnifiedNode,
+        condition: UnifiedNode,
+        agent: UnifiedNode,
+        modelNode: UnifiedNode,
+        memoryNode: UnifiedNode,
+        toolsNode: UnifiedNode,
+        custom: UnifiedNode,
+    }), []);
 
     const showMiniMapUI = useCallback(() => {
         if (miniMapTimeoutRef.current) {
@@ -159,10 +157,16 @@ const WorkflowCanvasInner = () => {
                 nodes: savedNodes,
                 edges: savedEdges
             }));
-        } else if (workflow) {
             // Workflow loaded but no version/draft - start with empty canvas
             setIsHydrated(true);
         }
+
+        // Set ready state after a short delay to allow initial rendering/effects to settle
+        const timer = setTimeout(() => {
+            setIsReady(true);
+        }, 1000);
+
+        return () => clearTimeout(timer);
     }, [workflow, setNodes, setEdges, handleSmartAdd]);
 
     // Ensure initial nodes have the callback attached
@@ -255,6 +259,8 @@ const WorkflowCanvasInner = () => {
             }
         }
 
+        const baseType = type;
+
         // Determine the react-flow node type
         let nodeType = type;
         if (connectorDataVal?.is_custom) {
@@ -273,6 +279,7 @@ const WorkflowCanvasInner = () => {
                 iconUrlLight,
                 iconUrlDark,
                 ui, // Pass UI settings
+                baseType, // Pass valid base type (trigger, action, etc.)
                 onAddClick: handleSmartAdd
             },
         };
@@ -544,7 +551,6 @@ const WorkflowCanvasInner = () => {
             const currentDefinitionStr = JSON.stringify(definition);
 
             if (initialDefinition && currentDefinitionStr === initialDefinition) {
-                console.log('No changes detected, skipping save');
                 setSaving(false);
                 return;
             }
@@ -555,7 +561,6 @@ const WorkflowCanvasInner = () => {
             // Update initial definition after successful save
             setInitialDefinition(currentDefinitionStr);
             setLastSaved(new Date());
-            console.log('Workflow draft saved successfully');
         } catch (err: any) {
             console.error('Failed to save workflow', err);
             alert(`Failed to save workflow: ${err?.message || err?.response?.data?.message || 'Unknown error'}`);
@@ -565,7 +570,6 @@ const WorkflowCanvasInner = () => {
         }
     }, [id, nodes, edges, initialDefinition]);
 
-    const [activating, setActivating] = useState(false);
 
     const handleActivate = useCallback(async (activate: boolean) => {
         if (!id) return;
@@ -586,320 +590,52 @@ const WorkflowCanvasInner = () => {
 
 
     // Autosave effect - only triggers after user makes changes, not on initial load
+    // Autosave effect - only triggers after user makes changes, not on initial load
     useEffect(() => {
-        if (!isHydrated || !id) return;
+        if (!isHydrated || !id || !isReady) return;
 
-        // Skip autosave on initial hydration
-        if (!hasUserEdited.current) {
-            hasUserEdited.current = true;
-            return;
-        }
+        // Skip autosave if no user edits (though we are now using isReady to Gate invalid initial saves)
+        // We can use a simpler approach now: just debounce save on changes *iff* ready
 
         const timer = setTimeout(() => {
             handleSave();
         }, 1000);
 
         return () => clearTimeout(timer);
-    }, [nodes, edges, isHydrated, id, handleSave]);
+    }, [nodes, edges, isHydrated, id, isReady, handleSave]);
+
+    // Determine the initial category page based on pending connection context
+    const initialCategory = useMemo(() => {
+        if (!pendingConnection?.allowedTypes || pendingConnection.allowedTypes.length === 0) return undefined;
+
+        const type = pendingConnection.allowedTypes[0];
+
+        if (type === 'trigger' || type === 'webhook') return 'trigger';
+        if (type === 'action') return 'action';
+        if (type === 'condition') return 'condition';
+        if (type === 'agent') return 'agent';
+        if (type === 'modelNode' || type === 'model' || type === 'agent-model') return 'modelNode';
+        if (type === 'memoryNode' || type === 'memory' || type === 'agent-memory') return 'memoryNode';
+        if (type === 'toolsNode' || type === 'tool' || type === 'agent-tool') return 'toolsNode';
+        if (type === 'custom') return 'custom';
+
+        return undefined;
+    }, [pendingConnection]);
+
 
     return (
         <div className="h-screen flex w-full relative rounded-2xl">
             {/* Main Canvas */}
             <div className="flex-1 relative" ref={reactFlowWrapper}>
                 <div className="absolute top-4 right-4 z-10 flex gap-2">
-                    <Sheet open={isAddNodeOpen} onOpenChange={setIsAddNodeOpen}>
-                        <SheetTrigger asChild>
-                            <Button className="rounded-full w-10 h-10 p-0 shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground absolute top-4 right-[calc(100vw-3rem)] md:right-[unset] md:left-4 z-50">
-                                <Plus className="w-6 h-6" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="w-[300px] sm:w-[400px] overflow-y-auto bg-sidebar">
-                            <SheetHeader className="mb-4">
-                                <SheetTitle>Add Node</SheetTitle>
-                            </SheetHeader>
-                            <div className="flex flex-col gap-4 text-foreground">
-                                <h3 className="font-semibold text-sm">Components</h3>
-                                <div className="space-y-4">
-                                    {/* Triggers */}
-                                    {(isNodeAllowed('trigger') || isNodeAllowed('webhook')) && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Triggers</div>
-                                            <div className="space-y-2">
-                                                {allConnectors.filter(c => c.connector_type === 'trigger').map((connector) => (
-                                                    <div
-                                                        key={connector.id}
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('trigger', connector)}
-                                                        draggable
-                                                        onDragStart={(event) => {
-                                                            event.dataTransfer.setData('application/reactflow', 'trigger');
-                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'webhook');
-                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                        }}
-                                                    >
-                                                        {connector.icon_url_light || connector.icon_url_dark ? (
-                                                            <ThemeAwareIcon
-                                                                lightSrc={connector.icon_url_light}
-                                                                darkSrc={connector.icon_url_dark}
-                                                                alt={connector.display_name}
-                                                                className="w-4 h-4 object-contain"
-                                                            />
-                                                        ) : (
-                                                            <Webhook className="w-4 h-4 text-foreground" />
-                                                        )}
-                                                        <span className="text-sm">{connector.display_name}</span>
-                                                    </div>
-                                                ))}
-                                                {/* Fallback for hardcoded if needed, or if no trigger connectors yet */}
-                                                {!allConnectors.some(c => c.connector_type === 'trigger') && (
-                                                    <div
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('trigger')}
-                                                        draggable
-                                                        onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'trigger')}
-                                                    >
-                                                        <Webhook className="w-4 h-4 text-foreground" />
-                                                        <span className="text-sm">Webhook Trigger</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Actions */}
-                                    {isNodeAllowed('action') && allConnectors.some(c => c.connector_type === 'action') && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Actions</div>
-                                            <div className="space-y-2">
-                                                {allConnectors.filter(c => c.connector_type === 'action').map((connector) => (
-                                                    <div
-                                                        key={connector.id}
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('action', connector)}
-                                                        draggable
-                                                        onDragStart={(event) => {
-                                                            event.dataTransfer.setData('application/reactflow', 'action');
-                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || connector.display_name.toLowerCase());
-                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                        }}
-                                                    >
-                                                        {connector.icon_url_light || connector.icon_url_dark ? (
-                                                            <ThemeAwareIcon
-                                                                lightSrc={connector.icon_url_light}
-                                                                darkSrc={connector.icon_url_dark}
-                                                                alt={connector.display_name}
-                                                                className="w-4 h-4 object-contain"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-4 h-4 bg-muted rounded-full" />
-                                                        )}
-                                                        <span className="text-sm">{connector.display_name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Logic (Condition) */}
-                                    {isNodeAllowed('condition') && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Logic</div>
-                                            <div
-                                                className="border p-2 rounded cursor-pointer bg-card hover:bg-accent transition-colors"
-                                                onClick={() => handleAddNodeClick('condition')}
-                                                draggable
-                                                onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'condition')}
-                                            >
-                                                <span className="text-sm">If / Else</span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* AI Agents */}
-                                    {isNodeAllowed('agent') && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">AI Agents</div>
-                                            <div className="space-y-2">
-                                                {/* Dynamic Agent Connectors */}
-                                                {allConnectors.filter(c => c.connector_type === 'agent').map((connector) => (
-                                                    <div
-                                                        key={connector.id}
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('agent', connector)}
-                                                        draggable
-                                                        onDragStart={(event) => {
-                                                            event.dataTransfer.setData('application/reactflow', 'agent');
-                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'agent');
-                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                        }}
-                                                    >
-                                                        {connector.icon_url_light || connector.icon_url_dark ? (
-                                                            <ThemeAwareIcon
-                                                                lightSrc={connector.icon_url_light}
-                                                                darkSrc={connector.icon_url_dark}
-                                                                alt={connector.display_name}
-                                                                className="w-4 h-4 object-contain"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-4 h-4 bg-muted rounded-full" />
-                                                        )}
-                                                        <span className="text-sm">{connector.display_name}</span>
-                                                    </div>
-                                                ))}
-                                                {/* Fallback/Generic Agent Node if no specific agent connectors or want generic option */}
-                                                {!allConnectors.some(c => c.connector_type === 'agent') && (
-                                                    <div
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('agent')}
-                                                        draggable
-                                                        onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'agent')}
-                                                    >
-                                                        <span className="text-sm">AI Agent</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Agent Models */}
-                                    {isNodeAllowed('modelNode') && allConnectors.some(c => c.connector_type === 'agent-model') && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Models</div>
-                                            <div className="space-y-2">
-                                                {allConnectors.filter(c => c.connector_type === 'agent-model').map((connector) => (
-                                                    <div
-                                                        key={connector.id}
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('modelNode', connector)}
-                                                        draggable
-                                                        onDragStart={(event) => {
-                                                            event.dataTransfer.setData('application/reactflow', 'modelNode');
-                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'model');
-                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                        }}
-                                                    >
-                                                        {connector.icon_url_light || connector.icon_url_dark ? (
-                                                            <ThemeAwareIcon
-                                                                lightSrc={connector.icon_url_light}
-                                                                darkSrc={connector.icon_url_dark}
-                                                                alt={connector.display_name}
-                                                                className="w-4 h-4 object-contain"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-4 h-4 bg-muted rounded-full" />
-                                                        )}
-                                                        <span className="text-sm">{connector.display_name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Agent Memory */}
-                                    {isNodeAllowed('memoryNode') && allConnectors.some(c => c.connector_type === 'agent-memory') && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Memory</div>
-                                            <div className="space-y-2">
-                                                {allConnectors.filter(c => c.connector_type === 'agent-memory').map((connector) => (
-                                                    <div
-                                                        key={connector.id}
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('memoryNode', connector)}
-                                                        draggable
-                                                        onDragStart={(event) => {
-                                                            event.dataTransfer.setData('application/reactflow', 'memoryNode');
-                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'memory');
-                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                        }}
-                                                    >
-                                                        {connector.icon_url_light || connector.icon_url_dark ? (
-                                                            <ThemeAwareIcon
-                                                                lightSrc={connector.icon_url_light}
-                                                                darkSrc={connector.icon_url_dark}
-                                                                alt={connector.display_name}
-                                                                className="w-4 h-4 object-contain"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-4 h-4 bg-muted rounded-full" />
-                                                        )}
-                                                        <span className="text-sm">{connector.display_name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Agent Tools */}
-                                    {isNodeAllowed('toolsNode') && allConnectors.some(c => c.connector_type === 'agent-tool') && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Tools</div>
-                                            <div className="space-y-2">
-                                                {allConnectors.filter(c => c.connector_type === 'agent-tool').map((connector) => (
-                                                    <div
-                                                        key={connector.id}
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('toolsNode', connector)}
-                                                        draggable
-                                                        onDragStart={(event) => {
-                                                            event.dataTransfer.setData('application/reactflow', 'toolsNode');
-                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'tool');
-                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                        }}
-                                                    >
-                                                        {connector.icon_url_light || connector.icon_url_dark ? (
-                                                            <ThemeAwareIcon
-                                                                lightSrc={connector.icon_url_light}
-                                                                darkSrc={connector.icon_url_dark}
-                                                                alt={connector.display_name}
-                                                                className="w-4 h-4 object-contain"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-4 h-4 bg-muted rounded-full" />
-                                                        )}
-                                                        <span className="text-sm">{connector.display_name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Custom Connectors (Uncategorized) */}
-                                    {allConnectors.some(c => c.connector_type === 'custom' || !['trigger', 'action', 'condition', 'agent', 'agent-model', 'agent-memory', 'agent-tool'].includes(c.connector_type)) && (
-                                        <div>
-                                            <div className="text-xs font-medium text-foreground uppercase tracking-wider mb-2">Custom</div>
-                                            <div className="space-y-2">
-                                                {allConnectors.filter(c => c.connector_type === 'custom' || !['trigger', 'action', 'condition', 'agent', 'agent-model', 'agent-memory', 'agent-tool'].includes(c.connector_type)).map((connector) => (
-                                                    <div
-                                                        key={connector.id}
-                                                        className="border p-2 rounded cursor-pointer bg-card hover:bg-accent flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleAddNodeClick('custom', connector)}
-                                                        draggable
-                                                        onDragStart={(event) => {
-                                                            event.dataTransfer.setData('application/reactflow', 'custom');
-                                                            event.dataTransfer.setData('application/bridge-type', connector.slug || 'custom');
-                                                            event.dataTransfer.setData('application/connector-data', JSON.stringify(connector));
-                                                        }}
-                                                    >
-                                                        {connector.icon_url_light || connector.icon_url_dark ? (
-                                                            <ThemeAwareIcon
-                                                                lightSrc={connector.icon_url_light}
-                                                                darkSrc={connector.icon_url_dark}
-                                                                alt={connector.display_name}
-                                                                className="w-4 h-4 object-contain"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-4 h-4 bg-muted rounded-full" />
-                                                        )}
-                                                        <span className="text-sm">{connector.display_name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
+                    <AddNodeSheet
+                        open={isAddNodeOpen}
+                        onOpenChange={setIsAddNodeOpen}
+                        isNodeAllowed={isNodeAllowed}
+                        allConnectors={allConnectors}
+                        onAddNodeClick={handleAddNodeClick}
+                        initialCategory={initialCategory}
+                    />
 
                     <Button variant="outline" size="sm" onClick={handleAutoLayout}>
                         <Layout className="w-4 h-4 mr-2" />
@@ -941,7 +677,7 @@ const WorkflowCanvasInner = () => {
                     snapToGrid={true}
                     snapGrid={[20, 20]} // Snap to 20px grid
                     fitView
-                    fitViewOptions={{ maxZoom: 1 }}
+                    fitViewOptions={{ maxZoom: 1, padding: 0.2 }}
                     defaultEdgeOptions={{
                         type: 'default',
                         style: {
@@ -959,6 +695,40 @@ const WorkflowCanvasInner = () => {
                         className={`transition-opacity duration-500 ${showMiniMap ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
                     />
                     <Background gap={20} size={1} />
+
+                    {/* Empty Canvas CTA */}
+                    {nodes.length === 0 && (
+                        <Panel position="top-center" className="top-1/2! -translate-y-1/2!">
+                            <div className="flex items-center gap-6">
+                                {/* Add first step button */}
+                                <button
+                                    onClick={() => setIsAddNodeOpen(true)}
+                                    className="flex flex-col items-center justify-center w-28 h-28 border-2 border-dashed border-neutral-600 rounded-lg hover:border-neutral-400 hover:bg-neutral-800/50 transition-all group"
+                                >
+                                    <Plus className="w-8 h-8 text-neutral-500 group-hover:text-neutral-300 transition-colors" />
+                                    <span className="mt-2 text-sm text-neutral-400 group-hover:text-neutral-200 transition-colors">
+                                        Add first step...
+                                    </span>
+                                </button>
+
+                                <span className="text-neutral-500 text-sm">or</span>
+
+                                {/* Build with AI button */}
+                                <button
+                                    onClick={() => {
+                                        // Placeholder - will implement AI workflow builder
+                                        console.log('Build with AI clicked');
+                                    }}
+                                    className="flex flex-col items-center justify-center w-28 h-28 border-2 border-dashed border-neutral-600 rounded-lg hover:border-neutral-400 hover:bg-neutral-800/50 transition-all group"
+                                >
+                                    <Sparkles className="w-8 h-8 text-neutral-500 group-hover:text-neutral-300 transition-colors" />
+                                    <span className="mt-2 text-sm text-neutral-400 group-hover:text-neutral-200 transition-colors">
+                                        Build with AI
+                                    </span>
+                                </button>
+                            </div>
+                        </Panel>
+                    )}
                 </ReactFlow>
             </div>
 
@@ -966,7 +736,6 @@ const WorkflowCanvasInner = () => {
             <NodeConfigPanel
                 key={selectedNode?.id}
                 selectedNode={selectedNode}
-                workflowId={id}
                 onClose={() => setSelectedNode(null)}
                 onUpdateNode={(nodeId, data) => {
                     setNodes((nds) => nds.map((n) => {

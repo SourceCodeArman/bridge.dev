@@ -61,7 +61,7 @@ function Step({ number, title, children }: { number: number; title: string; chil
         <div className="relative pb-10 last:pb-0">
             <div className="absolute top-8 left-4 -ml-px h-full w-px bg-card last:hidden" />
             <div className="flex gap-4">
-                <div className="flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-full bg-card border border-border text-sm font-bold text-foreground">
+                <div className="shrink-0 flex items-center justify-center h-8 w-8 rounded-full bg-card border border-border text-sm font-bold text-foreground">
                     {number}
                 </div>
                 <div className="flex-1 pt-1">
@@ -86,7 +86,7 @@ export default function WorkflowsDocsPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                         Workflow Examples
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed">

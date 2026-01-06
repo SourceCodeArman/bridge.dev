@@ -67,7 +67,7 @@ export const FileUpload = ({
                     {...getInputProps()}
                     ref={fileInputRef}
                     id={id + "-handle"}
-                className="hidden"
+                    className="hidden"
                 />
                 <div className="relative w-full mx-auto">
                     {files.length > 0 &&
@@ -93,7 +93,7 @@ export const FileUpload = ({
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         layout
-                                        className="rounded-lg px-2 py-1 w-fit flex-shrink-0 text-sm text-muted-foreground shadow-input"
+                                        className="rounded-lg px-2 py-1 w-fit shrink-0 text-sm text-muted-foreground shadow-input"
                                     >
                                         {(file.size / (1024 * 1024)).toFixed(2)} MB
                                     </motion.p>

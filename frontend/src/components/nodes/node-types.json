@@ -47,7 +47,13 @@
                 ],
                 "maxHandleCounts": {
                     "left": 0,
-                    "right": 5,
+                    "right": 1,
+                    "top": 0,
+                    "bottom": 0
+                },
+                "maxConnections": {
+                    "left": 0,
+                    "right": 1,
                     "top": 0,
                     "bottom": 0
                 }
@@ -100,10 +106,16 @@
                     "output"
                 ],
                 "maxHandleCounts": {
-                    "left": 5,
-                    "right": 5,
-                    "top": 5,
-                    "bottom": 5
+                    "left": 1,
+                    "right": 1,
+                    "top": 1,
+                    "bottom": 1
+                },
+                "maxConnections": {
+                    "left": 1,
+                    "right": 1,
+                    "top": 1,
+                    "bottom": 1
                 }
             }
         },
@@ -123,29 +135,20 @@
             "style": {
                 "containerClass": "rounded-[24px]",
                 "ratioOptions": [],
-                "radiusOptions": []
+                "radiusOptions": [],
+                "layout": "horizontal"
             },
             "handles": {
                 "defaults": {
                     "left": 1,
                     "right": 1,
                     "top": 0,
-                    "bottom": 3
+                    "bottom": 0
                 },
                 "styling": [
                     {
                         "type": "circle",
                         "rotation": 0,
-                        "translation": {
-                            "rightLeft": {
-                                "x": 0,
-                                "y": 0
-                            },
-                            "topBottom": {
-                                "x": 0,
-                                "y": 0
-                            }
-                        },
                         "borderRadius": "10px"
                     }
                 ],
@@ -154,19 +157,66 @@
                     "output"
                 ],
                 "maxHandleCounts": {
-                    "left": 5,
-                    "right": 5,
-                    "top": 5,
-                    "bottom": 5
-                }
+                    "left": 1,
+                    "right": 1,
+                    "top": 0,
+                    "bottom": 3
+                },
+                "maxConnections": {
+                    "left": 1,
+                    "right": 1,
+                    "top": 0,
+                    "bottom": 0
+                },
+                "labeledHandles": [
+                    {
+                        "id": "model",
+                        "label": "Model",
+                        "position": "bottom",
+                        "type": "target",
+                        "offsetPx": 30,
+                        "shape": "diamond",
+                        "maxConnections": 1,
+                        "allowedNodeTypes": [
+                            "modelNode"
+                        ],
+                        "lineHeight": 100
+                    },
+                    {
+                        "id": "memory",
+                        "label": "Memory",
+                        "position": "bottom",
+                        "type": "target",
+                        "offsetPx": 90,
+                        "shape": "diamond",
+                        "maxConnections": 1,
+                        "allowedNodeTypes": [
+                            "memoryNode"
+                        ],
+                        "lineHeight": 100
+                    },
+                    {
+                        "id": "tools",
+                        "label": "Tools",
+                        "position": "bottom",
+                        "type": "target",
+                        "offsetPx": 150,
+                        "shape": "diamond",
+                        "maxConnections": -1,
+                        "allowedNodeTypes": [
+                            "toolsNode"
+                        ],
+                        "lineHeight": 100
+                    }
+                ]
             }
         },
         {
             "id": "agent-tool",
             "label": "Agent Resource",
             "dimensions": {
-                "width": 100,
-                "height": 100
+                "width": 60,
+                "height": 60
             },
             "resizable": false,
             "preview": {
@@ -211,6 +261,15 @@
                     "right": 0,
                     "top": 1,
                     "bottom": 0
+                },
+                "maxConnections": {
+                    "left": 0,
+                    "right": 0,
+                    "top": 1,
+                    "bottom": 0
+                },
+                "handleTypes": {
+                    "top": "source"
                 }
             }
         },
@@ -307,6 +366,12 @@
                     "output"
                 ],
                 "maxHandleCounts": {
+                    "left": 5,
+                    "right": 5,
+                    "top": 5,
+                    "bottom": 5
+                },
+                "maxConnections": {
                     "left": 5,
                     "right": 5,
                     "top": 5,

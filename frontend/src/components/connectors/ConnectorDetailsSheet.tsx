@@ -1,4 +1,3 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { connectorService } from '@/lib/api/services/connector';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';

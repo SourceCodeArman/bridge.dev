@@ -179,7 +179,7 @@ export default function FaqPage() {
                 <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-background border border-border mb-2">
                     <HelpCircle className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                     Frequently Asked Questions
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-xl mx-auto">

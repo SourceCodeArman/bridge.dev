@@ -37,7 +37,7 @@ export default function DocsLayout() {
 
                                 <Link
                                     to={ROUTES.DOCS}
-                                    className="text-lg font-semibold bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent block"
+                                    className="text-lg font-semibold bg-linear-to-r from-white to-neutral-400 bg-clip-text text-transparent block"
                                 >
                                     Documentation
                                 </Link>
@@ -60,7 +60,7 @@ export default function DocsLayout() {
                                 "prose prose-invert max-w-none",
                                 // Custom prose overrides for better readability
                                 "prose-headings:scroll-mt-24 prose-headings:text-foreground",
-                                "prose-h1:text-4xl prose-h1:font-bold prose-h1:bg-gradient-to-r prose-h1:from-white prose-h1:to-neutral-400 prose-h1:bg-clip-text prose-h1:text-transparent prose-h1:mb-8",
+                                "prose-h1:text-4xl prose-h1:font-bold prose-h1:bg-linear-to-r prose-h1:from-white prose-h1:to-neutral-400 prose-h1:bg-clip-text prose-h1:text-transparent prose-h1:mb-8",
                                 "prose-h2:text-2xl prose-h2:font-semibold prose-h2:border-b prose-h2:border-border prose-h2:pb-3 prose-h2:mt-10 prose-h2:mb-6 prose-h2:text-foreground",
                                 "prose-h3:text-xl prose-h3:font-medium prose-h3:text-foreground prose-h3:mt-8 prose-h3:mb-4",
                                 "prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:mb-6",

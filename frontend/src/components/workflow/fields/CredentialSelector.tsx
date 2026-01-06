@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { credentialService } from '@/lib/api/services/credential';
 import { Plus } from 'lucide-react';
-import type { Credential } from '@/types/models';
 
 interface CredentialSelectorProps {
     value?: string;

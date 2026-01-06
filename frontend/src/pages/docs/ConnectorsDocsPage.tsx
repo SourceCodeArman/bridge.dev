@@ -111,7 +111,7 @@ export default function ConnectorsDocsPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-neutral-400 bg-clip-text text-transparent">
                         Connectors
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed">
@@ -179,15 +179,15 @@ export default function ConnectorsDocsPage() {
                         </h3>
                         <ol className="space-y-4">
                             <li className="flex gap-3">
-                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">1</span>
+                                <span className="shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">1</span>
                                 <span className="text-sm text-muted-foreground">Go to <span className="text-foreground">Settings → Credentials</span></span>
                             </li>
                             <li className="flex gap-3">
-                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">2</span>
+                                <span className="shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">2</span>
                                 <span className="text-sm text-muted-foreground">Click "Add Credential" and choose your service</span>
                             </li>
                             <li className="flex gap-3">
-                                <span className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">3</span>
+                                <span className="shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-card text-xs font-mono text-muted-foreground border border-border">3</span>
                                 <span className="text-sm text-muted-foreground">Complete the OAuth flow or paste your API Key</span>
                             </li>
                         </ol>

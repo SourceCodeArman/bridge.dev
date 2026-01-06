@@ -19,8 +19,13 @@ import CreateCustomConnectorPage from '@/pages/connectors/CreateCustomConnectorP
 import WorkflowsDocsPage from '@/pages/docs/WorkflowsDocsPage';
 import FaqPage from '@/pages/docs/FaqPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import TestPage from '@/pages/connectors/TestPage';
 
 export const router = createBrowserRouter([
+    {
+        path: ROUTES.TEST,
+        element: <TestPage />,
+    },
     {
         path: ROUTES.HOME,
         element: <Navigate to={ROUTES.DASHBOARD} replace />,

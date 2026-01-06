@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Bolt, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { ThemeAwareIcon } from './ThemeAwareIcon';
-import nodeTypesData from '../../pages/connectors/node-types.json';
+import nodeTypesData from '@/components/nodes/node-types.json';
 
 interface NodePreviewProps {
     name: string;

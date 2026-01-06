@@ -287,6 +287,53 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["post"], parser_classes=[MultiPartParser])
+    def test_upload(self, request):
+        """Test endpoint for file upload"""
+        import os
+        from django.conf import settings
+        from supabase import create_client
+        import uuid
+
+        file_obj = request.FILES.get("file")
+        if not file_obj:
+            return Response({"error": "No file provided"}, status=400)
+
+        try:
+            supabase_url = settings.SUPABASE_URL
+            supabase_key = (
+                settings.SUPABASE_SERVICE_KEY
+                or settings.SUPABASE_KEY
+                or os.environ.get("SUPABASE_API_KEY")
+            )
+
+            if not supabase_url or not supabase_key:
+                return Response({"error": "Supabase not configured"}, status=500)
+
+            supabase = create_client(supabase_url, supabase_key)
+            file_ext = os.path.splitext(file_obj.name)[1]
+            file_path = f"test-uploads/{uuid.uuid4()}{file_ext}"
+
+            file_content = file_obj.read()
+
+            supabase.storage.from_("custom-connector-icons").upload(
+                file_path,
+                file_content,
+                {"content-type": file_obj.content_type},
+            )
+
+            url = supabase.storage.from_("custom-connector-icons").get_public_url(
+                file_path
+            )
+            return Response({"status": "success", "url": url})
+
+        except Exception as e:
+            import traceback
+
+            return Response(
+                {"error": str(e), "trace": traceback.format_exc()}, status=500
+            )
+
 
 class CustomConnectorVersionViewSet(viewsets.ModelViewSet):
     """
