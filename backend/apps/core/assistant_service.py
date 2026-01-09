@@ -81,6 +81,49 @@ class AssistantService:
 
         return "\n".join(context_parts)
 
+    def get_existing_nodes_mapping(self, workflow: Workflow) -> dict[str, list[dict]]:
+        """
+        Build a mapping of existing nodes in the workflow by connector ID.
+
+        Returns:
+            {
+                "connector_id": [
+                    {
+                        "node_id": "uuid",
+                        "label": "Node Label",
+                        "action_id": "action_name",
+                        "type": "trigger|action"
+                    },
+                    ...
+                ],
+                ...
+            }
+        """
+        version = workflow.get_active_version()
+        if not version:
+            return {}
+
+        definition = version.definition
+        nodes = definition.get("nodes", [])
+
+        mapping = {}
+        for node in nodes:
+            node_data = node.get("data", {})
+            connector_id = node_data.get("connector_id", "")
+
+            if connector_id:
+                if connector_id not in mapping:
+                    mapping[connector_id] = []
+
+                mapping[connector_id].append({
+                    "node_id": node.get("id"),
+                    "label": node_data.get("label", ""),
+                    "action_id": node_data.get("action_id", ""),
+                    "type": node.get("type", "action"),
+                })
+
+        return mapping
+
     def get_connectors_context(self) -> str:
         """Get available connectors for context."""
         connectors_info = []
