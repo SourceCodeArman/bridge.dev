@@ -1,34 +1,29 @@
-import { MOCK_CONNECTORS_RESPONSE } from '@/lib/mockData';
+import apiClient from '../client';
+import { API_ENDPOINTS } from '@/lib/constants';
 import type { PaginatedResponse, Connector } from '@/types';
-
-const SIMULATED_DELAY = 600;
 
 export const connectorService = {
     list: async (): Promise<PaginatedResponse<Connector>> => {
-        // console.log('Mocking connector list with params:', params);
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        return MOCK_CONNECTORS_RESPONSE;
+        const response = await apiClient.get<PaginatedResponse<Connector>>(API_ENDPOINTS.CONNECTORS.LIST);
+        return response.data;
     },
 
     get: async (id: string): Promise<Connector> => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        const connector = MOCK_CONNECTORS_RESPONSE.results.find(c => c.id === id);
-        if (!connector) throw new Error('Connector not found');
-        return connector;
+        const response = await apiClient.get<Connector>(API_ENDPOINTS.CONNECTORS.DETAIL(id));
+        return response.data;
     },
 
     getBySlug: async (slug: string): Promise<Connector | undefined> => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        return MOCK_CONNECTORS_RESPONSE.results.find(c => c.slug === slug);
+        try {
+            const response = await apiClient.get<PaginatedResponse<Connector>>(API_ENDPOINTS.CONNECTORS.LIST);
+            return response.data.results.find(c => c.slug === slug);
+        } catch (error) {
+            return undefined;
+        }
     },
 
-    // Add create for custom connectors if needed, mocked
     createCustom: async (data: any): Promise<Connector> => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        return {
-            ...MOCK_CONNECTORS_RESPONSE.results[0],
-            ...data,
-            id: 'conn-custom-' + Date.now()
-        };
+        const response = await apiClient.post<Connector>(API_ENDPOINTS.CUSTOM_CONNECTORS.LIST, data);
+        return response.data;
     }
 };
