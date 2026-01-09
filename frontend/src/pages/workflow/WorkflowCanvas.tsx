@@ -639,6 +639,85 @@ const WorkflowCanvasInner = () => {
         }
     }, [handleSmartAdd, setNodes, setEdges]);
 
+    const handleApplyActions = useCallback((actions: any[]) => {
+        if (!actions || actions.length === 0) return;
+
+        let updatedNodes = nodes;
+        let updatedEdges = edges;
+
+        // Process each action
+        for (const action of actions) {
+            switch (action.type) {
+                case 'add_node':
+                    const newNode: Node = {
+                        id: uuidv4(),
+                        type: action.connector_id === 'webhook' ? 'trigger' : 'action',
+                        data: {
+                            label: action.label,
+                            connector_id: action.connector_id,
+                            action_id: action.action_id,
+                            config: action.config || {},
+                            onAddClick: handleSmartAdd,
+                        },
+                        position: action.position || { x: Math.random() * 400, y: Math.random() * 300 },
+                    };
+                    updatedNodes = [...updatedNodes, newNode];
+                    break;
+
+                case 'add_edge':
+                    // Find nodes by label
+                    const sourceNode = updatedNodes.find((n) => n.data.label === action.source);
+                    const targetNode = updatedNodes.find((n) => n.data.label === action.target);
+                    if (sourceNode && targetNode) {
+                        const newEdge: Edge = {
+                            id: `${sourceNode.id}-${targetNode.id}`,
+                            source: sourceNode.id,
+                            target: targetNode.id,
+                        };
+                        updatedEdges = [...updatedEdges, newEdge];
+                    }
+                    break;
+
+                case 'delete_node':
+                    updatedNodes = updatedNodes.filter((n) => n.id !== action.node_id);
+                    updatedEdges = updatedEdges.filter(
+                        (e) => e.source !== action.node_id && e.target !== action.node_id
+                    );
+                    break;
+
+                case 'update_node':
+                    updatedNodes = updatedNodes.map((n) =>
+                        n.id === action.node_id
+                            ? {
+                                  ...n,
+                                  data: {
+                                      ...n.data,
+                                      config: { ...n.data.config, ...action.config },
+                                  },
+                              }
+                            : n
+                    );
+                    break;
+
+                case 'generate_workflow':
+                    // Full workflow replacement
+                    const hydratedNodes = (action.definition?.nodes || []).map((node: any) => ({
+                        ...node,
+                        data: {
+                            ...node.data,
+                            onAddClick: handleSmartAdd,
+                        },
+                    }));
+                    updatedNodes = hydratedNodes;
+                    updatedEdges = action.definition?.edges || [];
+                    break;
+            }
+        }
+
+        setNodes(updatedNodes);
+        setEdges(updatedEdges);
+    }, [nodes, edges, handleSmartAdd, setNodes, setEdges]);
+
     return (
         <div className="h-screen flex w-full relative rounded-2xl">
             {/* Main Canvas */}
@@ -769,7 +848,7 @@ const WorkflowCanvasInner = () => {
                     workflowId={id}
                     nodes={nodes}
                     edges={edges}
-                    onApplyWorkflow={handleApplyWorkflow}
+                    onApplyActions={handleApplyActions}
                     onAddNode={handleAddNodeClick}
                 />
             )}
