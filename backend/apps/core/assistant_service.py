@@ -99,8 +99,8 @@ class AssistantService:
                 connectors_info.append(
                     f"- {manifest.get('name')} (id: {connector_id}): {', '.join(actions)}"
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load connector {connector_id}: {str(e)}")
 
         return "Available connectors:\n" + "\n".join(connectors_info)
 
@@ -166,37 +166,54 @@ class AssistantService:
         Returns:
             Dictionary with 'message', 'actions', and 'metadata'
         """
+        from django.db import transaction
+
         thread = self.get_or_create_thread(workflow)
 
-        # Save user message
-        ChatMessage.objects.create(
-            thread=thread,
-            role="user",
-            content=user_message,
-        )
+        # Validate API key early
+        api_key = self._get_api_key(llm_provider)
+        if not api_key:
+            raise ValueError(f"API key for {llm_provider} not configured. Please check environment variables.")
 
-        # Build prompts
-        system_prompt = self.build_system_prompt(workflow, include_workflow_context)
-        history = self.get_conversation_history(thread)
+        with transaction.atomic():
+            # Save user message
+            ChatMessage.objects.create(
+                thread=thread,
+                role="user",
+                content=user_message,
+            )
 
-        # Call LLM
-        response_text = self._call_llm(
-            system_prompt=system_prompt,
-            messages=history,
-            llm_provider=llm_provider,
-        )
+            logger.info(
+                "Assistant chat started",
+                extra={"workflow_id": str(workflow.id), "llm_provider": llm_provider, "message_length": len(user_message)},
+            )
 
-        # Parse response
-        parsed = self._parse_response(response_text)
+            # Build prompts
+            system_prompt = self.build_system_prompt(workflow, include_workflow_context)
+            history = self.get_conversation_history(thread)
 
-        # Save assistant message
-        assistant_msg = ChatMessage.objects.create(
-            thread=thread,
-            role="assistant",
-            content=parsed["message"],
-            actions=parsed["actions"],
-            metadata={"llm_provider": llm_provider},
-        )
+            try:
+                # Call LLM
+                response_text = self._call_llm(
+                    system_prompt=system_prompt,
+                    messages=history,
+                    llm_provider=llm_provider,
+                )
+            except Exception as e:
+                logger.error(f"LLM call failed: {str(e)}", exc_info=e)
+                raise
+
+            # Parse response
+            parsed = self._parse_response(response_text)
+
+            # Save assistant message
+            assistant_msg = ChatMessage.objects.create(
+                thread=thread,
+                role="assistant",
+                content=parsed["message"],
+                actions=parsed["actions"],
+                metadata={"llm_provider": llm_provider},
+            )
 
         return {
             "message": parsed["message"],
@@ -218,40 +235,57 @@ class AssistantService:
         Yields:
             SSE-formatted data strings
         """
+        from django.db import transaction
+
         thread = self.get_or_create_thread(workflow)
 
-        # Save user message
-        ChatMessage.objects.create(
-            thread=thread,
-            role="user",
-            content=user_message,
-        )
+        # Validate API key early
+        api_key = self._get_api_key(llm_provider)
+        if not api_key:
+            raise ValueError(f"API key for {llm_provider} not configured. Please check environment variables.")
 
-        # Build prompts
-        system_prompt = self.build_system_prompt(workflow, include_workflow_context)
-        history = self.get_conversation_history(thread)
+        with transaction.atomic():
+            # Save user message
+            ChatMessage.objects.create(
+                thread=thread,
+                role="user",
+                content=user_message,
+            )
 
-        # Stream from LLM
-        full_response = ""
-        for chunk in self._call_llm_stream(
-            system_prompt=system_prompt,
-            messages=history,
-            llm_provider=llm_provider,
-        ):
-            full_response += chunk
-            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            logger.info(
+                "Assistant chat stream started",
+                extra={"workflow_id": str(workflow.id), "llm_provider": llm_provider, "message_length": len(user_message)},
+            )
 
-        # Parse complete response
-        parsed = self._parse_response(full_response)
+            # Build prompts
+            system_prompt = self.build_system_prompt(workflow, include_workflow_context)
+            history = self.get_conversation_history(thread)
 
-        # Save assistant message
-        assistant_msg = ChatMessage.objects.create(
-            thread=thread,
-            role="assistant",
-            content=parsed["message"],
-            actions=parsed["actions"],
-            metadata={"llm_provider": llm_provider},
-        )
+            try:
+                # Stream from LLM
+                full_response = ""
+                for chunk in self._call_llm_stream(
+                    system_prompt=system_prompt,
+                    messages=history,
+                    llm_provider=llm_provider,
+                ):
+                    full_response += chunk
+                    yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            except Exception as e:
+                logger.error(f"LLM streaming call failed: {str(e)}", exc_info=e)
+                raise
+
+            # Parse complete response
+            parsed = self._parse_response(full_response)
+
+            # Save assistant message
+            assistant_msg = ChatMessage.objects.create(
+                thread=thread,
+                role="assistant",
+                content=parsed["message"],
+                actions=parsed["actions"],
+                metadata={"llm_provider": llm_provider},
+            )
 
         # Send final message with actions
         yield f"data: {json.dumps({'type': 'done', 'message': parsed['message'], 'actions': parsed['actions'], 'message_id': str(assistant_msg.id), 'thread_id': str(thread.id)})}\n\n"
@@ -345,14 +379,14 @@ class AssistantService:
                 parsed = json.loads(json_str)
 
                 return {
-                    "message": parsed.get("message", response),
+                    "message": parsed.get("message", ""),
                     "actions": parsed.get("actions", []),
                 }
-        except (json.JSONDecodeError, ValueError):
-            pass
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Failed to parse LLM response as JSON: {str(e)[:200]}")
 
-        # Fallback: return raw response as message
+        # Fallback: return raw response as message (safe fallback)
         return {
-            "message": response,
+            "message": response if response else "I encountered an error processing my response. Please try again.",
             "actions": [],
         }
