@@ -312,14 +312,29 @@ class AssistantService:
         llm_messages = [{"role": "system", "content": system_prompt}]
         llm_messages.extend(messages)
 
+        # Convert messages to a single prompt string
+        prompt = self._format_messages_as_prompt(llm_messages)
         model = self._get_default_model(llm_provider)
 
-        outputs = connector.execute("chat", {
-            "messages": llm_messages,
+        # Most LLM connectors use "generate_text" action
+        outputs = connector.execute("generate_text", {
+            "prompt": prompt,
             "model": model,
         })
 
-        return outputs.get("message", {}).get("content", "") or outputs.get("text", "")
+        return outputs.get("text", "")
+
+    def _format_messages_as_prompt(self, messages: list[dict[str, str]]) -> str:
+        """Convert message list to a single prompt string."""
+        prompt_parts = []
+        for msg in messages:
+            role = msg.get("role", "user").upper()
+            content = msg.get("content", "")
+            if role == "SYSTEM":
+                prompt_parts.append(content)
+            else:
+                prompt_parts.append(f"{role}: {content}")
+        return "\n".join(prompt_parts)
 
     def _call_llm_stream(
         self,
