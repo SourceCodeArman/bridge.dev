@@ -85,7 +85,7 @@ export const workflowService = {
             includeWorkflowContext?: boolean;
         }
     ) => {
-        const response = await client.post(`/core/assistant/${workflowId}/chat/`, {
+        const response = await client.post(`/api/v1/core/assistant/${workflowId}/chat/`, {
             message,
             llm_provider: options?.llmProvider || 'gemini',
             include_workflow_context: options?.includeWorkflowContext ?? true,
@@ -95,12 +95,12 @@ export const workflowService = {
 
     getChatHistory: async (workflowId: string, limit?: number) => {
         const params = limit ? `?limit=${limit}` : '';
-        const response = await client.get(`/core/assistant/${workflowId}/history/${params}`);
+        const response = await client.get(`/api/v1/core/assistant/${workflowId}/history/${params}`);
         return response.data;
     },
 
     clearChatHistory: async (workflowId: string) => {
-        const response = await client.delete(`/core/assistant/${workflowId}/history/`);
+        const response = await client.delete(`/api/v1/core/assistant/${workflowId}/history/`);
         return response.data;
     },
 };

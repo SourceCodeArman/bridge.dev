@@ -23,7 +23,11 @@ from .views import (
     WorkflowPresenceViewSet,
     CustomConnectorViewSet,
     CustomConnectorVersionViewSet,
-    AIAssistantViewSet,
+)
+from .views.assistant import (
+    AIAssistantChatView,
+    AIAssistantChatStreamView,
+    AIAssistantHistoryView,
 )
 from .health import health_check
 
@@ -61,23 +65,12 @@ router.register(
 
 app_name = "core"
 
-# AI Assistant endpoints with explicit URL patterns
-ai_assistant_view = AIAssistantViewSet.as_view({
-    'post': 'chat',
-})
-ai_assistant_stream_view = AIAssistantViewSet.as_view({
-    'post': 'chat_stream',
-})
-ai_assistant_history_view = AIAssistantViewSet.as_view({
-    'get': 'history',
-    'delete': 'clear_history',
-})
-
 urlpatterns = [
     path("", include(router.urls)),
-    path("assistant/<uuid:workflow_id>/chat/", ai_assistant_view, name="aiassistant-chat"),
-    path("assistant/<uuid:workflow_id>/chat/stream/", ai_assistant_stream_view, name="aiassistant-chat-stream"),
-    path("assistant/<uuid:workflow_id>/history/", ai_assistant_history_view, name="aiassistant-history"),
+    # AI Assistant endpoints
+    path("assistant/<uuid:workflow_id>/chat/", AIAssistantChatView.as_view(), name="aiassistant-chat"),
+    path("assistant/<uuid:workflow_id>/chat/stream/", AIAssistantChatStreamView.as_view(), name="aiassistant-chat-stream"),
+    path("assistant/<uuid:workflow_id>/history/", AIAssistantHistoryView.as_view(), name="aiassistant-history"),
     path(
         "webhook/<uuid:webhook_id>/",
         WebhookTriggerView.as_view(),

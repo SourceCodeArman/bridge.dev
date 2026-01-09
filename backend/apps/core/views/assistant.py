@@ -4,7 +4,8 @@ Views for AI Assistant chat functionality.
 
 import json
 from django.http import StreamingHttpResponse
-from rest_framework import viewsets, status
+from rest_framework.views import APIView
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
@@ -21,16 +22,8 @@ from ..assistant_service import AssistantService
 logger = get_logger(__name__)
 
 
-class AIAssistantViewSet(viewsets.ViewSet):
-    """
-    ViewSet for AI Assistant chat interactions.
-
-    Endpoints:
-    - POST /api/v1/core/assistant/{workflow_id}/chat/ - Send message (non-streaming)
-    - POST /api/v1/core/assistant/{workflow_id}/chat/stream/ - Send message (streaming SSE)
-    - GET /api/v1/core/assistant/{workflow_id}/history/ - Get conversation history
-    - DELETE /api/v1/core/assistant/{workflow_id}/history/ - Clear conversation history
-    """
+class AIAssistantBaseView(APIView):
+    """Base view for AI Assistant endpoints."""
 
     permission_classes = [IsAuthenticated]
 
@@ -46,17 +39,20 @@ class AIAssistantViewSet(viewsets.ViewSet):
         except Workflow.DoesNotExist:
             return None
 
-    def chat(self, request, workflow_id=None):
-        """
-        Send a message to the AI assistant (non-streaming).
 
-        POST /api/v1/core/assistant/{workflow_id}/chat/
-        Body: {
-            "message": "string",
-            "llm_provider": "gemini|openai|anthropic|deepseek",
-            "include_workflow_context": true
-        }
-        """
+class AIAssistantChatView(AIAssistantBaseView):
+    """
+    Handle non-streaming chat messages.
+
+    POST /api/v1/core/assistant/{workflow_id}/chat/
+    Body: {
+        "message": "string",
+        "llm_provider": "gemini|openai|anthropic|deepseek",
+        "include_workflow_context": true
+    }
+    """
+
+    def post(self, request, workflow_id=None):
         workflow = self._get_workflow(workflow_id)
         if not workflow:
             return Response(
@@ -95,19 +91,22 @@ class AIAssistantViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def chat_stream(self, request, workflow_id=None):
-        """
-        Send a message to the AI assistant with streaming response (SSE).
 
-        POST /api/v1/core/assistant/{workflow_id}/chat/stream/
-        Body: {
-            "message": "string",
-            "llm_provider": "gemini|openai|anthropic|deepseek",
-            "include_workflow_context": true
-        }
+class AIAssistantChatStreamView(AIAssistantBaseView):
+    """
+    Handle streaming chat messages with Server-Sent Events.
 
-        Returns: Server-Sent Events stream
-        """
+    POST /api/v1/core/assistant/{workflow_id}/chat/stream/
+    Body: {
+        "message": "string",
+        "llm_provider": "gemini|openai|anthropic|deepseek",
+        "include_workflow_context": true
+    }
+
+    Returns: Server-Sent Events stream
+    """
+
+    def post(self, request, workflow_id=None):
         workflow = self._get_workflow(workflow_id)
         if not workflow:
             return Response(
@@ -146,14 +145,19 @@ class AIAssistantViewSet(viewsets.ViewSet):
         response["X-Accel-Buffering"] = "no"
         return response
 
-    def history(self, request, workflow_id=None):
-        """
-        Get conversation history for a workflow.
 
-        GET /api/v1/core/assistant/{workflow_id}/history/
-        Query params:
-            - limit: Number of messages to return (default: 50)
-        """
+class AIAssistantHistoryView(AIAssistantBaseView):
+    """
+    Get or clear conversation history.
+
+    GET /api/v1/core/assistant/{workflow_id}/history/
+    Query params:
+        - limit: Number of messages to return (default: 50)
+
+    DELETE /api/v1/core/assistant/{workflow_id}/history/
+    """
+
+    def get(self, request, workflow_id=None):
         workflow = self._get_workflow(workflow_id)
         if not workflow:
             return Response(
@@ -181,12 +185,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
             },
         })
 
-    def clear_history(self, request, workflow_id=None):
-        """
-        Clear conversation history for a workflow.
-
-        DELETE /api/v1/core/assistant/{workflow_id}/history/
-        """
+    def delete(self, request, workflow_id=None):
         workflow = self._get_workflow(workflow_id)
         if not workflow:
             return Response(
