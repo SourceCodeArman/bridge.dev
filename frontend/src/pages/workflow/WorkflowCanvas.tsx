@@ -685,19 +685,17 @@ const WorkflowCanvasInner = () => {
                     );
                     break;
 
-                case 'update_node':
-                    updatedNodes = updatedNodes.map((n) =>
-                        n.id === action.node_id
-                            ? {
-                                  ...n,
-                                  data: {
-                                      ...(n.data as Record<string, any>),
-                                      config: { ...(n.data?.config as Record<string, any>), ...action.config },
-                                  },
-                              }
-                            : n
-                    );
+                case 'update_node': {
+                    // Handle manifest updates to existing nodes
+                    const targetNode = updatedNodes.find(n => n.id === action.node_id);
+                    if (targetNode) {
+                        targetNode.data = {
+                            ...targetNode.data,
+                            ...(action.manifest || {}),
+                        };
+                    }
                     break;
+                }
 
                 case 'generate_workflow':
                     // Full workflow replacement
