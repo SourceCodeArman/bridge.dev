@@ -1318,3 +1318,91 @@ class WorkflowPresence(models.Model):
         """Mark presence as inactive"""
         self.is_active = False
         self.save(update_fields=["is_active"])
+
+
+class ConversationThread(models.Model):
+    """
+    Conversation thread for AI assistant chat.
+
+    Each workflow has one conversation thread for context persistence.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workflow = models.OneToOneField(
+        Workflow,
+        on_delete=models.CASCADE,
+        related_name="conversation_thread",
+        help_text="Workflow this conversation belongs to",
+    )
+    title = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Optional title for the conversation",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_conversationthread"
+        verbose_name = "Conversation Thread"
+        verbose_name_plural = "Conversation Threads"
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["workflow"]),
+            models.Index(fields=["updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"Conversation for {self.workflow.name}"
+
+
+class ChatMessage(models.Model):
+    """
+    Individual message in an AI assistant conversation.
+    """
+
+    ROLE_CHOICES = [
+        ("user", "User"),
+        ("assistant", "Assistant"),
+        ("system", "System"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    thread = models.ForeignKey(
+        ConversationThread,
+        on_delete=models.CASCADE,
+        related_name="messages",
+        help_text="Conversation thread this message belongs to",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        db_index=True,
+        help_text="Message role (user, assistant, or system)",
+    )
+    content = models.TextField(help_text="Message content")
+    actions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Structured actions returned by assistant (e.g., add_node, update_config)",
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional metadata (tokens, model, etc.)",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "core_chatmessage"
+        verbose_name = "Chat Message"
+        verbose_name_plural = "Chat Messages"
+        ordering = ["thread", "created_at"]
+        indexes = [
+            models.Index(fields=["thread", "created_at"]),
+            models.Index(fields=["thread", "role"]),
+        ]
+
+    def __str__(self):
+        preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
+        return f"{self.role}: {preview}"
