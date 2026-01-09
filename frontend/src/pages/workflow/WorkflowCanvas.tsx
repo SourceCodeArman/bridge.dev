@@ -691,8 +691,8 @@ const WorkflowCanvasInner = () => {
                             ? {
                                   ...n,
                                   data: {
-                                      ...n.data,
-                                      config: { ...n.data.config, ...action.config },
+                                      ...(n.data as Record<string, any>),
+                                      config: { ...(n.data?.config as Record<string, any>), ...action.config },
                                   },
                               }
                             : n
