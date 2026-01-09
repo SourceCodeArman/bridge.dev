@@ -1160,6 +1160,9 @@ class ConversationThreadSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at")
 
     def get_message_count(self, obj):
+        """Get message count from annotated field for performance"""
+        if hasattr(obj, 'message_count_cached'):
+            return obj.message_count_cached
         return obj.messages.count()
 
 
@@ -1185,9 +1188,15 @@ class ConversationThreadListSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at")
 
     def get_message_count(self, obj):
+        """Get message count from annotated field for performance"""
+        if hasattr(obj, 'message_count_cached'):
+            return obj.message_count_cached
         return obj.messages.count()
 
     def get_last_message_at(self, obj):
+        """Get last message timestamp efficiently"""
+        if hasattr(obj, 'last_message_at_cached'):
+            return obj.last_message_at_cached
         last_msg = obj.messages.order_by("-created_at").first()
         return last_msg.created_at if last_msg else None
 
@@ -1197,7 +1206,9 @@ class AIChatRequestSerializer(serializers.Serializer):
 
     message = serializers.CharField(
         required=True,
-        help_text="User message to send to AI assistant",
+        max_length=10000,
+        min_length=1,
+        help_text="User message to send to AI assistant (1-10000 chars)",
     )
     llm_provider = serializers.ChoiceField(
         choices=["openai", "anthropic", "gemini", "deepseek"],
