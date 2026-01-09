@@ -27,6 +27,7 @@ import SettingsPage from '@/pages/settings/SettingsPage';
 import CredentialsPage from '@/pages/credentials/CredentialsPage';
 import AlertsPage from '@/pages/alerts/AlertsPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
+import WorkspacePage from '@/pages/workspace/WorkspacePage';
 
 export const router = createBrowserRouter([
     {
@@ -103,6 +104,10 @@ export const router = createBrowserRouter([
             {
                 path: ROUTES.PROFILE,
                 element: <ProfilePage />,
+            },
+            {
+                path: ROUTES.WORKSPACE,
+                element: <WorkspacePage />,
             },
             {
                 path: ROUTES.WORKFLOWS_DETAIL,

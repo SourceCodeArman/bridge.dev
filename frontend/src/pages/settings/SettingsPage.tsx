@@ -1,7 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Building2, Bell, Key, AlertTriangle } from "lucide-react";
+import { User, Bell, Key, AlertTriangle } from "lucide-react";
 import { AccountSettings } from "@/components/settings/AccountSettings";
-import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
 import { DangerZoneSettings } from "@/components/settings/DangerZoneSettings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -11,29 +10,26 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
                 <p className="text-muted-foreground">
-                    Manage your account, workspace, and preferences.
+                    Manage your account and preferences.
                 </p>
             </div>
 
             <Tabs defaultValue="account" className="space-y-6">
                 <TabsList className="w-full justify-start h-auto p-1 bg-muted/50 rounded-lg">
-                    <TabsTrigger value="account" className="flex-1 max-w-[200px] py-2">
+                    <TabsTrigger value="account" className="flex-1 w-full py-2">
                         <User className="w-4 h-4 mr-2" />
                         Account
                     </TabsTrigger>
-                    <TabsTrigger value="workspace" className="flex-1 max-w-[200px] py-2">
-                        <Building2 className="w-4 h-4 mr-2" />
-                        Workspace
-                    </TabsTrigger>
-                    <TabsTrigger value="notifications" className="flex-1 max-w-[200px] py-2">
+
+                    <TabsTrigger value="notifications" className="flex-1 w-full py-2">
                         <Bell className="w-4 h-4 mr-2" />
                         Notifications
                     </TabsTrigger>
-                    <TabsTrigger value="api" className="flex-1 max-w-[200px] py-2">
+                    <TabsTrigger value="api" className="flex-1 w-full py-2">
                         <Key className="w-4 h-4 mr-2" />
                         API
                     </TabsTrigger>
-                    <TabsTrigger value="danger" className="flex-1 max-w-[200px] py-2 text-destructive data-[state=active]:text-destructive">
+                    <TabsTrigger value="danger" className="flex-1 w-full py-2 text-destructive data-[state=active]:text-destructive">
                         <AlertTriangle className="w-4 h-4 mr-2" />
                         Danger Zone
                     </TabsTrigger>
@@ -43,9 +39,7 @@ export default function SettingsPage() {
                     <AccountSettings />
                 </TabsContent>
 
-                <TabsContent value="workspace">
-                    <WorkspaceSettings />
-                </TabsContent>
+
 
                 <TabsContent value="notifications">
                     <Card>

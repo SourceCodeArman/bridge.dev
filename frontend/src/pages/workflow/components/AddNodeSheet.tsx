@@ -287,7 +287,7 @@ export const AddNodeSheet: React.FC<AddNodeSheetProps> = ({
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetTrigger asChild>
-                <Button className="rounded-full w-10 h-10 p-0 shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground absolute top-4 right-[calc(100vw-3rem)] md:right-[unset] md:left-4 z-50">
+                <Button className="rounded-full w-10 h-10 p-0 shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground absolute top-4 right-[calc(100vw-3rem)] md:right-[unset] md:-left-12 md:bottom-14 z-50">
                     <Plus className="w-6 h-6" />
                 </Button>
             </SheetTrigger>

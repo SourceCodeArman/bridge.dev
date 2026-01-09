@@ -31,6 +31,7 @@ import { Save, Layout, Plus, Sparkles } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
 
 import { AddNodeSheet } from './components/AddNodeSheet';
+import { AIAssistantWidget } from '@/components/workflow/AIAssistantWidget';
 
 
 
@@ -197,7 +198,7 @@ const WorkflowCanvasInner = () => {
         queryFn: customConnectorService.list,
     });
 
-    const allConnectors = [...(connectors || []), ...(customConnectors || [])];
+    const allConnectors = [...(connectors?.results || []), ...(customConnectors || [])];
 
     // ... (omitted useEffect for brevity, it uses handleSmartAdd which is updated) ...
 
@@ -623,6 +624,21 @@ const WorkflowCanvasInner = () => {
     }, [pendingConnection]);
 
 
+    const handleApplyWorkflow = useCallback((definition: any) => {
+        if (definition.nodes && definition.edges) {
+            // Hydrate nodes with onAddClick callback
+            const hydratedNodes = definition.nodes.map((node: Node) => ({
+                ...node,
+                data: {
+                    ...node.data,
+                    onAddClick: handleSmartAdd
+                }
+            }));
+            setNodes(hydratedNodes);
+            setEdges(definition.edges);
+        }
+    }, [handleSmartAdd, setNodes, setEdges]);
+
     return (
         <div className="h-screen flex w-full relative rounded-2xl">
             {/* Main Canvas */}
@@ -746,6 +762,17 @@ const WorkflowCanvasInner = () => {
                     }));
                 }}
             />
+
+            {/* AI Assistant Widget */}
+            {id && (
+                <AIAssistantWidget
+                    workflowId={id}
+                    nodes={nodes}
+                    edges={edges}
+                    onApplyWorkflow={handleApplyWorkflow}
+                    onAddNode={handleAddNodeClick}
+                />
+            )}
         </div>
     );
 };

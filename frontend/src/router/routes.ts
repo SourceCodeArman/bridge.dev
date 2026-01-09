@@ -18,6 +18,7 @@ export const ROUTES = {
     ALERTS: '/alerts',
     PROFILE: '/profile',
     SETTINGS: '/settings',
+    WORKSPACE: '/workspace',
     DOCS: '/docs',
     DOCS_GETTING_STARTED: '/docs/getting-started',
     DOCS_API: '/docs/api',

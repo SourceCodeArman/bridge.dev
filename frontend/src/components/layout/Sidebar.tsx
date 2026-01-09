@@ -4,8 +4,9 @@ import {
     Calendar,
     Home,
     Inbox,
-    Search,
+    LayoutTemplate,
     Settings,
+    Users,
 } from "lucide-react"
 import { SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils";
@@ -28,14 +29,19 @@ const items = [
         icon: <Calendar className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
-        label: "Activity",
-        href: "/activity",
-        icon: <Search className="text-foreground h-5 w-5 shrink-0" />,
+        label: "Templates",
+        href: "/templates",
+        icon: <LayoutTemplate className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Docs",
         href: "/docs",
         icon: <BookOpen className="text-foreground h-5 w-5 shrink-0" />,
+    },
+    {
+        label: "Workspace",
+        href: "/workspace",
+        icon: <Users className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "Settings",

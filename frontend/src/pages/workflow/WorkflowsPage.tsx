@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { workflowService } from "@/lib/api/services/workflow";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,53 @@ export default function WorkflowsPage() {
     const queryClient = useQueryClient();
     const { data, isLoading } = useQuery({
         queryKey: ['workflows'],
-        queryFn: () => workflowService.list({ page: 1, page_size: 50 })
+        queryFn: () => workflowService.list({ page: 1, page_size: 50 }),
+        staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+        gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     });
 
     const [isCreating, setIsCreating] = useState(false);
+
+    // Mutation for toggling workflow activation with optimistic updates
+    const toggleActivationMutation = useMutation({
+        mutationFn: ({ workflowId, isActive }: { workflowId: string; isActive: boolean }) =>
+            workflowService.activate(workflowId, isActive),
+        onMutate: async ({ workflowId, isActive }) => {
+            // Cancel outgoing refetches to avoid overwriting optimistic update
+            await queryClient.cancelQueries({ queryKey: ['workflows'] });
+
+            // Snapshot the previous value
+            const previousData = queryClient.getQueryData(['workflows']);
+
+            // Optimistically update the cache
+            queryClient.setQueryData(['workflows'], (old: any) => {
+                if (!old?.results) return old;
+                return {
+                    ...old,
+                    results: old.results.map((workflow: any) =>
+                        workflow.id === workflowId
+                            ? { ...workflow, is_active: isActive }
+                            : workflow
+                    ),
+                };
+            });
+
+            // Return context with previous data for rollback
+            return { previousData };
+        },
+        onError: (err: any, _variables, context) => {
+            // Rollback to previous data on error
+            if (context?.previousData) {
+                queryClient.setQueryData(['workflows'], context.previousData);
+            }
+            const errorMsg = err?.response?.data?.message || err?.response?.data?.data?.validation_errors?.join('\n') || 'Failed to toggle workflow status';
+            alert(errorMsg);
+        },
+        onSettled: () => {
+            // Refetch to ensure data is in sync with server
+            queryClient.invalidateQueries({ queryKey: ['workflows'] });
+        },
+    });
 
     const handleCreateWorkflow = async () => {
         try {
@@ -99,14 +142,11 @@ export default function WorkflowsPage() {
                                         <div className="flex items-center gap-2">
                                             <Switch
                                                 checked={workflow.is_active}
-                                                onCheckedChange={async (checked) => {
-                                                    try {
-                                                        await workflowService.activate(workflow.id, checked);
-                                                        queryClient.invalidateQueries({ queryKey: ['workflows'] });
-                                                    } catch (err: any) {
-                                                        const errorMsg = err?.response?.data?.message || err?.response?.data?.data?.validation_errors?.join('\n') || 'Failed to toggle';
-                                                        alert(errorMsg);
-                                                    }
+                                                onCheckedChange={(checked) => {
+                                                    toggleActivationMutation.mutate({
+                                                        workflowId: workflow.id,
+                                                        isActive: checked,
+                                                    });
                                                 }}
                                             />
                                             <Badge variant={workflow.is_active ? "default" : "secondary"}>

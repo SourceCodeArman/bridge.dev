@@ -428,3 +428,130 @@ export const MOCK_ALERTS_RESPONSE: PaginatedResponse<Alert> = {
     previous: null,
     results: MOCK_ALERTS,
 };
+
+// Mock Workspace Data
+export interface MockWorkspace {
+    id: string;
+    name: string;
+    slug: string;
+    created_at: string;
+    owner_id: string;
+}
+
+export interface MockWorkspaceActivity {
+    id: string;
+    type: 'member_joined' | 'member_left' | 'role_changed' | 'settings_updated' | 'workflow_created' | 'workflow_deleted';
+    actor_name: string;
+    actor_email: string;
+    target_name?: string;
+    details?: string;
+    created_at: string;
+}
+
+export const MOCK_WORKSPACE: MockWorkspace = {
+    id: 'ws-1',
+    name: 'Bridge Team',
+    slug: 'bridge-team',
+    created_at: '2023-01-01T00:00:00Z',
+    owner_id: 'user-PRO-123',
+};
+
+export const MOCK_WORKSPACE_MEMBERS: import('@/types').WorkspaceMember[] = [
+    {
+        id: 'wm-1',
+        user_id: 'user-PRO-123',
+        email: 'arman.ghevondyan@bridge.dev',
+        first_name: 'Arman',
+        last_name: 'Ghevondyan',
+        role: 'owner',
+        joined_at: '2023-01-01T00:00:00Z',
+    },
+    {
+        id: 'wm-2',
+        user_id: 'user-2',
+        email: 'sarah.chen@bridge.dev',
+        first_name: 'Sarah',
+        last_name: 'Chen',
+        role: 'admin',
+        joined_at: '2023-02-15T10:30:00Z',
+    },
+    {
+        id: 'wm-3',
+        user_id: 'user-3',
+        email: 'mike.johnson@bridge.dev',
+        first_name: 'Mike',
+        last_name: 'Johnson',
+        role: 'member',
+        joined_at: '2023-03-20T14:00:00Z',
+    },
+    {
+        id: 'wm-4',
+        user_id: 'user-4',
+        email: 'emma.wilson@bridge.dev',
+        first_name: 'Emma',
+        last_name: 'Wilson',
+        role: 'member',
+        joined_at: '2023-05-10T09:15:00Z',
+    },
+    {
+        id: 'wm-5',
+        user_id: 'user-5',
+        email: 'alex.rodriguez@external.com',
+        first_name: 'Alex',
+        last_name: 'Rodriguez',
+        role: 'viewer',
+        joined_at: '2023-08-01T16:45:00Z',
+    },
+];
+
+export const MOCK_WORKSPACE_ACTIVITY: MockWorkspaceActivity[] = [
+    {
+        id: 'act-1',
+        type: 'workflow_created',
+        actor_name: 'Arman Ghevondyan',
+        actor_email: 'arman.ghevondyan@bridge.dev',
+        target_name: 'Customer Onboarding',
+        created_at: '2023-10-27T10:00:00Z',
+    },
+    {
+        id: 'act-2',
+        type: 'member_joined',
+        actor_name: 'Alex Rodriguez',
+        actor_email: 'alex.rodriguez@external.com',
+        details: 'Joined as Viewer',
+        created_at: '2023-08-01T16:45:00Z',
+    },
+    {
+        id: 'act-3',
+        type: 'role_changed',
+        actor_name: 'Arman Ghevondyan',
+        actor_email: 'arman.ghevondyan@bridge.dev',
+        target_name: 'Sarah Chen',
+        details: 'Changed role from Member to Admin',
+        created_at: '2023-07-15T11:30:00Z',
+    },
+    {
+        id: 'act-4',
+        type: 'settings_updated',
+        actor_name: 'Sarah Chen',
+        actor_email: 'sarah.chen@bridge.dev',
+        details: 'Updated workspace name',
+        created_at: '2023-06-01T09:00:00Z',
+    },
+    {
+        id: 'act-5',
+        type: 'member_joined',
+        actor_name: 'Emma Wilson',
+        actor_email: 'emma.wilson@bridge.dev',
+        details: 'Joined as Member',
+        created_at: '2023-05-10T09:15:00Z',
+    },
+    {
+        id: 'act-6',
+        type: 'workflow_deleted',
+        actor_name: 'Mike Johnson',
+        actor_email: 'mike.johnson@bridge.dev',
+        target_name: 'Legacy Import Flow',
+        created_at: '2023-04-22T14:20:00Z',
+    },
+];

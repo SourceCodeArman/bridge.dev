@@ -31,7 +31,7 @@ export default function ConnectorsPage() {
         connector.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         connector.connector_type?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const filteredConnectors = connectors?.filter(filterConnector) || [];
+    const filteredConnectors = connectors?.results?.filter(filterConnector) || [];
     const filteredCustomConnectors = customConnectors?.filter(filterConnector) || [];
     console.log(filteredConnectors, filteredCustomConnectors);
 
@@ -129,7 +129,7 @@ export default function ConnectorsPage() {
 function ConnectorCard({ connector, onClick }: { connector: Connector; onClick: () => void }) {
     // Determine status color
     const isActive = connector.is_active !== false; // Default to true if undefined
-
+    console.log(connector)
     return (
         <div
             onClick={onClick}

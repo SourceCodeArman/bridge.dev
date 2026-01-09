@@ -13,7 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts.permissions import IsWorkspaceMember
 from apps.common.logging_utils import get_logger
-from ..models import Workflow, WorkflowVersion, Trigger
+from ..models import Workflow, WorkflowVersion, Trigger, Run
 from ..serializers import (
     WorkflowSerializer,
     WorkflowListSerializer,
@@ -75,41 +75,90 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter workflows by workspace with optimized query"""
-        from django.db.models import Prefetch, Max
+        from django.db.models import Prefetch, OuterRef, Subquery
 
         workspace = self._get_workspace_context()
         if workspace:
-            # Optimize queries by prefetching related data
-            return (
-                Workflow.objects.filter(workspace=workspace)
-                .select_related("workspace", "created_by")
-                .prefetch_related(
-                    # Prefetch only active versions
-                    Prefetch(
-                        "versions",
-                        queryset=WorkflowVersion.objects.filter(
-                            is_active=True
-                        ).order_by("-version_number"),
-                        to_attr="active_versions_cache",
-                    ),
-                    # Prefetch latest version (draft or active)
-                    Prefetch(
-                        "versions",
-                        queryset=WorkflowVersion.objects.order_by("-created_at")[:1],
-                        to_attr="latest_version_cache",
-                    ),
-                    # Prefetch active triggers
-                    Prefetch(
-                        "triggers",
-                        queryset=Trigger.objects.filter(is_active=True),
-                        to_attr="active_triggers_cache",
-                    ),
+            # For list view, we only need minimal data
+            # Check if this is a list action
+            is_list_action = getattr(self, "action", None) == "list"
+
+            if is_list_action:
+                # Minimal query for list view - only what WorkflowListSerializer needs
+                latest_run_subquery = (
+                    Run.objects.filter(workflow_version__workflow=OuterRef("pk"))
+                    .order_by("-created_at")
+                    .values("created_at")[:1]
                 )
-                .annotate(
-                    # Annotate with last run timestamp to avoid subquery
-                    last_run_timestamp=Max("versions__runs__created_at")
+
+                return (
+                    Workflow.objects.filter(workspace=workspace)
+                    .select_related("workspace", "created_by")
+                    .prefetch_related(
+                        # Only prefetch active versions for version number
+                        Prefetch(
+                            "versions",
+                            queryset=WorkflowVersion.objects.filter(
+                                is_active=True
+                            ).only("id", "version_number", "workflow_id")[:1],
+                            to_attr="active_versions_cache",
+                        ),
+                        # Only prefetch active triggers for trigger type
+                        Prefetch(
+                            "triggers",
+                            queryset=Trigger.objects.filter(is_active=True).only(
+                                "id", "trigger_type", "workflow_id"
+                            )[:1],
+                            to_attr="active_triggers_cache",
+                        ),
+                    )
+                    .annotate(last_run_timestamp=Subquery(latest_run_subquery))
+                    .only(
+                        "id",
+                        "name",
+                        "description",
+                        "status",
+                        "is_active",
+                        "created_at",
+                        "updated_at",
+                        "workspace_id",
+                        "created_by_id",
+                    )
                 )
-            )
+            else:
+                # Full query for detail view
+                latest_run_subquery = (
+                    Run.objects.filter(workflow_version__workflow=OuterRef("pk"))
+                    .order_by("-created_at")
+                    .values("created_at")[:1]
+                )
+
+                return (
+                    Workflow.objects.filter(workspace=workspace)
+                    .select_related("workspace", "created_by")
+                    .prefetch_related(
+                        Prefetch(
+                            "versions",
+                            queryset=WorkflowVersion.objects.filter(
+                                is_active=True
+                            ).order_by("-version_number"),
+                            to_attr="active_versions_cache",
+                        ),
+                        Prefetch(
+                            "versions",
+                            queryset=WorkflowVersion.objects.order_by("-created_at")[
+                                :1
+                            ],
+                            to_attr="latest_version_cache",
+                        ),
+                        Prefetch(
+                            "triggers",
+                            queryset=Trigger.objects.filter(is_active=True),
+                            to_attr="active_triggers_cache",
+                        ),
+                    )
+                    .annotate(last_run_timestamp=Subquery(latest_run_subquery))
+                )
         # If no workspace context, return empty queryset
         return Workflow.objects.none()
 

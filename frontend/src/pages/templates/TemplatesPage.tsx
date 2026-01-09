@@ -108,25 +108,6 @@ export default function TemplatesPage() {
                         </SelectContent>
                     </Select>
                 </div>
-
-                <div className="flex items-center gap-2 border rounded-md p-1 bg-muted/20">
-                    <Button
-                        variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="h-8 px-2"
-                        onClick={() => setViewMode('grid')}
-                    >
-                        <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="h-8 px-2"
-                        onClick={() => setViewMode('list')}
-                    >
-                        <ListIcon className="h-4 w-4" />
-                    </Button>
-                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-[400px]">

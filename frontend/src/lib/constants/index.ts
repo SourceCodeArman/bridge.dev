@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
         DELETE: (id: string) => `/api/v1/core/workflows/${id}/`,
         ACTIVATE: (id: string) => `/api/v1/core/workflows/${id}/activate/`,
         DRAFTS: (id: string) => `/api/v1/core/workflows/${id}/drafts/`,
+        GENERATE_DRAFT: (id: string) => `/api/v1/core/workflows/${id}/generate_draft/`,
         VERSIONS: (id: string) => `/api/v1/core/workflows/${id}/versions/`,
         RESTORE_VERSION: (id: string, versionId: string) => `/api/v1/core/workflows/${id}/versions/${versionId}/restore/`,
     },
