@@ -5,7 +5,6 @@ Views for AI Assistant chat functionality.
 import json
 from django.http import StreamingHttpResponse
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
@@ -28,7 +27,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
 
     Endpoints:
     - POST /api/v1/core/assistant/{workflow_id}/chat/ - Send message (non-streaming)
-    - GET /api/v1/core/assistant/{workflow_id}/chat/stream/ - Send message (streaming SSE)
+    - POST /api/v1/core/assistant/{workflow_id}/chat/stream/ - Send message (streaming SSE)
     - GET /api/v1/core/assistant/{workflow_id}/history/ - Get conversation history
     - DELETE /api/v1/core/assistant/{workflow_id}/history/ - Clear conversation history
     """
@@ -47,7 +46,6 @@ class AIAssistantViewSet(viewsets.ViewSet):
         except Workflow.DoesNotExist:
             return None
 
-    @action(detail=False, methods=["post"], url_path="(?P<workflow_id>[^/.]+)/chat")
     def chat(self, request, workflow_id=None):
         """
         Send a message to the AI assistant (non-streaming).
@@ -97,7 +95,6 @@ class AIAssistantViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=False, methods=["post"], url_path="(?P<workflow_id>[^/.]+)/chat/stream")
     def chat_stream(self, request, workflow_id=None):
         """
         Send a message to the AI assistant with streaming response (SSE).
@@ -149,7 +146,6 @@ class AIAssistantViewSet(viewsets.ViewSet):
         response["X-Accel-Buffering"] = "no"
         return response
 
-    @action(detail=False, methods=["get"], url_path="(?P<workflow_id>[^/.]+)/history")
     def history(self, request, workflow_id=None):
         """
         Get conversation history for a workflow.
@@ -185,7 +181,6 @@ class AIAssistantViewSet(viewsets.ViewSet):
             },
         })
 
-    @action(detail=False, methods=["delete"], url_path="(?P<workflow_id>[^/.]+)/history")
     def clear_history(self, request, workflow_id=None):
         """
         Clear conversation history for a workflow.
