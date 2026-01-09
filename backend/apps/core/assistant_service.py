@@ -109,7 +109,9 @@ class AssistantService:
         mapping = {}
         for node in nodes:
             node_data = node.get("data", {})
-            connector_id = node_data.get("connector_id", "")
+            # Handle both snake_case (AI-generated) and camelCase (manual) field names
+            connector_id = node_data.get("connector_id") or node_data.get("connectorType", "")
+            action_id = node_data.get("action_id") or node_data.get("actionId", "")
 
             if connector_id:
                 if connector_id not in mapping:
@@ -118,7 +120,7 @@ class AssistantService:
                 mapping[connector_id].append({
                     "node_id": node.get("id"),
                     "label": node_data.get("label", ""),
-                    "action_id": node_data.get("action_id", ""),
+                    "action_id": action_id,
                     "type": node.get("type", "action"),
                 })
 
