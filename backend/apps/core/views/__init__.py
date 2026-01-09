@@ -38,6 +38,9 @@ from .collaboration import WorkflowCommentViewSet, WorkflowPresenceViewSet
 # Template-related views
 from .templates import WorkflowTemplateViewSet
 
+# AI Assistant-related views
+from .assistant import AIAssistantViewSet
+
 
 __all__ = [
     # Workflows
@@ -66,4 +69,6 @@ __all__ = [
     "WorkflowPresenceViewSet",
     # Templates
     "WorkflowTemplateViewSet",
+    # AI Assistant
+    "AIAssistantViewSet",
 ]
