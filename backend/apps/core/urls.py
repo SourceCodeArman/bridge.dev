@@ -23,6 +23,7 @@ from .views import (
     WorkflowPresenceViewSet,
     CustomConnectorViewSet,
     CustomConnectorVersionViewSet,
+    AIAssistantViewSet,
 )
 from .health import health_check
 
@@ -57,6 +58,7 @@ router.register(
     CustomConnectorVersionViewSet,
     basename="customconnectorversion",
 )
+router.register(r"assistant", AIAssistantViewSet, basename="aiassistant")
 
 app_name = "core"
 
