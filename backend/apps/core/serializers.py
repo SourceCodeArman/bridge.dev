@@ -22,6 +22,8 @@ from .models import (
     CustomConnector,
     CustomConnectorVersion,
     Connector,
+    ConversationThread,
+    ChatMessage,
 )
 from .encryption import get_encryption_service
 from .connectors.validator import validate_custom_connector_manifest
@@ -1117,3 +1119,99 @@ class CustomConnectorSerializer(serializers.ModelSerializer):
             "created_at": version.created_at,
             "manifest": version.manifest,
         }
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    """Serializer for ChatMessage model"""
+
+    class Meta:
+        model = ChatMessage
+        fields = (
+            "id",
+            "thread",
+            "role",
+            "content",
+            "actions",
+            "metadata",
+            "created_at",
+        )
+        read_only_fields = ("id", "created_at")
+
+
+class ConversationThreadSerializer(serializers.ModelSerializer):
+    """Serializer for ConversationThread model"""
+
+    workflow_name = serializers.CharField(source="workflow.name", read_only=True)
+    messages = ChatMessageSerializer(many=True, read_only=True)
+    message_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ConversationThread
+        fields = (
+            "id",
+            "workflow",
+            "workflow_name",
+            "title",
+            "messages",
+            "message_count",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_message_count(self, obj):
+        return obj.messages.count()
+
+
+class ConversationThreadListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for conversation list (no messages)"""
+
+    workflow_name = serializers.CharField(source="workflow.name", read_only=True)
+    message_count = serializers.SerializerMethodField()
+    last_message_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ConversationThread
+        fields = (
+            "id",
+            "workflow",
+            "workflow_name",
+            "title",
+            "message_count",
+            "last_message_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_message_count(self, obj):
+        return obj.messages.count()
+
+    def get_last_message_at(self, obj):
+        last_msg = obj.messages.order_by("-created_at").first()
+        return last_msg.created_at if last_msg else None
+
+
+class AIChatRequestSerializer(serializers.Serializer):
+    """Serializer for AI chat request"""
+
+    message = serializers.CharField(
+        required=True,
+        help_text="User message to send to AI assistant",
+    )
+    llm_provider = serializers.ChoiceField(
+        choices=["openai", "anthropic", "gemini", "deepseek"],
+        default="gemini",
+        required=False,
+        help_text="LLM provider to use",
+    )
+    include_workflow_context = serializers.BooleanField(
+        default=True,
+        required=False,
+        help_text="Whether to include current workflow state in context",
+    )
+    stream = serializers.BooleanField(
+        default=True,
+        required=False,
+        help_text="Whether to stream the response",
+    )
