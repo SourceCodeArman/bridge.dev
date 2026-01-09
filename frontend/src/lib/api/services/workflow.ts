@@ -59,5 +59,49 @@ export const workflowService = {
         const response = await client.get<{ data: WorkflowVersion[] }>(API_ENDPOINTS.WORKFLOWS.VERSIONS(id));
         return response.data;
     },
+
+    // AI workflow generation
+    generateFromPrompt: async (id: string, prompt: string, llmProvider: string = 'gemini') => {
+        const response = await client.post<{
+            status: string;
+            data: {
+                version: WorkflowVersion;
+                validation_warnings?: string[]
+            };
+            message: string
+        }>(API_ENDPOINTS.WORKFLOWS.GENERATE_DRAFT(id), {
+            prompt,
+            llm_provider: llmProvider
+        });
+        return response.data;
+    },
+
+    // AI Assistant endpoints
+    sendChatMessage: async (
+        workflowId: string,
+        message: string,
+        options?: {
+            llmProvider?: 'gemini' | 'openai' | 'anthropic' | 'deepseek';
+            includeWorkflowContext?: boolean;
+        }
+    ) => {
+        const response = await client.post(`/core/assistant/${workflowId}/chat/`, {
+            message,
+            llm_provider: options?.llmProvider || 'gemini',
+            include_workflow_context: options?.includeWorkflowContext ?? true,
+        });
+        return response.data;
+    },
+
+    getChatHistory: async (workflowId: string, limit?: number) => {
+        const params = limit ? `?limit=${limit}` : '';
+        const response = await client.get(`/core/assistant/${workflowId}/history/${params}`);
+        return response.data;
+    },
+
+    clearChatHistory: async (workflowId: string) => {
+        const response = await client.delete(`/core/assistant/${workflowId}/history/`);
+        return response.data;
+    },
 };
 
