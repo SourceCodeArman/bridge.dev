@@ -124,12 +124,12 @@ class AssistantService:
 
         return mapping
 
-    def get_connectors_context(self) -> str:
+    def get_connectors_context(self, workspace_id: str = None) -> str:
         """Get available connectors for context."""
         connectors_info = []
         connector_ids = self.connector_registry.list_all()
 
-        for connector_id in connector_ids[:15]:  # Limit to 15
+        for connector_id in connector_ids[:20]:  # Limit to 20
             try:
                 connector_class = self.connector_registry.get(connector_id)
                 temp_instance = connector_class({})
@@ -144,6 +144,29 @@ class AssistantService:
                 )
             except Exception as e:
                 logger.warning(f"Failed to load connector {connector_id}: {str(e)}")
+
+        # Include custom connectors if workspace_id provided
+        if workspace_id:
+            try:
+                from .models import CustomConnector
+                custom_connectors = CustomConnector.objects.filter(
+                    workspace_id=workspace_id,
+                )[:10]  # Limit to 10 custom connectors
+
+                if custom_connectors.exists():
+                    connectors_info.append("\nCUSTOM CONNECTORS:")
+                    for connector in custom_connectors:
+                        current_version = connector.current_version
+                        if current_version:
+                            manifest = current_version.manifest
+                            actions = []
+                            for action in manifest.get("actions", [])[:3]:
+                                actions.append(f"{action.get('id')}: {action.get('description', action.get('name', ''))}")
+                            connectors_info.append(
+                                f"- {connector.display_name} (id: {str(connector.id)}, slug: {connector.slug}): {', '.join(actions)}"
+                            )
+            except Exception as e:
+                logger.warning(f"Failed to load custom connectors: {str(e)}")
 
         return "Available connectors:\n" + "\n".join(connectors_info)
 
@@ -182,7 +205,9 @@ class AssistantService:
                         )
                 parts.append("")
 
-        parts.append(self.get_connectors_context())
+        # Get workspace from workflow
+        workspace_id = str(workflow.workspace_id) if hasattr(workflow, 'workspace_id') else None
+        parts.append(self.get_connectors_context(workspace_id=workspace_id))
         parts.append("")
 
         parts.extend([
