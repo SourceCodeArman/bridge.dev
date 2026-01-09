@@ -170,6 +170,18 @@ class AssistantService:
             parts.append(self.build_workflow_context(workflow))
             parts.append("")
 
+            # Add existing nodes mapping
+            existing_nodes = self.get_existing_nodes_mapping(workflow)
+            if existing_nodes:
+                parts.append("EXISTING NODES BY CONNECTOR:")
+                for connector_id, nodes_list in existing_nodes.items():
+                    parts.append(f"  {connector_id}:")
+                    for node_info in nodes_list:
+                        parts.append(
+                            f"    - \"{node_info['label']}\" (id: {node_info['node_id']}, action: {node_info['action_id']})"
+                        )
+                parts.append("")
+
         parts.append(self.get_connectors_context())
         parts.append("")
 
@@ -180,10 +192,15 @@ class AssistantService:
             "",
             "The 'actions' array can contain structured commands:",
             '- {"type": "add_node", "connector_id": "...", "action_id": "...", "label": "...", "position": {"x": 100, "y": 100}}',
-            '- {"type": "update_node", "node_id": "...", "config": {...}}',
+            '- {"type": "update_node", "node_id": "...", "manifest": {...}}',
             '- {"type": "delete_node", "node_id": "..."}',
             '- {"type": "add_edge", "source": "...", "target": "..."}',
             '- {"type": "generate_workflow", "definition": {"nodes": [...], "edges": [...]}}',
+            "",
+            "WHEN TO REUSE EXISTING NODES:",
+            "- If the workflow already has a node of the required connector type (see EXISTING NODES section),",
+            "  suggest using that node instead of creating a new one by returning update_node action with node_id",
+            "- Only suggest add_node when a new connector type is needed that doesn't exist in the workflow",
             "",
             "If no actions are needed (just answering a question), use: {\"message\": \"...\", \"actions\": []}",
             "",
@@ -192,6 +209,7 @@ class AssistantService:
             "- Be concise but helpful",
             "- When suggesting changes, explain what you're doing in the message",
             "- Reference nodes by their labels when explaining",
+            "- For update_node, include the connector manifest config that matches the user request",
         ])
 
         return "\n".join(parts)
