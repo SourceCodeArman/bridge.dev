@@ -18,6 +18,7 @@ from apps.common.logging_utils import get_logger
 from ..models import Connector, CustomConnector, CustomConnectorVersion
 from ..serializers import (
     ConnectorSerializer,
+    ConnectorSummarySerializer,
     CustomConnectorSerializer,
     CustomConnectorVersionSerializer,
     FormSchemaSerializer,
@@ -38,11 +39,11 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["display_name", "slug"]
 
     def list(self, request, *args, **kwargs):
-        """List all available connectors"""
-        # Get system connectors from the database
+        """List all available connectors with minimal data for performance"""
+        # Get system connectors with lightweight serializer
         system_connectors = self.get_queryset()
-        serializer = self.get_serializer(system_connectors, many=True)
-        connectors_data = serializer.data
+        serializer = ConnectorSummarySerializer(system_connectors, many=True)
+        connectors_data = list(serializer.data)
 
         # Append database-backed custom connectors for this workspace (approved only)
         workspace = getattr(request, "workspace", None)
@@ -55,21 +56,13 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
             ).select_related("current_version")
 
             for custom in custom_connectors:
-                manifest = custom.current_version.manifest or {}
                 connectors_data.append(
                     {
-                        "id": manifest.get("id") or custom.slug,
-                        "name": manifest.get("name") or custom.display_name,
-                        "version": manifest.get("version"),
-                        "description": manifest.get("description")
-                        or custom.description,
-                        "author": manifest.get("author") or custom.created_by.email
-                        if custom.created_by
-                        else None,
-                        "connector_type": manifest.get("connector_type"),
-                        "actions": manifest.get("actions", []),
-                        "triggers": manifest.get("triggers", []),
-                        "auth_config": manifest.get("auth_config", {}),
+                        "id": custom.slug or str(custom.id),
+                        "slug": custom.slug,
+                        "display_name": custom.display_name,
+                        "icon_url_light": custom.icon_url_light,
+                        "icon_url_dark": custom.icon_url_dark,
                         "is_custom": True,
                     }
                 )
