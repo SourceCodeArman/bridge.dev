@@ -65,12 +65,15 @@ export function AIAssistantWidget({
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Load chat history on mount
+    // Track if history has been loaded
+    const [historyLoaded, setHistoryLoaded] = useState(false);
+
+    // Load chat history when panel expands (not on mount)
     useEffect(() => {
-        if (workflowId) {
+        if (isExpanded && workflowId && !historyLoaded) {
             loadChatHistory();
         }
-    }, [workflowId]);
+    }, [isExpanded, workflowId, historyLoaded]);
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
@@ -90,8 +93,11 @@ export function AIAssistantWidget({
     }, [isExpanded]);
 
     const loadChatHistory = async () => {
+        if (historyLoaded) return;
+
         try {
-            const response = await workflowService.getChatHistory(workflowId, 50);
+            // Load initial 10 messages for fast render
+            const response = await workflowService.getChatHistory(workflowId, 10);
             if (response.data?.messages?.length > 0) {
                 const historicalMessages: Message[] = response.data.messages.map((msg: any) => ({
                     id: msg.id,
@@ -100,10 +106,30 @@ export function AIAssistantWidget({
                     timestamp: new Date(msg.created_at),
                     actions: msg.actions,
                 }));
-                setMessages(prev => [prev[0], ...historicalMessages]);
+                setMessages(prev => {
+                    const welcomeMessage = prev[0];
+                    return welcomeMessage ? [welcomeMessage, ...historicalMessages] : historicalMessages;
+                });
             }
+            setHistoryLoaded(true);
+
+            // Background prefetch remaining history
+            workflowService.getChatHistory(workflowId, 50).then(fullResponse => {
+                if (fullResponse.data?.messages?.length > 10) {
+                    const allMessages: Message[] = fullResponse.data.messages.map((msg: any) => ({
+                        id: msg.id,
+                        role: msg.role,
+                        content: msg.content,
+                        timestamp: new Date(msg.created_at),
+                        actions: msg.actions,
+                    }));
+                    // Replace with full history
+                    setMessages(prev => [prev[0], ...allMessages]);
+                }
+            }).catch(console.error);
         } catch (error) {
             console.error('Failed to load chat history:', error);
+            setHistoryLoaded(true);
         }
     };
 
