@@ -124,7 +124,10 @@ export function AIAssistantWidget({
                         actions: msg.actions,
                     }));
                     // Replace with full history
-                    setMessages(prev => [prev[0], ...allMessages]);
+                    setMessages(prev => {
+                        const welcomeMessage = prev[0];
+                        return welcomeMessage ? [welcomeMessage, ...allMessages] : allMessages;
+                    });
                 }
             }).catch(console.error);
         } catch (error) {
