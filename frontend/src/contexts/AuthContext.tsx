@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '@/lib/api';
-import { STORAGE_KEYS, getItem, setItem, removeItem } from '@/lib/utils/storage';
+import { STORAGE_KEYS, getItem, setItem, removeItem, isTokenExpired } from '@/lib/utils/storage';
 import type { User, LoginRequest, RegisterRequest, ApiError } from '@/types';
 
 interface AuthContextType {
@@ -27,20 +27,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const token = getItem<string>(STORAGE_KEYS.AUTH_TOKEN);
             const savedUser = getItem<User>(STORAGE_KEYS.USER);
 
-            if (token && savedUser) {
+            // If no token, user is not authenticated
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+
+            // Check if token is expired
+            if (isTokenExpired(token)) {
+                // Token expired, clear auth and redirect to login
+                removeItem(STORAGE_KEYS.AUTH_TOKEN);
+                removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+                removeItem(STORAGE_KEYS.USER);
+                setUser(null);
+                setLoading(false);
+                return;
+            }
+
+            // Token is valid - use cached user if available
+            if (savedUser) {
                 setUser(savedUser);
-                // Optionally verify token is still valid
-                try {
-                    const currentUser = await authService.getCurrentUser();
-                    setUser(currentUser);
-                    setItem(STORAGE_KEYS.USER, currentUser);
-                } catch {
-                    // Token invalid, clear auth
-                    removeItem(STORAGE_KEYS.AUTH_TOKEN);
-                    removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-                    removeItem(STORAGE_KEYS.USER);
-                    setUser(null);
-                }
+                setLoading(false);
+                return;
+            }
+
+            // Edge case: valid token but no cached user - fetch from API
+            try {
+                const currentUser = await authService.getCurrentUser();
+                setUser(currentUser);
+                setItem(STORAGE_KEYS.USER, currentUser);
+            } catch {
+                // Token invalid despite not being expired, clear auth
+                removeItem(STORAGE_KEYS.AUTH_TOKEN);
+                removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+                removeItem(STORAGE_KEYS.USER);
+                setUser(null);
             }
             setLoading(false);
         };
