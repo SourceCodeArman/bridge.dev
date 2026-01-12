@@ -126,6 +126,7 @@ const WorkflowCanvasInner = () => {
         queryKey: ['workflow', id],
         queryFn: () => workflowService.get(id!),
         enabled: !!id,
+        staleTime: 5 * 60 * 1000,  // 5 minutes
     });
 
     const handleSmartAdd = useCallback((sourceId: string, handleId: string, type: string, allowedTypes?: string[], nodeWidth?: number) => {
@@ -153,13 +154,28 @@ const WorkflowCanvasInner = () => {
             setEdges(savedEdges);
             setIsHydrated(true);
 
-            // Store initial definition for change detection
-            setInitialDefinition(JSON.stringify({
-                nodes: savedNodes,
-                edges: savedEdges
+            // Store initial definition for change detection - use same serialization format as handleSave
+            const serializedNodes = savedNodes.map((node: Node) => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { onAddClick, draggingFrom, ...cleanData } = (node.data || {}) as Record<string, any>;
+                return {
+                    id: node.id,
+                    type: node.type || 'default',
+                    position: node.position,
+                    data: cleanData,
+                };
+            });
+            const serializedEdges = savedEdges.map((edge: Edge) => ({
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: edge.sourceHandle,
+                targetHandle: edge.targetHandle,
             }));
-            // Workflow loaded but no version/draft - start with empty canvas
-            setIsHydrated(true);
+            setInitialDefinition(JSON.stringify({
+                nodes: serializedNodes,
+                edges: serializedEdges
+            }));
         }
 
         // Set ready state after a short delay to allow initial rendering/effects to settle
@@ -191,11 +207,13 @@ const WorkflowCanvasInner = () => {
     const { data: connectors } = useQuery({
         queryKey: ['connectors'],
         queryFn: connectorService.list,
+        staleTime: Infinity,  // Cache until invalidated
     });
 
     const { data: customConnectors } = useQuery({
         queryKey: ['custom-connectors'],
         queryFn: customConnectorService.list,
+        staleTime: Infinity,  // Cache until invalidated
     });
 
     const allConnectors = [...(connectors?.results || []), ...(customConnectors || [])];
