@@ -379,7 +379,7 @@ export const UnifiedNode = memo(({ data, selected, type }: NodeProps) => {
                     />
                 ) : (
                     <DefaultIcon
-                        type={data.connectorType as string || type || 'action'}
+                        type={data.slug as string || data.connectorType as string || type || 'action'}
                         className={cn(
                             "text-foreground",
                             config.id === 'agent-tool' ? "w-[25px] h-[25px]" : (isWide ? "w-8 h-8 mr-3" : "w-10 h-10")

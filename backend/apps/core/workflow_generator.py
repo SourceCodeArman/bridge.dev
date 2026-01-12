@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 from apps.common.logging_utils import get_logger
 from .connectors.base import ConnectorRegistry
 from .guardrails.prompt_sanitizer import PromptSanitizer
+from .models import Connector, CustomConnector
 
 logger = get_logger(__name__)
 
@@ -42,8 +43,8 @@ class WorkflowGenerator:
         Raises:
             ValueError: If LLM provider is invalid or generation fails
         """
-        # Get available connectors information
-        connectors_info = self._get_connectors_info()
+        # Get available connectors information (including workspace-specific custom connectors)
+        connectors_info = self._get_connectors_info(workspace_id=workspace_id)
 
         # Sanitize connector info to remove any credential references
         connectors_info = self.sanitizer.sanitize_connector_info(connectors_info)
@@ -83,16 +84,26 @@ class WorkflowGenerator:
 
         return workflow_definition
 
-    def _get_connectors_info(self) -> List[Dict[str, Any]]:
+    def _get_connectors_info(
+        self, workspace_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Get information about all available connectors.
+        Get information about all available connectors from multiple sources:
+        1. In-memory ConnectorRegistry (built-in Python connectors)
+        2. Database Connector model (system connectors)
+        3. Database CustomConnector model (workspace-specific connectors)
+
+        Args:
+            workspace_id: Optional workspace ID for custom connector filtering
 
         Returns:
             List of connector information dictionaries
         """
         connectors_info = []
-        connector_ids = self.connector_registry.list_all()
+        seen_ids = set()  # Track connector IDs to avoid duplicates
 
+        # 1. Get connectors from in-memory registry (backward compatibility)
+        connector_ids = self.connector_registry.list_all()
         for connector_id in connector_ids:
             try:
                 connector_class = self.connector_registry.get(connector_id)
@@ -117,13 +128,146 @@ class WorkflowGenerator:
                         "name": manifest.get("name"),
                         "description": manifest.get("description"),
                         "actions": actions,
+                        "source": "registry",
                     }
                 )
+                seen_ids.add(connector_id)
             except Exception as e:
                 logger.warning(
                     f"Error getting info for connector {connector_id}: {str(e)}",
                     extra={"connector_id": connector_id, "error": str(e)},
                 )
+
+        # 2. Get system connectors from database
+        try:
+            db_connectors = Connector.objects.filter(is_active=True).only(
+                "id", "slug", "display_name", "description", "manifest"
+            )
+
+            for connector in db_connectors:
+                connector_id = connector.slug
+
+                # Skip if already added from registry
+                if connector_id in seen_ids:
+                    continue
+
+                try:
+                    manifest = connector.manifest or {}
+
+                    # Extract actions from manifest
+                    actions = []
+                    for action in manifest.get("actions", []):
+                        actions.append(
+                            {
+                                "id": action.get("id"),
+                                "name": action.get("name"),
+                                "description": action.get("description"),
+                                "required_fields": action.get("required_fields", []),
+                            }
+                        )
+
+                    connectors_info.append(
+                        {
+                            "id": connector_id,
+                            "name": connector.display_name,
+                            "description": connector.description,
+                            "actions": actions,
+                            "source": "database",
+                        }
+                    )
+                    seen_ids.add(connector_id)
+                except Exception as e:
+                    logger.warning(
+                        f"Error processing database connector {connector.slug}: {str(e)}",
+                        extra={"connector_id": connector.slug, "error": str(e)},
+                    )
+        except Exception as e:
+            logger.error(
+                f"Error querying database connectors: {str(e)}",
+                exc_info=e,
+            )
+
+        # 3. Get custom connectors from database (workspace-specific)
+        if workspace_id:
+            try:
+                custom_connectors = (
+                    CustomConnector.objects.filter(
+                        workspace_id=workspace_id,
+                        status="approved",
+                        current_version__isnull=False,
+                    )
+                    .select_related("current_version")
+                    .only(
+                        "id",
+                        "slug",
+                        "display_name",
+                        "description",
+                        "current_version__manifest",
+                    )
+                )
+
+                for connector in custom_connectors:
+                    connector_id = connector.slug or str(connector.id)
+
+                    # Skip if already added
+                    if connector_id in seen_ids:
+                        continue
+
+                    try:
+                        manifest = connector.current_version.manifest or {}
+
+                        # Extract actions from manifest
+                        actions = []
+                        for action in manifest.get("actions", []):
+                            actions.append(
+                                {
+                                    "id": action.get("id"),
+                                    "name": action.get("name"),
+                                    "description": action.get("description"),
+                                    "required_fields": action.get(
+                                        "required_fields", []
+                                    ),
+                                }
+                            )
+
+                        connectors_info.append(
+                            {
+                                "id": connector_id,
+                                "name": connector.display_name,
+                                "description": connector.description,
+                                "actions": actions,
+                                "source": "custom",
+                            }
+                        )
+                        seen_ids.add(connector_id)
+                    except Exception as e:
+                        logger.warning(
+                            f"Error processing custom connector {connector.slug}: {str(e)}",
+                            extra={"connector_id": connector.slug, "error": str(e)},
+                        )
+            except Exception as e:
+                logger.error(
+                    f"Error querying custom connectors for workspace {workspace_id}: {str(e)}",
+                    exc_info=e,
+                    extra={"workspace_id": workspace_id},
+                )
+
+        logger.info(
+            f"Loaded {len(connectors_info)} connectors for AI context",
+            extra={
+                "total_connectors": len(connectors_info),
+                "registry_count": sum(
+                    1 for c in connectors_info if c.get("source") == "registry"
+                ),
+                "database_count": sum(
+                    1 for c in connectors_info if c.get("source") == "database"
+                ),
+                "custom_count": sum(
+                    1 for c in connectors_info if c.get("source") == "custom"
+                ),
+                "workspace_id": workspace_id,
+            },
+        )
 
         return connectors_info
 

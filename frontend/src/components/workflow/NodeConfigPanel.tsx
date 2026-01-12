@@ -22,20 +22,20 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode }:
     const [actionId, setActionId] = useState<string>(selectedNode?.data.action_id as string || '');
     const [fieldValues, setFieldValues] = useState<Record<string, any>>(selectedNode?.data.config as Record<string, any> || {});
 
-    const connectorSlug = selectedNode?.data.connectorType as string;
+    const connectorId = selectedNode?.data.connector_id as string; // Use connector ID instead of slug
 
     // Generate webhook URL for webhook triggers
     // Use the node ID as the webhook_id (it's already a unique identifier)
     const webhookId = selectedNode?.id;
-    const webhookUrl = connectorSlug === 'webhook' && webhookId
+    const webhookUrl = selectedNode?.data.slug === 'webhook' && webhookId
         ? `${import.meta.env.VITE_API_URL || window.location.origin}/api/v1/core/webhook/${webhookId}/`
         : undefined;
 
-    // Fetch connector details if we have a connector type
+    // Fetch connector details by ID if we have a connector ID
     const { data: connector, isLoading: connectorLoading } = useQuery<Connector | undefined>({
-        queryKey: ['connector', connectorSlug],
-        queryFn: () => connectorSlug ? connectorService.getBySlug(connectorSlug) : Promise.resolve(undefined),
-        enabled: !!connectorSlug,
+        queryKey: ['connector', connectorId],
+        queryFn: () => connectorId ? connectorService.get(connectorId) : Promise.resolve(undefined),
+        enabled: !!connectorId,
     });
 
     // Get selected action from manifest
@@ -188,7 +188,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode }:
                         )}
 
                         {/* Non-connector nodes (Condition, plain Trigger) */}
-                        {!connector && !connectorLoading && connectorSlug && (
+                        {!connector && !connectorLoading && connectorId && (
                             <div className="text-sm text-foreground bg-muted/50 p-4 rounded-md">
                                 {selectedNode.type === 'condition' && (
                                     <p>Condition logic builder will be available here.</p>

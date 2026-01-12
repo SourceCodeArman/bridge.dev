@@ -30,7 +30,7 @@ import NodeConfigPanel from '@/components/workflow/NodeConfigPanel';
 import { Save, Layout, Plus, Sparkles, Loader2 } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
 
-import { AddNodeSheet } from './components/AddNodeSheet';
+import { AddNodeSheet } from '../../components/workflow/AddNodeSheet';
 import { AIAssistantWidget } from '@/components/workflow/AIAssistantWidget';
 
 
@@ -42,11 +42,23 @@ const initialEdges: Edge[] = [];
 // Layout helper using Dagre
 const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
     const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    g.setGraph({ rankdir: direction });
+    g.setGraph({ rankdir: direction, ranksep: 100, nodesep: 50 });
 
     edges.forEach((edge) => g.setEdge(edge.source, edge.target));
     nodes.forEach((node) => {
-        g.setNode(node.id, { width: 250, height: 100 }); // Estimate node size
+        // Use actual node dimensions based on type
+        let width = 100;
+        let height = 100;
+
+        if (node.type === 'agent') {
+            width = 200;
+            height = 100;
+        } else if (node.type === 'modelNode' || node.type === 'memoryNode' || node.type === 'toolsNode') {
+            width = 60;
+            height = 60;
+        }
+
+        g.setNode(node.id, { width, height });
     });
 
     Dagre.layout(g);
@@ -56,8 +68,10 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
             const position = g.node(node.id);
             // We are shifting the dagre node position (anchor=center center) to the top left
             // so it matches the React Flow node anchor point (top left).
-            const x = position.x - 125;
-            const y = position.y - 50;
+            const nodeWidth = g.node(node.id).width;
+            const nodeHeight = g.node(node.id).height;
+            const x = position.x - nodeWidth / 2;
+            const y = position.y - nodeHeight / 2;
 
             return { ...node, position: { x, y } };
         }),
@@ -229,8 +243,6 @@ const WorkflowCanvasInner = () => {
     // ...
 
     const createNode = (type: string, position: { x: number, y: number }, event?: React.DragEvent | null, connectorData?: any) => {
-        // ... (existing variable setups) ...
-        const bridgeType = event?.dataTransfer.getData('application/bridge-type');
         let connectorDataVal = connectorData;
 
         if (!connectorDataVal && event) {
@@ -240,8 +252,10 @@ const WorkflowCanvasInner = () => {
 
         let label = `${type} node`;
         let description = 'Performs an action';
-        let connectorType = 'action';
+        let connectorType = 'action'; // Valid values: trigger, action, agent, condition, agent-tool, agent-model, agent-memory
+        let slug = ''; // The connector's unique identifier (e.g., 'openai', 'slack', 'webhook')
         let actionId = '';
+        let connectorId = ''; // Add connector ID
         const iconUrlLight = connectorDataVal?.icon_url_light;
         const iconUrlDark = connectorDataVal?.icon_url_dark;
         let ui = connectorDataVal?.manifest?.ui; // Extract UI settings
@@ -250,7 +264,9 @@ const WorkflowCanvasInner = () => {
         if (connectorDataVal) {
             label = connectorDataVal.display_name || connectorDataVal.name;
             description = connectorDataVal.description || '';
-            connectorType = connectorDataVal.slug || bridgeType;
+            connectorType = connectorDataVal.connector_type || type; // Use the actual connector_type
+            slug = connectorDataVal.slug || ''; // Store the slug separately
+            connectorId = connectorDataVal.id || ''; // Extract connector ID
             // For action nodes, we might need a specific actionId, but default to 'action' or first action if available?
             // For now keeping it simple as before:
             if (type === 'action') actionId = 'action';
@@ -259,22 +275,28 @@ const WorkflowCanvasInner = () => {
             if (type === 'trigger') {
                 label = 'Webhook Trigger';
                 description = 'Starts workflow via webhook';
-                connectorType = 'webhook';
+                connectorType = 'trigger';
+                slug = 'webhook';
             } else if (type === 'condition') {
                 label = 'If / Else';
                 connectorType = 'condition';
+                slug = 'condition';
             } else if (type === 'agent') {
                 label = 'AI Agent';
-                connectorType = 'ai-agent';
+                connectorType = 'agent';
+                slug = 'ai-agent';
             } else if (type === 'modelNode') {
                 label = 'Model';
-                connectorType = 'model';
+                connectorType = 'agent-model';
+                slug = 'model';
             } else if (type === 'memoryNode') {
                 label = 'Memory';
-                connectorType = 'memory';
+                connectorType = 'agent-memory';
+                slug = 'memory';
             } else if (type === 'toolsNode') {
                 label = 'Tool';
-                connectorType = 'tool';
+                connectorType = 'agent-tool';
+                slug = 'tool';
             }
         }
 
@@ -293,8 +315,12 @@ const WorkflowCanvasInner = () => {
             data: {
                 label,
                 description,
-                connectorType,
-                actionId,
+                connector_id: connectorId, // Add connector ID for API calls
+                connectorType, // Valid type: trigger, action, agent, condition, agent-tool, agent-model, agent-memory
+                connector_type: connectorType, // Add snake_case for compatibility
+                slug, // Unique connector identifier (e.g., 'openai', 'slack', 'webhook')
+                action_id: actionId, // Use snake_case
+                actionId, // Keep camelCase for backward compatibility
                 iconUrlLight,
                 iconUrlDark,
                 ui, // Pass UI settings
@@ -658,22 +684,53 @@ const WorkflowCanvasInner = () => {
     }, [handleSmartAdd, setNodes, setEdges]);
 
     const handleApplyActions = useCallback((actions: any[]) => {
-        if (!actions || actions.length === 0) return;
+        console.log('🔧 handleApplyActions called with:', actions);
+
+        if (!actions || actions.length === 0) {
+            console.warn('⚠️ No actions to apply');
+            return;
+        }
 
         let updatedNodes = nodes;
         let updatedEdges = edges;
 
         // Process each action
         for (const action of actions) {
+            console.log('Processing action:', action.type, action);
             switch (action.type) {
-                case 'add_node':
+                case 'add_node': {
+                    // Look up connector by slug in allConnectors
+                    const connector = allConnectors.find(c => c.slug === action.connector_slug);
+                    console.log('Connector found:', connector);
+                    if (!connector) {
+                        console.error(`Connector not found for slug: ${action.connector_slug}`);
+                        continue;
+                    }
+
+                    // Determine node type based on connector_type
+                    let nodeType = 'action'; // default
+                    if (connector.connector_type === 'trigger') nodeType = 'trigger';
+                    else if (connector.connector_type === 'condition') nodeType = 'condition';
+                    else if (connector.connector_type === 'agent') nodeType = 'agent';
+                    else if (connector.connector_type === 'agent-model') nodeType = 'modelNode';
+                    else if (connector.connector_type === 'agent-memory') nodeType = 'memoryNode';
+                    else if (connector.connector_type === 'agent-tool') nodeType = 'toolsNode';
+                    else if ('is_custom' in connector && connector.is_custom) nodeType = 'custom';
+                    console.log('nodeType: ', nodeType)
                     const newNode: Node = {
                         id: uuidv4(),
-                        type: action.connector_id === 'webhook' ? 'trigger' : 'action',
+                        type: nodeType,
                         data: {
-                            label: action.label,
-                            connector_id: action.connector_id,
-                            action_id: action.action_id,
+                            label: connector.display_name, // Always use connector's display name
+                            description: connector.description,
+                            connector_id: connector.id, // Store connector ID for API calls
+                            connectorType: connector.connector_type, // Valid type: trigger, action, agent, condition, agent-tool, agent-model, agent-memory
+                            connector_type: connector.connector_type, // Add snake_case for compatibility
+                            slug: connector.slug, // Unique connector identifier (e.g., 'openai', 'slack', 'webhook')
+                            action_id: action.action_id || '', // Use snake_case to match NodeConfigPanel
+                            iconUrlLight: connector.icon_url_light,
+                            iconUrlDark: connector.icon_url_dark,
+                            baseType: nodeType,
                             config: action.config || {},
                             onAddClick: handleSmartAdd,
                         },
@@ -681,20 +738,48 @@ const WorkflowCanvasInner = () => {
                     };
                     updatedNodes = [...updatedNodes, newNode];
                     break;
+                }
 
-                case 'add_edge':
-                    // Find nodes by label
-                    const sourceNode = updatedNodes.find((n) => n.data.label === action.source);
-                    const targetNode = updatedNodes.find((n) => n.data.label === action.target);
+                case 'add_edge': {
+                    // Find nodes by label (case-insensitive, trimmed) or by slug
+                    const findNode = (identifier: string) => {
+                        if (!identifier) return undefined;
+                        const searchStr = identifier.toString().toLowerCase().trim();
+                        return updatedNodes.find((n) => {
+                            const labelMatch = n.data.label?.toString().toLowerCase().trim() === searchStr;
+                            const slugMatch = n.data.slug?.toString().toLowerCase().trim() === searchStr;
+                            return labelMatch || slugMatch;
+                        });
+                    };
+
+                    const sourceNode = findNode(action.source);
+                    const targetNode = findNode(action.target);
+
                     if (sourceNode && targetNode) {
+                        // Determine source handle ID
+                        // Condition nodes have 'true'/'false' handles, others have 'source'
+                        const sourceHandle = sourceNode.type === 'condition' ? 'true' : 'source';
+
                         const newEdge: Edge = {
                             id: `${sourceNode.id}-${targetNode.id}`,
                             source: sourceNode.id,
                             target: targetNode.id,
+                            sourceHandle,
                         };
                         updatedEdges = [...updatedEdges, newEdge];
+                        console.log('✅ Created edge:', action.source, '->', action.target, `(handle: ${sourceHandle})`);
+                    } else {
+                        console.warn('❌ Could not create edge:', {
+                            source: action.source,
+                            target: action.target,
+                            sourceFound: !!sourceNode,
+                            targetFound: !!targetNode,
+                            availableLabels: updatedNodes.map(n => n.data.label),
+                            availableSlugs: updatedNodes.map(n => n.data.slug)
+                        });
                     }
                     break;
+                }
 
                 case 'delete_node':
                     updatedNodes = updatedNodes.filter((n) => n.id !== action.node_id);
@@ -730,9 +815,11 @@ const WorkflowCanvasInner = () => {
             }
         }
 
-        setNodes(updatedNodes);
-        setEdges(updatedEdges);
-    }, [nodes, edges, handleSmartAdd, setNodes, setEdges]);
+        // Apply auto-layout to ensure 100px gap
+        const layouted = getLayoutedElements(updatedNodes, updatedEdges);
+        setNodes(layouted.nodes);
+        setEdges(layouted.edges);
+    }, [nodes, edges, allConnectors, handleSmartAdd, setNodes, setEdges]);
 
     return (
         <div className="h-screen flex w-full relative rounded-2xl">

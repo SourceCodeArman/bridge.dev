@@ -56,22 +56,6 @@ class ConnectorSerializer(serializers.ModelSerializer):
             "connector_type",
         ]
 
-
-class ConnectorSummarySerializer(serializers.ModelSerializer):
-    """Lightweight serializer for connector list - excludes manifest for performance"""
-
-    class Meta:
-        model = Connector
-        fields = [
-            "id",
-            "slug",
-            "display_name",
-            "icon_url_light",
-            "icon_url_dark",
-            "connector_type",
-        ]
-
-
 class WorkflowSerializer(serializers.ModelSerializer):
     """Serializer for Workflow model"""
 

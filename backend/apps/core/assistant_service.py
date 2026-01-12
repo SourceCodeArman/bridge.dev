@@ -42,10 +42,7 @@ class AssistantService:
         messages = thread.messages.order_by("-created_at")[:limit]
         messages = list(reversed(messages))  # Oldest first
 
-        return [
-            {"role": msg.role, "content": msg.content}
-            for msg in messages
-        ]
+        return [{"role": msg.role, "content": msg.content} for msg in messages]
 
     def build_workflow_context(self, workflow: Workflow) -> str:
         """Build context string from current workflow state."""
@@ -72,12 +69,16 @@ class AssistantService:
             label = node_data.get("label", node_type)
             action_id = node_data.get("action_id", "")
 
-            context_parts.append(f"  - {label} (id: {node_id}, type: {node_type}, action: {action_id})")
+            context_parts.append(
+                f"  - {label} (id: {node_id}, type: {node_type}, action: {action_id})"
+            )
 
         if edges:
             context_parts.append("\nConnections:")
             for edge in edges:
-                context_parts.append(f"  - {edge.get('source')} -> {edge.get('target')}")
+                context_parts.append(
+                    f"  - {edge.get('source')} -> {edge.get('target')}"
+                )
 
         return "\n".join(context_parts)
 
@@ -110,67 +111,130 @@ class AssistantService:
         for node in nodes:
             node_data = node.get("data", {})
             # Handle both snake_case (AI-generated) and camelCase (manual) field names
-            connector_id = node_data.get("connector_id") or node_data.get("connectorType", "")
+            connector_id = node_data.get("connector_id") or node_data.get(
+                "connectorType", ""
+            )
             action_id = node_data.get("action_id") or node_data.get("actionId", "")
 
             if connector_id:
                 if connector_id not in mapping:
                     mapping[connector_id] = []
 
-                mapping[connector_id].append({
-                    "node_id": node.get("id"),
-                    "label": node_data.get("label", ""),
-                    "action_id": action_id,
-                    "type": node.get("type", "action"),
-                })
+                mapping[connector_id].append(
+                    {
+                        "node_id": node.get("id"),
+                        "label": node_data.get("label", ""),
+                        "action_id": action_id,
+                        "type": node.get("type", "action"),
+                    }
+                )
 
         return mapping
 
     def get_connectors_context(self, workspace_id: str = None) -> str:
-        """Get available connectors for context."""
+        """Get available connectors for context from all sources."""
         connectors_info = []
-        connector_ids = self.connector_registry.list_all()
 
-        for connector_id in connector_ids[:20]:  # Limit to 20
+        # 1. Get connectors from in-memory registry (limit to 15 for context size)
+        connector_ids = self.connector_registry.list_all()
+        for connector_id in connector_ids[:15]:
             try:
                 connector_class = self.connector_registry.get(connector_id)
                 temp_instance = connector_class({})
                 manifest = temp_instance.get_manifest()
 
+                # Format actions more clearly with ID first
                 actions = []
-                for action in manifest.get("actions", [])[:3]:
-                    actions.append(f"{action.get('id')}: {action.get('description', action.get('name', ''))}")
+                for action in manifest.get("actions", []):  # Show ALL actions
+                    action_id = action.get("id")
+                    action_name = action.get("name", action_id)
+                    action_desc = action.get("description", "")
+                    actions.append(f"    • {action_id} - {action_name}: {action_desc}")
 
-                connectors_info.append(
-                    f"- {manifest.get('name')} (id: {connector_id}): {', '.join(actions)}"
-                )
+                if actions:
+                    connectors_info.append(
+                        f"- **{manifest.get('name')}** (id: `{connector_id}`)\n"
+                        + "\n".join(actions)
+                    )
             except Exception as e:
                 logger.warning(f"Failed to load connector {connector_id}: {str(e)}")
 
-        # Include custom connectors if workspace_id provided
+        # 2. Get system connectors from database
+        try:
+            from .models import Connector
+
+            db_connectors = Connector.objects.filter(is_active=True).only(
+                "slug", "display_name", "manifest"
+            )[:15]  # Limit for context size
+
+            for connector in db_connectors:
+                try:
+                    manifest = connector.manifest or {}
+
+                    # Format actions clearly
+                    actions = []
+                    for action in manifest.get("actions", []):  # Show ALL actions
+                        action_id = action.get("id")
+                        action_name = action.get("name", action_id)
+                        action_desc = action.get("description", "")
+                        actions.append(
+                            f"    • {action_id} - {action_name}: {action_desc}"
+                        )
+
+                    if actions:
+                        connectors_info.append(
+                            f"- **{connector.display_name}** (id: `{connector.slug}`)\n"
+                            + "\n".join(actions)
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to process database connector {connector.slug}: {str(e)}"
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to load database connectors: {str(e)}")
+
+        # 3. Include custom connectors if workspace_id provided
         if workspace_id:
             try:
                 from .models import CustomConnector
+
                 custom_connectors = CustomConnector.objects.filter(
                     workspace_id=workspace_id,
-                )[:10]  # Limit to 10 custom connectors
+                    status="approved",
+                ).select_related("current_version")[
+                    :10
+                ]  # Limit to 10 custom connectors
 
                 if custom_connectors.exists():
-                    connectors_info.append("\nCUSTOM CONNECTORS:")
+                    connectors_info.append("\n**CUSTOM CONNECTORS:**")
                     for connector in custom_connectors:
                         current_version = connector.current_version
                         if current_version:
                             manifest = current_version.manifest
+
+                            # Format actions clearly
                             actions = []
-                            for action in manifest.get("actions", [])[:3]:
-                                actions.append(f"{action.get('id')}: {action.get('description', action.get('name', ''))}")
-                            connectors_info.append(
-                                f"- {connector.display_name} (id: {str(connector.id)}, slug: {connector.slug}): {', '.join(actions)}"
-                            )
+                            for action in manifest.get(
+                                "actions", []
+                            ):  # Show ALL actions
+                                action_id = action.get("id")
+                                action_name = action.get("name", action_id)
+                                action_desc = action.get("description", "")
+                                actions.append(
+                                    f"    • {action_id} - {action_name}: {action_desc}"
+                                )
+
+                            if actions:
+                                connectors_info.append(
+                                    f"- **{connector.display_name}** (id: `{connector.slug}` or `{str(connector.id)}`)\n"
+                                    + "\n".join(actions)
+                                )
             except Exception as e:
                 logger.warning(f"Failed to load custom connectors: {str(e)}")
 
-        return "Available connectors:\n" + "\n".join(connectors_info)
+        return "**AVAILABLE CONNECTORS AND ACTIONS:**\n\n" + "\n\n".join(
+            connectors_info
+        )
 
     def build_system_prompt(
         self,
@@ -203,41 +267,62 @@ class AssistantService:
                     parts.append(f"  {connector_id}:")
                     for node_info in nodes_list:
                         parts.append(
-                            f"    - \"{node_info['label']}\" (id: {node_info['node_id']}, action: {node_info['action_id']})"
+                            f'    - "{node_info["label"]}" (id: {node_info["node_id"]}, action: {node_info["action_id"]})'
                         )
                 parts.append("")
 
         # Get workspace from workflow
-        workspace_id = str(workflow.workspace_id) if hasattr(workflow, 'workspace_id') else None
+        workspace_id = (
+            str(workflow.workspace_id) if hasattr(workflow, "workspace_id") else None
+        )
         parts.append(self.get_connectors_context(workspace_id=workspace_id))
         parts.append("")
 
-        parts.extend([
-            "RESPONSE FORMAT:",
-            "Always respond in this JSON format:",
-            '{"message": "Your response to the user", "actions": []}',
-            "",
-            "The 'actions' array can contain structured commands:",
-            '- {"type": "add_node", "connector_id": "...", "action_id": "...", "label": "...", "position": {"x": 100, "y": 100}}',
-            '- {"type": "update_node", "node_id": "...", "manifest": {...}}',
-            '- {"type": "delete_node", "node_id": "..."}',
-            '- {"type": "add_edge", "source": "...", "target": "..."}',
-            '- {"type": "generate_workflow", "definition": {"nodes": [...], "edges": [...]}}',
-            "",
-            "WHEN TO REUSE EXISTING NODES:",
-            "- If the workflow already has a node of the required connector type (see EXISTING NODES section),",
-            "  suggest using that node instead of creating a new one by returning update_node action with node_id",
-            "- Only suggest add_node when a new connector type is needed that doesn't exist in the workflow",
-            "",
-            "If no actions are needed (just answering a question), use: {\"message\": \"...\", \"actions\": []}",
-            "",
-            "IMPORTANT:",
-            "- Always respond with valid JSON only",
-            "- Be concise but helpful",
-            "- When suggesting changes, explain what you're doing in the message",
-            "- Reference nodes by their labels when explaining",
-            "- For update_node, include the connector manifest config that matches the user request",
-        ])
+        parts.extend(
+            [
+                "RESPONSE FORMAT:",
+                "Always respond in this JSON format:",
+                '{"message": "Your response to the user", "actions": []}',
+                "",
+                "The 'actions' array can contain structured commands:",
+                '- {"type": "add_node", "connector_slug": "...", "action_id": "...", "position": {"x": 100, "y": 100}}',
+                '- {"type": "update_node", "node_id": "...", "manifest": {...}}',
+                '- {"type": "delete_node", "node_id": "..."}',
+                '- {"type": "add_edge", "source": "...", "target": "..."}',
+                '- {"type": "generate_workflow", "definition": {"nodes": [...], "edges": [...]}}',
+                "",
+                "CRITICAL RULES FOR CONNECTOR SLUGS AND ACTION IDS:",
+                "1. For 'connector_slug': ONLY use the slug value from 'AVAILABLE CONNECTORS' (the `id` in backticks)",
+                "2. For 'action_id': ONLY use action IDs listed under that connector (the ID before the dash: • action_id - Name)",
+                "3. NEVER invent or hallucinate connector slugs or action IDs",
+                "4. NEVER combine connector slug and action ID (e.g. 'webhook_receive' is WRONG, use 'webhook')",
+                "5. If a connector doesn't have the action you need, explain this to the user",
+                "",
+                "Example:",
+                "  For Slack connector (id: `slack`) with actions:",
+                "    • send_message - Send Message",
+                "    • list_channels - List Channels",
+                "  ",
+                '  CORRECT: {"connector_slug": "slack", "action_id": "send_message"}',
+                '  WRONG: {"connector_slug": "slack", "action_id": "send"}  ← \'send\' is not in the list!',
+                '  WRONG: {"connector_slug": "slack_send_message", "action_id": "send_message"}  ← NEVER combine slug and action!',
+                '  WRONG: {"connector_slug": "slack", "action_id": "post_message"}  ← hallucinated!',
+                "",
+                "WHEN TO REUSE EXISTING NODES:",
+                "- If the workflow already has a node of the required connector type (see EXISTING NODES section),",
+                "  suggest using that node instead of creating a new one by returning update_node action with node_id",
+                "- Only suggest add_node when a new connector type is needed that doesn't exist in the workflow",
+                "",
+                'If no actions are needed (just answering a question), use: {"message": "...", "actions": []}',
+                "",
+                "IMPORTANT:",
+                "- Always respond with valid JSON only",
+                "- Be concise but helpful",
+                "- When suggesting changes, explain what you're doing in the message",
+                "- Reference nodes by their labels when explaining",
+                "- For update_node, include the connector manifest config that matches the user request",
+            ]
+        )
 
         return "\n".join(parts)
 
@@ -261,7 +346,9 @@ class AssistantService:
         # Validate API key early
         api_key = self._get_api_key(llm_provider)
         if not api_key:
-            raise ValueError(f"API key for {llm_provider} not configured. Please check environment variables.")
+            raise ValueError(
+                f"API key for {llm_provider} not configured. Please check environment variables."
+            )
 
         with transaction.atomic():
             # Save user message
@@ -273,7 +360,11 @@ class AssistantService:
 
             logger.info(
                 "Assistant chat started",
-                extra={"workflow_id": str(workflow.id), "llm_provider": llm_provider, "message_length": len(user_message)},
+                extra={
+                    "workflow_id": str(workflow.id),
+                    "llm_provider": llm_provider,
+                    "message_length": len(user_message),
+                },
             )
 
             # Build prompts
@@ -330,7 +421,9 @@ class AssistantService:
         # Validate API key early
         api_key = self._get_api_key(llm_provider)
         if not api_key:
-            raise ValueError(f"API key for {llm_provider} not configured. Please check environment variables.")
+            raise ValueError(
+                f"API key for {llm_provider} not configured. Please check environment variables."
+            )
 
         with transaction.atomic():
             # Save user message
@@ -342,7 +435,11 @@ class AssistantService:
 
             logger.info(
                 "Assistant chat stream started",
-                extra={"workflow_id": str(workflow.id), "llm_provider": llm_provider, "message_length": len(user_message)},
+                extra={
+                    "workflow_id": str(workflow.id),
+                    "llm_provider": llm_provider,
+                    "message_length": len(user_message),
+                },
             )
 
             # Build prompts
@@ -405,10 +502,13 @@ class AssistantService:
         model = self._get_default_model(llm_provider)
 
         # Most LLM connectors use "generate_text" action
-        outputs = connector.execute("generate_text", {
-            "prompt": prompt,
-            "model": model,
-        })
+        outputs = connector.execute(
+            "generate_text",
+            {
+                "prompt": prompt,
+                "model": model,
+            },
+        )
 
         return outputs.get("text", "")
 
@@ -438,7 +538,7 @@ class AssistantService:
         # Simulate streaming by yielding chunks
         chunk_size = 20
         for i in range(0, len(response), chunk_size):
-            yield response[i:i + chunk_size]
+            yield response[i : i + chunk_size]
 
     def _get_api_key(self, provider: str) -> Optional[str]:
         """Get API key for provider from environment."""
@@ -490,6 +590,8 @@ class AssistantService:
 
         # Fallback: return raw response as message (safe fallback)
         return {
-            "message": response if response else "I encountered an error processing my response. Please try again.",
+            "message": response
+            if response
+            else "I encountered an error processing my response. Please try again.",
             "actions": [],
         }

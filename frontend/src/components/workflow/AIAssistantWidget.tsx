@@ -293,7 +293,7 @@ export function AIAssistantWidget({
                     <div className="p-4 border-b border-border">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                                     <Sparkles className="w-4 h-4 text-white" />
                                 </div>
                                 <div>

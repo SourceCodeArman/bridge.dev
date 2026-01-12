@@ -18,7 +18,6 @@ from apps.common.logging_utils import get_logger
 from ..models import Connector, CustomConnector, CustomConnectorVersion
 from ..serializers import (
     ConnectorSerializer,
-    ConnectorSummarySerializer,
     CustomConnectorSerializer,
     CustomConnectorVersionSerializer,
     FormSchemaSerializer,
@@ -46,7 +45,7 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Get system connectors with lightweight serializer
         system_connectors = self.get_queryset()
-        serializer = ConnectorSummarySerializer(system_connectors, many=True)
+        serializer = ConnectorSerializer(system_connectors, many=True)
         connectors_data = list(serializer.data)
 
         # Append database-backed custom connectors for this workspace (approved only)
