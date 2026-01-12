@@ -68,6 +68,7 @@ class ConnectorSummarySerializer(serializers.ModelSerializer):
             "display_name",
             "icon_url_light",
             "icon_url_dark",
+            "connector_type",
         ]
 
 
@@ -140,34 +141,45 @@ class WorkflowSerializer(serializers.ModelSerializer):
         return active_trigger.trigger_type if active_trigger else None
 
     def get_current_version(self, obj):
-        """Get the most recent version (draft or active)"""
+        """Get the most recent version (draft or active) - includes graph for canvas rendering"""
         # Use prefetched cache if available
         if hasattr(obj, "latest_version_cache"):
             last_version = (
                 obj.latest_version_cache[0] if obj.latest_version_cache else None
             )
         else:
-            # Fallback to query
-            last_version = obj.versions.order_by("-created_at").first()
-
-        if last_version:
-            # Check if this is a detail view (retrieve action) vs list view
-            # For detail views, include the full definition; for list views, minimal data
+            # For detail views, we need the definition; for list views, we don't
             view = self.context.get("view")
             is_detail_view = view and getattr(view, "action", None) == "retrieve"
 
             if is_detail_view:
-                # Return full version data including definition for detail views
+                # Load full version with definition for detail view
+                last_version = obj.versions.order_by("-created_at").first()
+            else:
+                # Use only() to avoid loading large definition field for list views
+                last_version = (
+                    obj.versions.only(
+                        "id", "version_number", "workflow_id", "is_active", "created_at"
+                    )
+                    .order_by("-created_at")
+                    .first()
+                )
+
+        if last_version:
+            # For detail views, include graph (which points to definition)
+            view = self.context.get("view")
+            is_detail_view = view and getattr(view, "action", None) == "retrieve"
+
+            if is_detail_view and hasattr(last_version, "definition"):
                 return {
                     "id": str(last_version.id),
                     "version_number": last_version.version_number,
                     "is_active": last_version.is_active,
                     "created_at": last_version.created_at,
-                    "definition": last_version.definition,
-                    "graph": last_version.definition,  # Alias for frontend compatibility
+                    "graph": last_version.definition,  # Frontend expects 'graph'
                 }
             else:
-                # Return minimal data for list views to optimize performance
+                # Return minimal data for list views
                 return {
                     "id": str(last_version.id),
                     "version_number": last_version.version_number,
@@ -1175,7 +1187,7 @@ class ConversationThreadSerializer(serializers.ModelSerializer):
 
     def get_message_count(self, obj):
         """Get message count from annotated field for performance"""
-        if hasattr(obj, 'message_count_cached'):
+        if hasattr(obj, "message_count_cached"):
             return obj.message_count_cached
         return obj.messages.count()
 
@@ -1203,13 +1215,13 @@ class ConversationThreadListSerializer(serializers.ModelSerializer):
 
     def get_message_count(self, obj):
         """Get message count from annotated field for performance"""
-        if hasattr(obj, 'message_count_cached'):
+        if hasattr(obj, "message_count_cached"):
             return obj.message_count_cached
         return obj.messages.count()
 
     def get_last_message_at(self, obj):
         """Get last message timestamp efficiently"""
-        if hasattr(obj, 'last_message_at_cached'):
+        if hasattr(obj, "last_message_at_cached"):
             return obj.last_message_at_cached
         last_msg = obj.messages.order_by("-created_at").first()
         return last_msg.created_at if last_msg else None

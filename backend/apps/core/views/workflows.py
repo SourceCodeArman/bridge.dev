@@ -139,21 +139,33 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                     .prefetch_related(
                         Prefetch(
                             "versions",
-                            queryset=WorkflowVersion.objects.filter(
-                                is_active=True
-                            ).order_by("-version_number"),
+                            queryset=WorkflowVersion.objects.filter(is_active=True)
+                            .only(
+                                "id",
+                                "version_number",
+                                "workflow_id",
+                                "is_active",
+                                "created_at",
+                            )
+                            .order_by("-version_number"),
                             to_attr="active_versions_cache",
                         ),
                         Prefetch(
                             "versions",
-                            queryset=WorkflowVersion.objects.order_by("-created_at")[
-                                :1
-                            ],
+                            queryset=WorkflowVersion.objects.only(
+                                "id",
+                                "version_number",
+                                "workflow_id",
+                                "is_active",
+                                "created_at",
+                            ).order_by("-created_at")[:1],
                             to_attr="latest_version_cache",
                         ),
                         Prefetch(
                             "triggers",
-                            queryset=Trigger.objects.filter(is_active=True),
+                            queryset=Trigger.objects.filter(is_active=True).only(
+                                "id", "trigger_type", "workflow_id", "is_active"
+                            ),
                             to_attr="active_triggers_cache",
                         ),
                     )
@@ -191,7 +203,12 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         POST /api/v1/workflows/{id}/drafts/ - Save to current version
         Body: {"definition": {...}}
         """
-        workflow = self.get_object()
+        # Optimize query to avoid N+1 - use select_related for current_version
+        workflow = (
+            Workflow.objects.select_related("current_version")
+            .only("id", "name", "workspace_id", "current_version_id")
+            .get(pk=pk)
+        )
 
         if request.method == "GET":
             # Get current version

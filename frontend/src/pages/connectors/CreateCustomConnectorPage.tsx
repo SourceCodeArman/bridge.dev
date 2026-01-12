@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { customConnectorService } from '@/lib/api/services/customConnector';
 import { Loader2, ArrowRight, ArrowLeft, X } from 'lucide-react';
@@ -28,6 +29,7 @@ const STEPS = [
 
 export default function CreateCustomConnectorPage() {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { toast } = useToast();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -199,11 +201,14 @@ export default function CreateCustomConnectorPage() {
 
             await customConnectorService.create(formData);
 
+            // Invalidate connector caches to refresh lists
+            queryClient.invalidateQueries({ queryKey: ['connectors'] });
+            queryClient.invalidateQueries({ queryKey: ['custom-connectors'] });
+
             toast({
                 title: 'Success',
                 description: 'Custom connector created successfully',
             });
-            navigate('/connectors');
             navigate('/connectors');
         } catch (error: any) {
             console.error('Failed to create custom connector:', error);

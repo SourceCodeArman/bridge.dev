@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { UnifiedNode } from '@/components/nodes';
 import NodeConfigPanel from '@/components/workflow/NodeConfigPanel';
-import { Save, Layout, Plus, Sparkles } from 'lucide-react';
+import { Save, Layout, Plus, Sparkles, Loader2 } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
 
 import { AddNodeSheet } from './components/AddNodeSheet';
@@ -122,7 +122,7 @@ const WorkflowCanvasInner = () => {
     }, []);
 
     // Fetch workflow data if ID is present
-    const { data: workflow } = useQuery({
+    const { data: workflow, isLoading } = useQuery({
         queryKey: ['workflow', id],
         queryFn: () => workflowService.get(id!),
         enabled: !!id,
@@ -807,8 +807,18 @@ const WorkflowCanvasInner = () => {
                     />
                     <Background gap={20} size={1} />
 
+                    {/* Loading State */}
+                    {isLoading && (
+                        <Panel position="top-center" className="top-1/2! -translate-y-1/2!">
+                            <div className="flex flex-col items-center gap-4">
+                                <Loader2 className="w-12 h-12 text-neutral-400 animate-spin" />
+                                <span className="text-sm text-neutral-400">Loading workflow...</span>
+                            </div>
+                        </Panel>
+                    )}
+
                     {/* Empty Canvas CTA */}
-                    {nodes.length === 0 && (
+                    {!isLoading && nodes.length === 0 && (
                         <Panel position="top-center" className="top-1/2! -translate-y-1/2!">
                             <div className="flex items-center gap-6">
                                 {/* Add first step button */}

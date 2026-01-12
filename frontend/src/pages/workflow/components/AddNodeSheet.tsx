@@ -268,7 +268,7 @@ export const AddNodeSheet: React.FC<AddNodeSheetProps> = ({
                     <div>
                         {renderHeader('Custom')}
                         <div className="space-y-2">
-                            {allConnectors.filter(c => c.connector_type === 'custom' || !['trigger', 'action', 'condition', 'agent', 'agent-model', 'agent-memory', 'agent-tool'].includes(c.connector_type)).map((connector) => (
+                            {allConnectors.filter(c => c.is_custom === true).map((connector) => (
                                 <NodeItem
                                     key={connector.id}
                                     connector={connector}

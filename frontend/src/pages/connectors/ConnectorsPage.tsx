@@ -18,12 +18,14 @@ export default function ConnectorsPage() {
 
     const { data: connectors, isLoading, error } = useQuery({
         queryKey: ['connectors'],
-        queryFn: connectorService.list
+        queryFn: connectorService.list,
+        staleTime: Infinity,
     });
 
     const { data: customConnectors, isLoading: isCustomLoading, error: customError } = useQuery({
         queryKey: ['custom-connectors'],
-        queryFn: customConnectorService.list
+        queryFn: customConnectorService.list,
+        staleTime: Infinity,
     });
 
     const filterConnector = (connector: Connector) =>

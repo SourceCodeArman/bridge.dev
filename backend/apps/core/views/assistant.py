@@ -174,7 +174,9 @@ class AIAssistantHistoryView(AIAssistantBaseView):
             })
 
         limit = int(request.query_params.get("limit", 50))
-        messages = thread.messages.order_by("-created_at")[:limit]
+        offset = int(request.query_params.get("offset", 0))
+
+        messages = thread.messages.order_by("-created_at")[offset:offset + limit]
         messages = list(reversed(messages))
 
         return Response({
@@ -182,6 +184,7 @@ class AIAssistantHistoryView(AIAssistantBaseView):
             "data": {
                 "thread": ConversationThreadListSerializer(thread).data,
                 "messages": ChatMessageSerializer(messages, many=True).data,
+                "total": thread.messages.count(),
             },
         })
 

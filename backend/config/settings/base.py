@@ -90,8 +90,10 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD", ""),
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
+        "CONN_MAX_AGE": 600,  # Keep connections alive for 10 minutes
         "OPTIONS": {
             "connect_timeout": 10,
+            "options": "-c statement_timeout=30000",  # 30 second query timeout
         },
     }
 }
@@ -183,6 +185,22 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 CELERY_ENABLE_UTC = True
+
+# Django Caching with Redis
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+            "CONNECTION_POOL_KWARGS": {"max_connections": 50},
+        },
+        "KEY_PREFIX": "bridge",
+        "TIMEOUT": 300,  # 5 minutes default
+    }
+}
 
 # Celery task retry configuration
 CELERY_TASK_ACKS_LATE = True

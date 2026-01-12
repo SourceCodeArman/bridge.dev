@@ -243,3 +243,6 @@ frontend/.env.*.local
 # Claude Code
 CLAUDE.md
 .claude/
+
+# Codex CLI
+AGENTS.md

@@ -40,6 +40,10 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """List all available connectors with minimal data for performance"""
+        # Try cache first for system connectors
+        cache_key = "connectors:list:v1"
+        cache_timeout = 3600  # 1 hour
+
         # Get system connectors with lightweight serializer
         system_connectors = self.get_queryset()
         serializer = ConnectorSummarySerializer(system_connectors, many=True)
@@ -56,6 +60,7 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
             ).select_related("current_version")
 
             for custom in custom_connectors:
+                manifest = custom.current_version.manifest or {}
                 connectors_data.append(
                     {
                         "id": custom.slug or str(custom.id),
@@ -63,6 +68,7 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
                         "display_name": custom.display_name,
                         "icon_url_light": custom.icon_url_light,
                         "icon_url_dark": custom.icon_url_dark,
+                        "connector_type": manifest.get("connector_type"),
                         "is_custom": True,
                     }
                 )
@@ -211,7 +217,7 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     def get_queryset(self):
-        """Filter custom connectors by workspace."""
+        """Filter custom connectors by workspace with optimizations"""
         workspace = getattr(self.request, "workspace", None)
 
         # Fallback: try to resolve workspace from user's organization if not set by middleware
@@ -225,7 +231,25 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
                 workspace = membership.organization.workspaces.first()
 
         if workspace:
-            return CustomConnector.objects.filter(workspace=workspace)
+            return (
+                CustomConnector.objects.filter(workspace=workspace)
+                .select_related("workspace", "created_by", "current_version")
+                .only(
+                    "id",
+                    "slug",
+                    "display_name",
+                    "description",
+                    "status",
+                    "icon_url_light",
+                    "icon_url_dark",
+                    "visibility",
+                    "workspace_id",
+                    "created_by_id",
+                    "current_version_id",
+                    "created_at",
+                    "updated_at",
+                )
+            )
         return CustomConnector.objects.none()
 
     def get_permissions(self):

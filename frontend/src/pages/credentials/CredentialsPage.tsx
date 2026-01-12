@@ -60,7 +60,7 @@ export default function CredentialsPage() {
 
     // Fetch connectors for filter
     const { data: connectorsData } = useQuery({
-        queryKey: ['connectors', 'list'],
+        queryKey: ['connectors'],
         queryFn: () => connectorService.list()
     });
 
