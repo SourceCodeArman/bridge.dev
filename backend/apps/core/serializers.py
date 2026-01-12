@@ -1162,6 +1162,7 @@ class ConversationThreadSerializer(serializers.ModelSerializer):
             "workflow",
             "workflow_name",
             "title",
+            "is_active",
             "messages",
             "message_count",
             "created_at",
@@ -1190,6 +1191,7 @@ class ConversationThreadListSerializer(serializers.ModelSerializer):
             "workflow",
             "workflow_name",
             "title",
+            "is_active",
             "message_count",
             "last_message_at",
             "created_at",
@@ -1231,8 +1233,24 @@ class AIChatRequestSerializer(serializers.Serializer):
         required=False,
         help_text="Whether to include current workflow state in context",
     )
+    thread_id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text="Optional thread ID to use for this message",
+    )
     stream = serializers.BooleanField(
         default=True,
         required=False,
         help_text="Whether to stream the response",
+    )
+
+
+class CreateThreadSerializer(serializers.Serializer):
+    """Serializer for creating a new conversation thread"""
+
+    title = serializers.CharField(
+        required=False,
+        max_length=200,
+        allow_blank=True,
+        help_text="Optional title for the conversation thread",
     )

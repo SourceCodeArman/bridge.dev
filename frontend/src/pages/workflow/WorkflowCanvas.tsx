@@ -16,6 +16,7 @@ import {
     addEdge,
     ReactFlowProvider,
     useReactFlow,
+    Position,
 } from '@xyflow/react';
 import type {
     Connection,
@@ -40,43 +41,133 @@ const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 // Layout helper using Dagre
+// Helper to get node dimensions
+const getNodeSize = (type: string | undefined): { width: number; height: number } => {
+    if (type === 'agent') return { width: 200, height: 100 };
+    if (['modelNode', 'memoryNode', 'toolsNode', 'agent-model', 'agent-memory', 'agent-tool'].includes(type || '')) {
+        return { width: 60, height: 60 };
+    }
+    return { width: 100, height: 100 };
+};
+
+// Layout helper using Dagre
 const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
-    const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    g.setGraph({ rankdir: direction, ranksep: 100, nodesep: 50 });
+    const dagreGraph = new Dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-    edges.forEach((edge) => g.setEdge(edge.source, edge.target));
-    nodes.forEach((node) => {
-        // Use actual node dimensions based on type
-        let width = 100;
-        let height = 100;
+    // Separate Interaction Nodes (Main Flow) vs Resource Nodes (Agent Attachments)
+    const resourceTypes = ['modelNode', 'memoryNode', 'toolsNode', 'model', 'memory', 'agent-tool', 'agent-model', 'agent-memory'];
+    const isResourceNode = (node: Node) => {
+        return resourceTypes.includes(node.type || '') ||
+            resourceTypes.includes(node.data?.connectorType as string);
+    };
 
-        if (node.type === 'agent') {
-            width = 200;
-            height = 100;
-        } else if (node.type === 'modelNode' || node.type === 'memoryNode' || node.type === 'toolsNode') {
-            width = 60;
-            height = 60;
-        }
+    const mainNodes = nodes.filter(n => !isResourceNode(n));
+    const resourceNodes = nodes.filter(n => isResourceNode(n));
 
-        g.setNode(node.id, { width, height });
+    // Filter edges: Only include edges between main nodes for Dagre calculation
+    const mainNodeIds = new Set(mainNodes.map(n => n.id));
+    const mainEdges = edges.filter(e => mainNodeIds.has(e.source) && mainNodeIds.has(e.target));
+
+    dagreGraph.setGraph({ rankdir: direction, ranksep: 100, nodesep: 50 });
+
+    mainNodes.forEach((node) => {
+        const { width, height } = getNodeSize(node.type);
+        dagreGraph.setNode(node.id, { width, height });
     });
 
-    Dagre.layout(g);
+    mainEdges.forEach((edge) => {
+        dagreGraph.setEdge(edge.source, edge.target);
+    });
+
+    Dagre.layout(dagreGraph);
+
+    // Map main nodes to new positions
+    const layoutedMainNodes = mainNodes.map((node) => {
+        const nodeWithPosition = dagreGraph.node(node.id);
+        const nodeWidth = dagreGraph.node(node.id).width;
+        const nodeHeight = dagreGraph.node(node.id).height;
+
+        return {
+            ...node,
+            targetPosition: Position.Left,
+            sourcePosition: Position.Right,
+            // Shift anchor to top-left
+            position: {
+                x: nodeWithPosition.x - nodeWidth / 2,
+                y: nodeWithPosition.y - nodeHeight / 2,
+            },
+        };
+    });
+
+    // Manually position resource nodes relative to their connected Agent
+    const layoutedResourceNodes = resourceNodes.map((node) => {
+        // Find the edge connecting this resource to an agent
+        // Resources connect TO the Agent (Source=Resource, Target=Agent)
+        const connectedEdge = edges.find(e => e.source === node.id && mainNodeIds.has(e.target));
+
+        if (connectedEdge) {
+            const agentNode = layoutedMainNodes.find(n => n.id === connectedEdge.target);
+            if (agentNode) {
+                const handleId = connectedEdge.targetHandle; // 'model', 'memory', 'tools'
+
+                // Offsets from node-types.json
+                // Model: 30, Memory: 90, Tools: 150
+                // Manual placement logic (handleAddNodeClick) suggests a wider fan-out:
+                // Model: -30 (Left), Tools: 220 (Right)
+                let handleX = 0;
+                if (handleId === 'model') handleX = -30;
+                else if (handleId === 'memory') handleX = 90;
+                else if (handleId === 'tools') handleX = 220;
+
+                // Center the 60px resource node under the calculated handle X point
+                // Node Left X = Handle X - (NodeWidth / 2)
+                const resourceX = agentNode.position.x + handleX - 30;
+
+                // Use yOffset = 260 from manual logic (approx 260px below agent top)
+                // Agent top is agentNode.position.y.
+                const resourceY = agentNode.position.y + 260;
+
+                return {
+                    ...node,
+                    position: { x: resourceX, y: resourceY }
+                };
+            }
+        }
+
+        // Fallback if no connection found (shouldn't happen in valid graph)
+        return node;
+    });
 
     return {
-        nodes: nodes.map((node) => {
-            const position = g.node(node.id);
-            // We are shifting the dagre node position (anchor=center center) to the top left
-            // so it matches the React Flow node anchor point (top left).
-            const nodeWidth = g.node(node.id).width;
-            const nodeHeight = g.node(node.id).height;
-            const x = position.x - nodeWidth / 2;
-            const y = position.y - nodeHeight / 2;
-
-            return { ...node, position: { x, y } };
-        }),
+        nodes: [...layoutedMainNodes, ...layoutedResourceNodes],
         edges,
     };
+};
+
+// Helper to sanitize edges (fix corrupted Agent -> Resource direction)
+const sanitizeEdges = (nodes: Node[], edges: Edge[]): Edge[] => {
+    return edges.map(edge => {
+        if (edge.targetHandle === 'model' || edge.targetHandle === 'memory' || edge.targetHandle === 'tools') {
+            const sourceNode = nodes.find(n => n.id === edge.source);
+            const targetNode = nodes.find(n => n.id === edge.target);
+
+            // If Source is Agent and Target is NOT Agent: SWAP
+            if (sourceNode?.type === 'agent' && targetNode?.type !== 'agent') {
+                console.log(`🔧 Fixing corrupted edge direction: ${sourceNode.data.label} (Source) -> ${targetNode?.data.label} (Target)`);
+                return {
+                    ...edge,
+                    id: `${edge.target}-${edge.source}-${edge.targetHandle}`,
+                    source: edge.target,
+                    target: edge.source,
+                    // Ensure handles are correct (Agent handle is Target, Resource handle is Source)
+                    targetHandle: edge.targetHandle,
+                    sourceHandle: edge.sourceHandle || 'source'
+                };
+            }
+        }
+        return edge;
+    });
 };
 
 const WorkflowCanvasInner = () => {
@@ -97,6 +188,7 @@ const WorkflowCanvasInner = () => {
     const miniMapTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [isReady, setIsReady] = useState(false);
     const [activating, setActivating] = useState(false);
+    const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
 
     // Memoize nodeTypes to prevent React Flow warning
     const nodeTypes = useMemo(() => ({
@@ -160,12 +252,16 @@ const WorkflowCanvasInner = () => {
                 ...node,
                 data: {
                     ...node.data,
+                    ...((node.type === 'agent' || node.type === 'trigger' || node.type === 'condition') ? {} : {}), // Ensure consistent structure
                     onAddClick: handleSmartAdd
                 }
             }));
 
+            // Fix corrupted edges (Agent -> Resource) by swapping source/target
+            const fixedEdges = sanitizeEdges(hydratedNodes, savedEdges);
+
             setNodes(hydratedNodes);
-            setEdges(savedEdges);
+            setEdges(fixedEdges);
             setIsHydrated(true);
 
             // Store initial definition for change detection - use same serialization format as handleSave
@@ -562,7 +658,7 @@ const WorkflowCanvasInner = () => {
         const layouted = getLayoutedElements(nodes, edges);
         setNodes([...layouted.nodes]);
         setEdges([...layouted.edges]);
-        window.requestAnimationFrame(() => fitView());
+        window.requestAnimationFrame(() => fitView({ padding: 0.5, maxZoom: 1 }));
     }, [nodes, edges, setNodes, setEdges, fitView]);
 
     const handleSave = useCallback(async () => {
@@ -693,6 +789,7 @@ const WorkflowCanvasInner = () => {
 
         let updatedNodes = nodes;
         let updatedEdges = edges;
+        let skipAutoLayout = false; // Skip auto-layout for generate_workflow since AI provides correct positions
 
         // Process each action
         for (const action of actions) {
@@ -734,21 +831,48 @@ const WorkflowCanvasInner = () => {
                             config: action.config || {},
                             onAddClick: handleSmartAdd,
                         },
-                        position: action.position || { x: Math.random() * 400, y: Math.random() * 300 },
+                        // Handle both array [x, y] and object {x, y} position formats
+                        position: Array.isArray(action.position)
+                            ? { x: action.position[0], y: action.position[1] }
+                            : action.position || { x: Math.random() * 400, y: Math.random() * 300 },
                     };
                     updatedNodes = [...updatedNodes, newNode];
                     break;
                 }
 
                 case 'add_edge': {
-                    // Find nodes by label (case-insensitive, trimmed) or by slug
+                    // Find nodes by various identifiers (case-insensitive, trimmed)
+                    // Supports: exact slug, label, slug_action pattern, or connector-slug_action pattern
                     const findNode = (identifier: string) => {
                         if (!identifier) return undefined;
                         const searchStr = identifier.toString().toLowerCase().trim();
+
                         return updatedNodes.find((n) => {
-                            const labelMatch = n.data.label?.toString().toLowerCase().trim() === searchStr;
-                            const slugMatch = n.data.slug?.toString().toLowerCase().trim() === searchStr;
-                            return labelMatch || slugMatch;
+                            const nodeLabel = n.data.label?.toString().toLowerCase().trim() || '';
+                            const nodeSlug = n.data.slug?.toString().toLowerCase().trim() || '';
+                            const nodeActionId = n.data.action_id?.toString().toLowerCase().trim() || '';
+
+                            // Exact match on label or slug
+                            if (nodeLabel === searchStr || nodeSlug === searchStr) {
+                                return true;
+                            }
+
+                            // Match slug_action pattern (e.g., "webhook_receive" matches node with slug="webhook", action_id="receive")
+                            // Also handles hyphenated slugs like "ai-agent_run" or "google-calendar_list_events"
+                            const slugActionPattern = nodeSlug + '_' + nodeActionId;
+                            if (slugActionPattern === searchStr) {
+                                return true;
+                            }
+
+                            // Handle case where identifier might use underscores for hyphenated slugs
+                            // e.g., "ai_agent_run" should match slug="ai-agent", action_id="run"
+                            const normalizedSlug = nodeSlug.replace(/-/g, '_');
+                            const normalizedPattern = normalizedSlug + '_' + nodeActionId;
+                            if (normalizedPattern === searchStr) {
+                                return true;
+                            }
+
+                            return false;
                         });
                     };
 
@@ -765,9 +889,10 @@ const WorkflowCanvasInner = () => {
                             source: sourceNode.id,
                             target: targetNode.id,
                             sourceHandle,
+                            ...(action.targetHandle ? { targetHandle: action.targetHandle } : {}),
                         };
                         updatedEdges = [...updatedEdges, newEdge];
-                        console.log('✅ Created edge:', action.source, '->', action.target, `(handle: ${sourceHandle})`);
+                        console.log('✅ Created edge:', action.source, '->', action.target, `(sourceHandle: ${sourceHandle}, targetHandle: ${action.targetHandle || 'default'})`);
                     } else {
                         console.warn('❌ Could not create edge:', {
                             source: action.source,
@@ -800,25 +925,206 @@ const WorkflowCanvasInner = () => {
                     break;
                 }
 
-                case 'generate_workflow':
-                    // Full workflow replacement
-                    const hydratedNodes = (action.definition?.nodes || []).map((node: any) => ({
-                        ...node,
-                        data: {
-                            ...node.data,
-                            onAddClick: handleSmartAdd,
-                        },
-                    }));
-                    updatedNodes = hydratedNodes;
-                    updatedEdges = action.definition?.edges || [];
+                case 'generate_workflow': {
+                    // n8n-compatible workflow format parser
+                    const definition = action.definition;
+                    if (!definition) {
+                        console.warn('No definition in generate_workflow action');
+                        break;
+                    }
+
+                    console.log('🔧 Parsing n8n-compatible workflow:', definition);
+
+                    // Map node names to their generated IDs for edge creation
+                    const nodeNameToId = new Map<string, string>();
+
+                    // 1. Create nodes from definition
+                    const newNodes: Node[] = (definition.nodes || []).map((node: any) => {
+                        const connector = allConnectors.find(c => c.slug === node.slug);
+                        const nodeId = node.id || uuidv4();
+
+                        // Store name -> id mapping for connections
+                        nodeNameToId.set(node.name, nodeId);
+
+                        console.log(`📦 Creating node: ${node.name} (slug: ${node.slug}, id: ${nodeId})`);
+
+                        // Determine node type based on connector_type
+                        let nodeType = 'action';
+                        if (connector) {
+                            if (connector.connector_type === 'trigger') nodeType = 'trigger';
+                            else if (connector.connector_type === 'condition') nodeType = 'condition';
+                            else if (connector.connector_type === 'agent') nodeType = 'agent';
+                            else if (connector.connector_type === 'agent-model') nodeType = 'modelNode';
+                            else if (connector.connector_type === 'agent-memory') nodeType = 'memoryNode';
+                            else if (connector.connector_type === 'agent-tool') nodeType = 'toolsNode';
+                            else if ('is_custom' in connector && connector.is_custom) nodeType = 'custom';
+                        }
+
+                        // Handle position - n8n uses [x, y] array, ReactFlow uses {x, y} object
+                        let position = { x: 100, y: 100 };
+                        if (Array.isArray(node.position)) {
+                            position = { x: node.position[0], y: node.position[1] };
+                        } else if (node.position?.x !== undefined) {
+                            position = node.position;
+                        }
+
+                        return {
+                            id: nodeId,
+                            type: nodeType,
+                            position,
+                            data: {
+                                label: node.name,
+                                description: connector?.description || '',
+                                connector_id: connector?.id || '',
+                                connectorType: connector?.connector_type || 'action',
+                                connector_type: connector?.connector_type || 'action',
+                                slug: node.slug,
+                                action_id: node.action_id || '',
+                                iconUrlLight: connector?.icon_url_light,
+                                iconUrlDark: connector?.icon_url_dark,
+                                baseType: nodeType,
+                                onAddClick: handleSmartAdd,
+                            },
+                        };
+                    });
+
+                    // 2. Create edges from connections object (n8n format)
+                    const newEdges: Edge[] = [];
+                    const connections = definition.connections || {};
+
+                    for (const [sourceName, outputs] of Object.entries(connections)) {
+                        // Case-insensitive lookup
+                        let sourceId = nodeNameToId.get(sourceName);
+                        if (!sourceId) {
+                            // Try case-insensitive match
+                            for (const [name, id] of nodeNameToId.entries()) {
+                                if (name.toLowerCase() === sourceName.toLowerCase()) {
+                                    sourceId = id;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!sourceId) {
+                            console.warn(`Source node not found: ${sourceName}`, Array.from(nodeNameToId.keys()));
+                            continue;
+                        }
+
+                        // Find source node to determine its type for handle selection
+                        const sourceNode = newNodes.find(n => n.id === sourceId);
+                        const sourceType = sourceNode?.type;
+
+                        for (const [handleType, targets] of Object.entries(outputs as Record<string, any[]>)) {
+                            // Each target can be an array of connections
+                            const targetList = Array.isArray(targets) ? targets : [targets];
+
+                            for (const target of targetList.flat()) {
+                                if (!target?.node) continue;
+
+                                // Case-insensitive target lookup
+                                let targetId = nodeNameToId.get(target.node);
+                                if (!targetId) {
+                                    for (const [name, id] of nodeNameToId.entries()) {
+                                        if (name.toLowerCase() === target.node.toLowerCase()) {
+                                            targetId = id;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (!targetId) {
+                                    console.warn(`Target node not found: ${target.node}`, Array.from(nodeNameToId.keys()));
+                                    continue;
+                                }
+
+                                // Determine sourceHandle based on source node type
+                                let sourceHandle = 'source';
+                                if (sourceType === 'condition') {
+                                    sourceHandle = 'true'; // Default to true branch
+                                }
+
+                                // Determine targetHandle based on connection type
+                                let targetHandle: string | undefined;
+                                if (handleType === 'model' || target.type === 'model') {
+                                    targetHandle = 'model';
+                                } else if (handleType === 'memory' || target.type === 'memory') {
+                                    targetHandle = 'memory';
+                                } else if (handleType === 'tools' || target.type === 'tools') {
+                                    targetHandle = 'tools';
+                                }
+
+                                let finalSourceId = sourceId;
+                                let finalTargetId = targetId;
+
+                                // Special handling for agent resources: Agent MUST be the target
+                                if (targetHandle) {
+                                    const sourceNode = newNodes.find(n => n.id === sourceId);
+                                    const targetNode = newNodes.find(n => n.id === targetId);
+
+                                    if (sourceNode?.type === 'agent' && targetNode?.type !== 'agent') {
+                                        // AI defined connection from Agent -> Resource, but we need Resource -> Agent
+                                        console.log(`Swap edge direction for agent resource: ${sourceName} -> ${target.node}`);
+                                        finalSourceId = targetId;
+                                        finalTargetId = sourceId;
+                                    }
+                                }
+
+                                const edge: Edge = {
+                                    id: `${finalSourceId}-${finalTargetId}-${targetHandle || handleType}`,
+                                    source: finalSourceId,
+                                    target: finalTargetId,
+                                    sourceHandle,
+                                    ...(targetHandle ? { targetHandle } : {}),
+                                };
+
+                                newEdges.push(edge);
+                                console.log(`🔗 Created edge: ${finalSourceId} -> ${finalTargetId} (${handleType}, targetHandle: ${targetHandle || 'default'})`);
+                            }
+                        }
+                    }
+
+                    // Also handle legacy edges array format for backwards compatibility
+                    if (definition.edges && Array.isArray(definition.edges)) {
+                        for (const edge of definition.edges) {
+                            newEdges.push({
+                                ...edge,
+                                id: edge.id || `${edge.source}-${edge.target}`,
+                            });
+                        }
+                    }
+
+                    console.log(`✅ Created ${newNodes.length} nodes and ${newEdges.length} edges`);
+
+                    updatedNodes = newNodes;
+                    updatedEdges = newEdges;
+                    skipAutoLayout = true; // AI already positioned nodes correctly
                     break;
+                }
             }
         }
 
-        // Apply auto-layout to ensure 100px gap
-        const layouted = getLayoutedElements(updatedNodes, updatedEdges);
-        setNodes(layouted.nodes);
-        setEdges(layouted.edges);
+        // Apply auto-layout to ensure 100px gap (skip for generate_workflow which has correct positions)
+        if (skipAutoLayout) {
+            // Use AI-provided positions directly, just hydrate with callbacks
+            const hydratedNodes = updatedNodes.map((node: Node) => ({
+                ...node,
+                data: {
+                    ...node.data,
+                    onAddClick: handleSmartAdd,
+                },
+            }));
+            // Set nodes first, then edges after a delay to allow handles to render
+            setNodes(hydratedNodes);
+
+            // Use setTimeout to allow enough time for React Flow to register the handles
+            setTimeout(() => {
+                // Sanitize edges one more time to ensure direction is correct (Resource -> Agent)
+                const finalEdges = sanitizeEdges(hydratedNodes, updatedEdges);
+                setEdges(finalEdges);
+            }, 100);
+        } else {
+            const layouted = getLayoutedElements(updatedNodes, updatedEdges);
+            setNodes(layouted.nodes);
+            setEdges(layouted.edges);
+        }
     }, [nodes, edges, allConnectors, handleSmartAdd, setNodes, setEdges]);
 
     return (
@@ -963,6 +1269,8 @@ const WorkflowCanvasInner = () => {
                     edges={edges}
                     onApplyActions={handleApplyActions}
                     onAddNode={handleAddNodeClick}
+                    open={isAIAssistantOpen}
+                    onOpenChange={setIsAIAssistantOpen}
                 />
             )}
         </div>

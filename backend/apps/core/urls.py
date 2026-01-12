@@ -28,6 +28,8 @@ from .views.assistant import (
     AIAssistantChatView,
     AIAssistantChatStreamView,
     AIAssistantHistoryView,
+    AIAssistantThreadsView,
+    AIAssistantThreadDetailView,
 )
 from .health import health_check
 
@@ -71,6 +73,8 @@ urlpatterns = [
     path("assistant/<uuid:workflow_id>/chat/", AIAssistantChatView.as_view(), name="aiassistant-chat"),
     path("assistant/<uuid:workflow_id>/chat/stream/", AIAssistantChatStreamView.as_view(), name="aiassistant-chat-stream"),
     path("assistant/<uuid:workflow_id>/history/", AIAssistantHistoryView.as_view(), name="aiassistant-history"),
+    path("assistant/<uuid:workflow_id>/threads/", AIAssistantThreadsView.as_view(), name="aiassistant-threads"),
+    path("assistant/<uuid:workflow_id>/threads/<uuid:thread_id>/", AIAssistantThreadDetailView.as_view(), name="aiassistant-thread-detail"),
     path(
         "webhook/<uuid:webhook_id>/",
         WebhookTriggerView.as_view(),

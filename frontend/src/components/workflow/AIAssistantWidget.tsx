@@ -3,9 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-    ChevronLeft,
-    ChevronRight,
-    Send,
     Sparkles,
     Loader2,
     Zap,
@@ -14,10 +11,22 @@ import {
     Trash2,
     Check,
     X,
+    MessageSquarePlus,
+    ChevronDown,
+    Send,
 } from 'lucide-react';
 import type { Node, Edge } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { workflowService } from '@/lib/api/services/workflow';
+import ReactMarkdown from 'react-markdown';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+    SheetClose,
+} from '@/components/ui/sheet';
 
 interface Message {
     id: string;
@@ -33,6 +42,16 @@ interface AssistantAction {
     [key: string]: any;
 }
 
+interface ChatThread {
+    id: string;
+    title: string;
+    is_active: boolean;
+    message_count: number;
+    last_message_at?: string;
+    created_at: string;
+    updated_at: string;
+}
+
 interface AIAssistantWidgetProps {
     workflowId: string;
     nodes: Node[];
@@ -40,6 +59,8 @@ interface AIAssistantWidgetProps {
     onApplyWorkflow?: (definition: any) => void;
     onApplyActions?: (actions: AssistantAction[]) => void;
     onAddNode?: (type: string, connectorData?: any) => void;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
 }
 
 export function AIAssistantWidget({
@@ -49,31 +70,35 @@ export function AIAssistantWidget({
     onApplyWorkflow,
     onApplyActions,
     onAddNode,
+    open,
+    onOpenChange,
 }: AIAssistantWidgetProps) {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: '1',
-            role: 'assistant',
-            content: "Hi! I'm your AI workflow assistant. I can help you build workflows, configure nodes, or debug issues. What would you like to do?",
-            timestamp: new Date(),
-        },
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [pendingActions, setPendingActions] = useState<AssistantAction[] | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Track if history has been loaded
-    const [historyLoaded, setHistoryLoaded] = useState(false);
+    // Thread management state
+    const [threads, setThreads] = useState<ChatThread[]>([]);
+    const [activeThread, setActiveThread] = useState<ChatThread | null>(null);
+    const [showThreadSelector, setShowThreadSelector] = useState(false);
+    const [threadsLoaded, setThreadsLoaded] = useState(false);
 
-    // Load chat history when panel expands (not on mount)
+    // Load threads when panel opens
     useEffect(() => {
-        if (isExpanded && workflowId && !historyLoaded) {
-            loadChatHistory();
+        if (open && workflowId && !threadsLoaded) {
+            loadThreads();
         }
-    }, [isExpanded, workflowId, historyLoaded]);
+    }, [open, workflowId, threadsLoaded]);
+
+    // Load messages when active thread changes
+    useEffect(() => {
+        if (activeThread) {
+            loadChatHistory(activeThread.id);
+        }
+    }, [activeThread?.id]);
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
@@ -85,19 +110,41 @@ export function AIAssistantWidget({
         }
     }, [messages]);
 
-    // Focus input when expanded
+    // Focus input when open
     useEffect(() => {
-        if (isExpanded && inputRef.current) {
-            inputRef.current.focus();
+        if (open && inputRef.current) {
+            // Small timeout to allow sheet animation to complete
+            setTimeout(() => inputRef.current?.focus(), 150);
         }
-    }, [isExpanded]);
+    }, [open]);
 
-    const loadChatHistory = async () => {
-        if (historyLoaded) return;
-
+    const loadThreads = async () => {
         try {
-            // Load initial 10 messages for fast render
-            const response = await workflowService.getChatHistory(workflowId, 10);
+            const response = await workflowService.listThreads(workflowId);
+            const threadList = response.data?.threads || [];
+            setThreads(threadList);
+            setThreadsLoaded(true);
+
+            // Set active thread or create a new one if none exist
+            const active = threadList.find((t: ChatThread) => t.is_active);
+            if (active) {
+                setActiveThread(active);
+            } else if (threadList.length === 0) {
+                // No threads exist, create the first one
+                await handleNewChat();
+            } else {
+                // No active thread, activate the most recent one
+                setActiveThread(threadList[0]);
+            }
+        } catch (error) {
+            console.error('Failed to load threads:', error);
+            setThreadsLoaded(true);
+        }
+    };
+
+    const loadChatHistory = async (threadId: string) => {
+        try {
+            const response = await workflowService.getChatHistory(workflowId, 50, threadId);
             if (response.data?.messages?.length > 0) {
                 const historicalMessages: Message[] = response.data.messages.map((msg: any) => ({
                     id: msg.id,
@@ -106,38 +153,89 @@ export function AIAssistantWidget({
                     timestamp: new Date(msg.created_at),
                     actions: msg.actions,
                 }));
-                setMessages(prev => {
-                    const welcomeMessage = prev[0];
-                    return welcomeMessage ? [welcomeMessage, ...historicalMessages] : historicalMessages;
-                });
+                setMessages(historicalMessages);
+            } else {
+                // Empty thread, show welcome message
+                setMessages([{
+                    id: 'welcome',
+                    role: 'assistant',
+                    content: "Hi! I'm your AI workflow assistant. I can help you build workflows, configure nodes, or debug issues. What would you like to do?",
+                    timestamp: new Date(),
+                }]);
             }
-            setHistoryLoaded(true);
-
-            // Background prefetch remaining history
-            workflowService.getChatHistory(workflowId, 50).then(fullResponse => {
-                if (fullResponse.data?.messages?.length > 10) {
-                    const allMessages: Message[] = fullResponse.data.messages.map((msg: any) => ({
-                        id: msg.id,
-                        role: msg.role,
-                        content: msg.content,
-                        timestamp: new Date(msg.created_at),
-                        actions: msg.actions,
-                    }));
-                    // Replace with full history
-                    setMessages(prev => {
-                        const welcomeMessage = prev[0];
-                        return welcomeMessage ? [welcomeMessage, ...allMessages] : allMessages;
-                    });
-                }
-            }).catch(console.error);
         } catch (error) {
             console.error('Failed to load chat history:', error);
-            setHistoryLoaded(true);
+            setMessages([{
+                id: 'welcome',
+                role: 'assistant',
+                content: "Hi! I'm your AI workflow assistant. I can help you build workflows, configure nodes, or debug issues. What would you like to do?",
+                timestamp: new Date(),
+            }]);
+        }
+    };
+
+    const handleNewChat = async () => {
+        try {
+            const response = await workflowService.createThread(workflowId);
+            const newThread = response.data?.thread;
+            if (newThread) {
+                setThreads(prev => [newThread, ...prev]);
+                setActiveThread(newThread);
+                setMessages([{
+                    id: 'welcome',
+                    role: 'assistant',
+                    content: "Hi! I'm your AI workflow assistant. I can help you build workflows, configure nodes, or debug issues. What would you like to do?",
+                    timestamp: new Date(),
+                }]);
+            }
+            setShowThreadSelector(false);
+        } catch (error) {
+            console.error('Failed to create new thread:', error);
+        }
+    };
+
+    const handleSwitchThread = async (thread: ChatThread) => {
+        if (thread.id === activeThread?.id) {
+            setShowThreadSelector(false);
+            return;
+        }
+
+        try {
+            await workflowService.switchThread(workflowId, thread.id);
+            setActiveThread({ ...thread, is_active: true });
+            setThreads(prev => prev.map(t => ({
+                ...t,
+                is_active: t.id === thread.id,
+            })));
+            setShowThreadSelector(false);
+        } catch (error) {
+            console.error('Failed to switch thread:', error);
+        }
+    };
+
+    const handleDeleteThread = async (threadId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (threads.length <= 1) {
+            // Don't allow deleting the last thread
+            return;
+        }
+
+        try {
+            await workflowService.deleteThread(workflowId, threadId);
+            const remainingThreads = threads.filter(t => t.id !== threadId);
+            setThreads(remainingThreads);
+
+            // If we deleted the active thread, switch to another one
+            if (activeThread?.id === threadId && remainingThreads.length > 0) {
+                setActiveThread(remainingThreads[0] ?? null);
+            }
+        } catch (error) {
+            console.error('Failed to delete thread:', error);
         }
     };
 
     const handleSendMessage = async () => {
-        if (!input.trim() || isLoading) return;
+        if (!input.trim() || isLoading || !activeThread) return;
 
         const userMessage: Message = {
             id: Date.now().toString(),
@@ -155,6 +253,7 @@ export function AIAssistantWidget({
             const response = await workflowService.sendChatMessage(workflowId, userPrompt, {
                 llmProvider: 'gemini',
                 includeWorkflowContext: true,
+                threadId: activeThread.id,
             });
 
             const assistantMessage: Message = {
@@ -166,6 +265,13 @@ export function AIAssistantWidget({
             };
 
             setMessages((prev) => [...prev, assistantMessage]);
+
+            // Update thread message count
+            setThreads(prev => prev.map(t =>
+                t.id === activeThread.id
+                    ? { ...t, message_count: t.message_count + 2 }
+                    : t
+            ));
 
             // If there are actions, show them for approval
             if (response.data.actions && response.data.actions.length > 0) {
@@ -214,14 +320,23 @@ export function AIAssistantWidget({
     }, []);
 
     const handleClearHistory = async () => {
+        if (!activeThread) return;
+
         try {
-            await workflowService.clearChatHistory(workflowId);
+            await workflowService.clearChatHistory(workflowId, activeThread.id);
             setMessages([{
-                id: '1',
+                id: 'welcome',
                 role: 'assistant',
                 content: "Chat history cleared. How can I help you?",
                 timestamp: new Date(),
             }]);
+
+            // Update thread message count
+            setThreads(prev => prev.map(t =>
+                t.id === activeThread.id
+                    ? { ...t, message_count: 0 }
+                    : t
+            ));
         } catch (error) {
             console.error('Failed to clear history:', error);
         }
@@ -259,178 +374,302 @@ export function AIAssistantWidget({
     const quickActions = getQuickActions();
 
     return (
-        <div
-            className={cn(
-                'fixed right-0 top-0 h-screen bg-background border-l border-border transition-all duration-300 ease-in-out z-20 flex flex-col',
-                isExpanded ? 'w-[400px]' : 'w-[60px]'
-            )}
-        >
-            {/* Toggle Button */}
-            <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="absolute -left-10 top-4 w-10 h-10 bg-primary text-primary-foreground rounded-l-lg flex items-center justify-center hover:bg-primary/90 transition-colors shadow-lg"
-                aria-label={isExpanded ? 'Collapse AI Assistant' : 'Expand AI Assistant'}
-            >
-                {isExpanded ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-            </button>
+        <Sheet open={open} onOpenChange={onOpenChange}>
+            <SheetTrigger asChild>
+                <Button className="rounded-full w-12 h-12 p-0 shadow-2xl bg-linear-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white absolute bottom-6 right-6 z-50 overflow-hidden hover:scale-110 transition-transform duration-200">
+                    <Sparkles className="w-6 h-6 animate-pulse" />
+                    <span className="sr-only">AI Assistant</span>
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[400px] p-0 flex flex-col bg-background border-l border-border gap-0 [&>button]:hidden">
 
-            {/* Collapsed State */}
-            {!isExpanded && (
-                <div className="flex flex-col items-center justify-center h-full gap-4">
-                    <div className="writing-mode-vertical text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        <span className="rotate-180" style={{ writingMode: 'vertical-rl' }}>
-                            AI Assistant
-                        </span>
-                    </div>
-                </div>
-            )}
-
-            {/* Expanded State */}
-            {isExpanded && (
-                <>
-                    {/* Header */}
-                    <div className="p-4 border-b border-border">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                                    <Sparkles className="w-4 h-4 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-sm">AI Assistant</h3>
-                                    <p className="text-xs text-muted-foreground">Powered by Gemini</p>
-                                </div>
+                {/* Header */}
+                <SheetHeader className="p-4 border-b border-border">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                <Sparkles className="w-4 h-4 text-white" />
                             </div>
+                            <div className="text-left">
+                                <SheetTitle className="text-sm font-semibold">AI Assistant</SheetTitle>
+                                <p className="text-xs text-muted-foreground">Powered by Gemini</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleNewChat}
+                                title="New chat"
+                            >
+                                <MessageSquarePlus className="w-4 h-4" />
+                            </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={handleClearHistory}
-                                title="Clear chat history"
+                                title="Clear current chat"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
+                            <SheetClose asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Close"
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </SheetClose>
                         </div>
                     </div>
+                </SheetHeader>
 
-                    {/* Quick Actions */}
-                    {quickActions.length > 0 && !pendingActions && (
-                        <div className="p-3 border-b border-border bg-muted/30">
-                            <p className="text-xs text-muted-foreground mb-2">Quick actions:</p>
-                            <div className="flex flex-wrap gap-2">
-                                {quickActions.map((action, idx) => (
-                                    <Button
-                                        key={idx}
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={action.action}
-                                        className="text-xs h-7"
+                {/* Thread Selector */}
+                {threads.length > 0 && (
+                    <div className="relative border-b border-border">
+                        <button
+                            onClick={() => setShowThreadSelector(!showThreadSelector)}
+                            className="w-full px-4 py-2 flex items-center justify-between text-sm hover:bg-muted/50 transition-colors"
+                        >
+                            <span className="truncate font-medium">
+                                {activeThread?.title || 'Select chat'}
+                            </span>
+                            <ChevronDown className={cn(
+                                "w-4 h-4 transition-transform",
+                                showThreadSelector && "rotate-180"
+                            )} />
+                        </button>
+
+                        {/* Thread Dropdown */}
+                        {showThreadSelector && (
+                            <div className="absolute top-full left-0 right-0 bg-background border border-border rounded-b-lg shadow-lg z-10 max-h-[200px] overflow-y-auto">
+                                {threads.map((thread) => (
+                                    <div
+                                        key={thread.id}
+                                        onClick={() => handleSwitchThread(thread)}
+                                        className={cn(
+                                            "px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-muted/50",
+                                            thread.id === activeThread?.id && "bg-muted"
+                                        )}
                                     >
-                                        <action.icon className="w-3 h-3 mr-1" />
-                                        {action.label}
-                                    </Button>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{thread.title}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {thread.message_count} message{thread.message_count !== 1 ? 's' : ''}
+                                            </p>
+                                        </div>
+                                        {threads.length > 1 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 ml-2"
+                                                onClick={(e) => handleDeleteThread(thread.id, e)}
+                                                title="Delete chat"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </Button>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
+                )}
 
-                    {/* Pending Actions Bar */}
-                    {pendingActions && pendingActions.length > 0 && (
-                        <div className="p-3 border-b border-border bg-amber-50 dark:bg-amber-950">
-                            <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-2">
-                                {pendingActions.length} action(s) ready to apply
-                            </p>
-                            <div className="flex gap-2">
+                {/* Quick Actions */}
+                {quickActions.length > 0 && !pendingActions && (
+                    <div className="p-3 border-b border-border bg-muted/30">
+                        <p className="text-xs text-muted-foreground mb-2">Quick actions:</p>
+                        <div className="flex flex-wrap gap-2">
+                            {quickActions.map((action, idx) => (
                                 <Button
-                                    size="sm"
-                                    onClick={handleApplyActions}
-                                    className="flex-1 h-8"
-                                >
-                                    <Check className="w-3 h-3 mr-1" />
-                                    Apply
-                                </Button>
-                                <Button
+                                    key={idx}
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleRejectActions}
-                                    className="flex-1 h-8"
+                                    onClick={action.action}
+                                    className="text-xs h-7"
                                 >
-                                    <X className="w-3 h-3 mr-1" />
-                                    Reject
+                                    <action.icon className="w-3 h-3 mr-1" />
+                                    {action.label}
                                 </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Messages */}
-                    <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-                        <div className="space-y-4">
-                            {messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={cn(
-                                        'flex',
-                                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                                    )}
-                                >
-                                    <div
-                                        className={cn(
-                                            'max-w-[85%] rounded-lg px-3 py-2 text-sm',
-                                            message.role === 'user'
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'bg-muted'
-                                        )}
-                                    >
-                                        <p className="whitespace-pre-wrap">{message.content}</p>
-                                        {message.actions && message.actions.length > 0 && (
-                                            <p className="text-xs mt-2 opacity-70">
-                                                {message.actions.length} suggested action(s)
-                                            </p>
-                                        )}
-                                        <p className="text-xs opacity-60 mt-1">
-                                            {message.timestamp.toLocaleTimeString([], {
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })}
-                                        </p>
-                                    </div>
-                                </div>
                             ))}
-                            {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="bg-muted rounded-lg px-3 py-2">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    </div>
-                                </div>
-                            )}
                         </div>
-                    </ScrollArea>
+                    </div>
+                )}
 
-                    {/* Input */}
-                    <div className="p-4 border-t border-border">
+                {/* Pending Actions Bar */}
+                {pendingActions && pendingActions.length > 0 && (
+                    <div className="p-3 border-b border-border bg-amber-50 dark:bg-amber-950">
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-2">
+                            {pendingActions.length} action(s) ready to apply
+                        </p>
                         <div className="flex gap-2">
-                            <Input
-                                ref={inputRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder="Ask me anything..."
-                                disabled={isLoading}
-                                className="flex-1"
-                            />
                             <Button
-                                onClick={handleSendMessage}
-                                disabled={!input.trim() || isLoading}
-                                size="icon"
+                                size="sm"
+                                onClick={handleApplyActions}
+                                className="flex-1 h-8"
                             >
-                                <Send className="w-4 h-4" />
+                                <Check className="w-3 h-3 mr-1" />
+                                Apply
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRejectActions}
+                                className="flex-1 h-8"
+                            >
+                                <X className="w-3 h-3 mr-1" />
+                                Reject
                             </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                            Press Enter to send
-                        </p>
                     </div>
-                </>
-            )}
-        </div>
+                )}
+
+                {/* Messages */}
+                <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+                    <div className="space-y-4">
+                        {messages.map((message) => (
+                            <div
+                                key={message.id}
+                                className={cn(
+                                    'flex',
+                                    message.role === 'user' ? 'justify-end' : 'justify-start'
+                                )}
+                            >
+                                <div
+                                    className={cn(
+                                        'max-w-[85%] rounded-lg px-3 py-2 text-sm',
+                                        message.role === 'user'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-muted'
+                                    )}
+                                >
+                                    {message.role === 'user' ? (
+                                        <p className="whitespace-pre-wrap">{message.content}</p>
+                                    ) : (
+                                        <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                                            <ReactMarkdown
+                                                components={{
+                                                    // Style code blocks
+                                                    code: ({ className, children, ...props }) => {
+                                                        const isInline = !className;
+                                                        return isInline ? (
+                                                            <code className="bg-background/50 px-1 py-0.5 rounded text-xs" {...props}>
+                                                                {children}
+                                                            </code>
+                                                        ) : (
+                                                            <code className={cn("block bg-background/50 p-2 rounded text-xs overflow-x-auto", className)} {...props}>
+                                                                {children}
+                                                            </code>
+                                                        );
+                                                    },
+                                                    // Style pre blocks
+                                                    pre: ({ children }) => (
+                                                        <pre className="bg-background/50 p-2 rounded overflow-x-auto my-2">
+                                                            {children}
+                                                        </pre>
+                                                    ),
+                                                    // Style links
+                                                    a: ({ children, href }) => (
+                                                        <a
+                                                            href={href}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary underline hover:no-underline"
+                                                        >
+                                                            {children}
+                                                        </a>
+                                                    ),
+                                                    // Style lists
+                                                    ul: ({ children }) => (
+                                                        <ul className="list-disc pl-4 my-1">{children}</ul>
+                                                    ),
+                                                    ol: ({ children }) => (
+                                                        <ol className="list-decimal pl-4 my-1">{children}</ol>
+                                                    ),
+                                                    li: ({ children }) => (
+                                                        <li className="my-0.5">{children}</li>
+                                                    ),
+                                                    // Style paragraphs
+                                                    p: ({ children }) => (
+                                                        <p className="my-1">{children}</p>
+                                                    ),
+                                                    // Style headings
+                                                    h1: ({ children }) => (
+                                                        <h1 className="text-lg font-bold my-2">{children}</h1>
+                                                    ),
+                                                    h2: ({ children }) => (
+                                                        <h2 className="text-base font-bold my-2">{children}</h2>
+                                                    ),
+                                                    h3: ({ children }) => (
+                                                        <h3 className="text-sm font-bold my-1">{children}</h3>
+                                                    ),
+                                                    // Style strong/bold
+                                                    strong: ({ children }) => (
+                                                        <strong className="font-semibold">{children}</strong>
+                                                    ),
+                                                    // Style blockquotes
+                                                    blockquote: ({ children }) => (
+                                                        <blockquote className="border-l-2 border-primary pl-2 my-2 italic">
+                                                            {children}
+                                                        </blockquote>
+                                                    ),
+                                                }}
+                                            >
+                                                {message.content}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
+                                    {message.actions && message.actions.length > 0 && (
+                                        <p className="text-xs mt-2 opacity-70">
+                                            {message.actions.length} suggested action(s)
+                                        </p>
+                                    )}
+                                    <p className="text-xs opacity-60 mt-1">
+                                        {message.timestamp.toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                        {isLoading && (
+                            <div className="flex justify-start">
+                                <div className="bg-muted rounded-lg px-3 py-2">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+
+                {/* Input */}
+                <div className="p-4 border-t border-border">
+                    <div className="flex gap-2">
+                        <Input
+                            ref={inputRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder="Ask me anything..."
+                            disabled={isLoading}
+                            className="flex-1"
+                        />
+                        <Button
+                            onClick={handleSendMessage}
+                            disabled={!input.trim() || isLoading}
+                            size="icon"
+                        >
+                            <Send className="w-4 h-4" />
+                        </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Press Enter to send
+                    </p>
+                </div>
+            </SheetContent>
+        </Sheet>
     );
 }

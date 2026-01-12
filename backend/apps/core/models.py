@@ -1324,20 +1324,24 @@ class ConversationThread(models.Model):
     """
     Conversation thread for AI assistant chat.
 
-    Each workflow has one conversation thread for context persistence.
+    Each workflow can have multiple conversation threads (like Claude/ChatGPT tabs).
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workflow = models.OneToOneField(
+    workflow = models.ForeignKey(
         Workflow,
         on_delete=models.CASCADE,
-        related_name="conversation_thread",
+        related_name="conversation_threads",
         help_text="Workflow this conversation belongs to",
     )
     title = models.CharField(
         max_length=200,
         blank=True,
         help_text="Optional title for the conversation",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this is the currently active thread for the workflow",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1349,11 +1353,20 @@ class ConversationThread(models.Model):
         ordering = ["-updated_at"]
         indexes = [
             models.Index(fields=["workflow"]),
+            models.Index(fields=["workflow", "is_active"]),
             models.Index(fields=["updated_at"]),
         ]
 
     def __str__(self):
-        return f"Conversation for {self.workflow.name}"
+        return f"Conversation for {self.workflow.name}: {self.title or 'Untitled'}"
+
+    def save(self, *args, **kwargs):
+        # If this thread is being set as active, deactivate other threads
+        if self.is_active:
+            ConversationThread.objects.filter(
+                workflow=self.workflow, is_active=True
+            ).exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
 
 
 class ChatMessage(models.Model):

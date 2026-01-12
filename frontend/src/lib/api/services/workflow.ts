@@ -83,24 +83,60 @@ export const workflowService = {
         options?: {
             llmProvider?: 'gemini' | 'openai' | 'anthropic' | 'deepseek';
             includeWorkflowContext?: boolean;
+            threadId?: string;
         }
     ) => {
         const response = await client.post(`/api/v1/core/assistant/${workflowId}/chat/`, {
             message,
             llm_provider: options?.llmProvider || 'gemini',
             include_workflow_context: options?.includeWorkflowContext ?? true,
+            thread_id: options?.threadId,
         });
         return response.data;
     },
 
-    getChatHistory: async (workflowId: string, limit?: number) => {
-        const params = limit ? `?limit=${limit}` : '';
-        const response = await client.get(`/api/v1/core/assistant/${workflowId}/history/${params}`);
+    getChatHistory: async (workflowId: string, limit?: number, threadId?: string) => {
+        const params = new URLSearchParams();
+        if (limit) params.append('limit', limit.toString());
+        if (threadId) params.append('thread_id', threadId);
+        const queryString = params.toString() ? `?${params.toString()}` : '';
+        const response = await client.get(`/api/v1/core/assistant/${workflowId}/history/${queryString}`);
         return response.data;
     },
 
-    clearChatHistory: async (workflowId: string) => {
-        const response = await client.delete(`/api/v1/core/assistant/${workflowId}/history/`);
+    clearChatHistory: async (workflowId: string, threadId?: string) => {
+        const params = threadId ? `?thread_id=${threadId}` : '';
+        const response = await client.delete(`/api/v1/core/assistant/${workflowId}/history/${params}`);
+        return response.data;
+    },
+
+    // Thread management endpoints
+    listThreads: async (workflowId: string) => {
+        const response = await client.get(`/api/v1/core/assistant/${workflowId}/threads/`);
+        return response.data;
+    },
+
+    createThread: async (workflowId: string, title?: string) => {
+        const response = await client.post(`/api/v1/core/assistant/${workflowId}/threads/`, {
+            title,
+        });
+        return response.data;
+    },
+
+    switchThread: async (workflowId: string, threadId: string) => {
+        const response = await client.patch(`/api/v1/core/assistant/${workflowId}/threads/${threadId}/`, {
+            is_active: true,
+        });
+        return response.data;
+    },
+
+    updateThread: async (workflowId: string, threadId: string, data: { title?: string; is_active?: boolean }) => {
+        const response = await client.patch(`/api/v1/core/assistant/${workflowId}/threads/${threadId}/`, data);
+        return response.data;
+    },
+
+    deleteThread: async (workflowId: string, threadId: string) => {
+        const response = await client.delete(`/api/v1/core/assistant/${workflowId}/threads/${threadId}/`);
         return response.data;
     },
 };

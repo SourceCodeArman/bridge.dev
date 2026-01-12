@@ -59,49 +59,6 @@
             "required_fields": [
                 "input"
             ]
-        },
-        {
-            "id": "configure",
-            "name": "Configure Agent",
-            "description": "Configure the agent with model, memory, and tools",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "model_id": {
-                        "type": "string",
-                        "description": "ID of the model to use"
-                    },
-                    "memory_id": {
-                        "type": "string",
-                        "description": "ID of the memory connector to use"
-                    },
-                    "tool_ids": {
-                        "type": "array",
-                        "description": "IDs of tools available to the agent",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "system_prompt": {
-                        "type": "string",
-                        "description": "System prompt for the agent"
-                    }
-                }
-            },
-            "output_schema": {
-                "type": "object",
-                "properties": {
-                    "configured": {
-                        "type": "boolean",
-                        "description": "Whether configuration succeeded"
-                    },
-                    "configuration": {
-                        "type": "object",
-                        "description": "Current configuration"
-                    }
-                }
-            },
-            "required_fields": []
         }
     ]
 }

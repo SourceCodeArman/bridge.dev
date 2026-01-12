@@ -171,8 +171,6 @@ export const SmartPlusHandle = ({
         });
     }
 
-    console.log(dotStyle);
-
     return (
         <>
             {/* Connector Line */}
@@ -368,7 +366,6 @@ export function NodePreview({
 
     // Fallback if type not found
     const shapeClass = nodeTypeConfig?.style?.containerClass || 'rounded-[18px]';
-    console.log(shapeClass);
 
     return (
         <div className="flex flex-col items-center justify-center p-8 bg-transparent rounded-lg gap-2">

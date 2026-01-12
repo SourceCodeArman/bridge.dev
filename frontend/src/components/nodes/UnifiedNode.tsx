@@ -336,7 +336,6 @@ export const UnifiedNode = memo(({ data, selected, type }: NodeProps) => {
     const dimensions = ui.nodeSize || config.dimensions;
     const isWide = dimensions.width >= 200;
     const customRadius = ui.customRadius;
-    console.log(dimensions)
     const label = data.label as string || config.label;
     const description = data.description as string;
     const iconUrlLight = data.iconUrlLight as string;
