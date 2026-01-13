@@ -242,16 +242,45 @@ class ConnectorRegistry:
         Get connector class by ID.
 
         Args:
-            connector_id: ID of the connector
+            connector_id: ID of the connector (can be manifest ID, slug, or UUID)
 
         Returns:
             Connector class or None if not found
         """
-        # Try to find in registered code-based connectors
+        # 1. Try exact match in registered code-based connectors
         if connector_id in self._connectors:
             return self._connectors[connector_id]
 
-        # Fallback: Try to find in database (CustomConnector)
+        # 2. Try with underscore-to-dash conversion (google_calendar -> google-calendar)
+        normalized_id = connector_id.replace("_", "-")
+        if normalized_id in self._connectors:
+            return self._connectors[normalized_id]
+
+        # 3. Try looking up by slug in the Connector model to find the manifest ID
+        try:
+            from apps.core.models import Connector
+
+            # Try to find a system connector by slug
+            connector = None
+            try:
+                connector = Connector.objects.get(slug=connector_id)
+            except Connector.DoesNotExist:
+                # Try with normalized slug
+                try:
+                    connector = Connector.objects.get(slug=normalized_id)
+                except Connector.DoesNotExist:
+                    pass
+
+            if connector and connector.manifest:
+                # Get the manifest ID from the connector's manifest
+                manifest_id = connector.manifest.get("id")
+                if manifest_id and manifest_id in self._connectors:
+                    return self._connectors[manifest_id]
+
+        except ImportError:
+            pass
+
+        # 4. Fallback: Try to find in database (CustomConnector)
         try:
             # Import locally to avoid circular imports
             from apps.core.models import CustomConnector
@@ -289,12 +318,19 @@ class ConnectorRegistry:
                     },
                 )
             except (CustomConnector.DoesNotExist, ValueError):
-                # Try finding in standard Connector model (system connectors in DB)
+                # Try finding in standard Connector model by ID (system connectors in DB)
                 try:
                     from apps.core.models import Connector
 
                     connector = Connector.objects.get(id=connector_id)
 
+                    # First check if there's a registered code connector with this manifest ID
+                    if connector.manifest:
+                        manifest_id = connector.manifest.get("id")
+                        if manifest_id and manifest_id in self._connectors:
+                            return self._connectors[manifest_id]
+
+                    # Otherwise return a dynamic connector
                     return type(
                         f"DynamicSystemConnector_{connector_id.replace('-', '_')}",
                         (DatabaseCustomConnector,),

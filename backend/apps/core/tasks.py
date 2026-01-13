@@ -112,6 +112,182 @@ def execute_workflow_run(self, run_id: str):
         raise self.retry(countdown=60 * (2**self.request.retries), exc=exc)
 
 
+def execute_workflow_run_sync(run_id: str) -> Dict[str, Any]:
+    """
+    Execute a workflow run synchronously.
+
+    This is a synchronous version of execute_workflow_run, used for webhooks
+    that need to return the workflow result immediately.
+
+    Args:
+        run_id: UUID string of the Run instance
+
+    Returns:
+        Dict containing run status and aggregated outputs from all steps
+    """
+    try:
+        run = Run.objects.select_related(
+            "workflow_version", "workflow_version__workflow"
+        ).get(id=run_id)
+        orchestrator = RunOrchestrator()
+
+        logger.info(
+            f"Executing workflow run {run_id} synchronously",
+            extra={"run_id": run_id},
+        )
+
+        # Start the run
+        orchestrator.start_run(run)
+
+        # Get workflow for concurrency tracking
+        workflow = run.workflow_version.workflow
+
+        # Track run start for concurrency management
+        concurrency_manager = ConcurrencyManager()
+        concurrency_manager.track_run_start(workflow.id, run_id)
+
+        try:
+            # Execute steps synchronously
+            next_steps = orchestrator.get_next_steps(run)
+
+            while next_steps:
+                for step in next_steps:
+                    # Execute step synchronously (not via Celery)
+                    _execute_step_sync(str(step.id))
+
+                    # Check updated step status
+                    step.refresh_from_db()
+                    if step.status == "failed":
+                        break
+
+                # Refresh run to get updated status
+                run.refresh_from_db()
+                if run.status in ["failed", "completed", "cancelled"]:
+                    break
+
+                next_steps = orchestrator.get_next_steps(run)
+
+            # Final check - mark as completed if all steps done
+            run.refresh_from_db()
+            if run.status == "running":
+                pending_or_running = run.steps.filter(
+                    status__in=["pending", "running"]
+                ).count()
+                if pending_or_running == 0:
+                    orchestrator.complete_run(run)
+
+            # Aggregate outputs from all steps
+            outputs = {}
+            for step in run.steps.filter(status="completed").order_by("order"):
+                outputs[step.step_id] = step.outputs
+
+            logger.info(
+                f"Completed sync workflow run {run_id}",
+                extra={"run_id": run_id, "status": run.status},
+            )
+
+            return {
+                "run_id": str(run.id),
+                "status": run.status,
+                "outputs": outputs,
+            }
+
+        finally:
+            # Always track run completion for concurrency management
+            concurrency_manager.track_run_completion(workflow.id, run_id)
+
+    except Run.DoesNotExist:
+        logger.error(f"Run {run_id} not found")
+        raise
+    except Exception as exc:
+        logger.error(
+            f"Error executing sync workflow run {run_id}: {str(exc)}",
+            exc_info=exc,
+            extra={"run_id": run_id},
+        )
+        raise
+
+
+def _execute_step_sync(run_step_id: str) -> Dict[str, Any]:
+    """
+    Execute a single workflow step synchronously.
+
+    Args:
+        run_step_id: UUID string of the RunStep instance
+
+    Returns:
+        Dict containing step outputs
+    """
+    try:
+        run_step = RunStep.objects.select_related("run").get(id=run_step_id)
+        orchestrator = RunOrchestrator()
+
+        logger.info(
+            f"Executing step {run_step.step_id} synchronously for run {run_step.run.id}",
+            extra={
+                "run_step_id": run_step_id,
+                "run_id": str(run_step.run.id),
+                "step_id": run_step.step_id,
+                "step_type": run_step.step_type,
+            },
+        )
+
+        # Start the step
+        orchestrator.execute_step(run_step)
+
+        # Validate step inputs before execution
+        from .validators import validate_step_inputs
+
+        try:
+            validate_step_inputs(run_step.step_type, run_step.inputs)
+        except Exception as e:
+            logger.warning(
+                f"Input validation failed for step {run_step.id}: {str(e)}",
+                extra={
+                    "run_step_id": run_step_id,
+                    "step_type": run_step.step_type,
+                    "validation_error": str(e),
+                },
+            )
+
+        # Execute the step logic
+        outputs = _execute_step_logic(run_step)
+
+        # Mark step as completed
+        orchestrator.handle_step_completion(run_step, outputs)
+
+        logger.info(
+            f"Completed step {run_step.step_id} synchronously for run {run_step.run.id}",
+            extra={
+                "run_step_id": run_step_id,
+                "run_id": str(run_step.run.id),
+                "step_id": run_step.step_id,
+            },
+        )
+
+        return outputs
+
+    except RunStep.DoesNotExist:
+        logger.error(f"RunStep {run_step_id} not found")
+        raise
+    except Exception as exc:
+        logger.error(
+            f"Error executing step {run_step_id} synchronously: {str(exc)}",
+            exc_info=exc,
+            extra={"run_step_id": run_step_id},
+        )
+
+        # Mark step as failed
+        try:
+            run_step = RunStep.objects.get(id=run_step_id)
+            orchestrator = RunOrchestrator()
+            orchestrator.handle_step_failure(run_step, str(exc))
+        except RunStep.DoesNotExist:
+            pass
+
+        raise
+
+
 @shared_task(
     bind=True,
     max_retries=3,

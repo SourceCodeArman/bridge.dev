@@ -143,11 +143,22 @@ class RunOrchestrator:
         nodes = workflow_def.get("nodes", [])
 
         for order, node in enumerate(nodes):
+            node_data = node.get("data", {})
+            # Use the connector slug from node.data.slug for step_type
+            # This is the actual connector identifier (e.g., 'google_calendar', 'webhook')
+            # Fallback to connectorType, then to node.type if slug is not available
+            step_type = (
+                node_data.get("slug")
+                or node_data.get("connectorType")
+                or node_data.get("connector_type")
+                or node.get("type", "unknown")
+            )
+
             RunStep.objects.create(
                 run=run,
                 step_id=node.get("id", f"step_{order}"),
-                step_type=node.get("type", "unknown"),
-                inputs=node.get("data", {}),
+                step_type=step_type,
+                inputs=node_data,
                 status="pending",
                 order=order,
             )

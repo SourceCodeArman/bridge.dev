@@ -354,7 +354,7 @@ class WebhookTriggerView(APIView):
                 trigger_id=str(webhook_id), payload=payload
             )
 
-            # Create and enqueue run
+            # Create the run
             orchestrator = RunOrchestrator()
             run = orchestrator.create_run(
                 workflow_version=workflow_version,
@@ -365,26 +365,94 @@ class WebhookTriggerView(APIView):
                 check_limits=True,
             )
 
-            # Enqueue execution
-            execute_workflow_run.delay(str(run.id))
-
-            logger.info(
-                f"Webhook triggered workflow {workflow_version.workflow.id} via webhook {webhook_id}",
-                extra={
-                    "webhook_id": str(webhook_id),
-                    "workflow_id": str(workflow_version.workflow.id),
-                    "run_id": str(run.id),
-                },
+            # Get the respond option from webhook config (default: "Immediately")
+            respond_option = (
+                webhook_config.get("respond")
+                or node_data.get("respond")
+                or "Immediately"
             )
 
-            return Response(
-                {
-                    "status": "success",
-                    "data": {"run_id": str(run.id)},
-                    "message": "Webhook received and workflow run created",
-                },
-                status=status.HTTP_201_CREATED,
-            )
+            # Handle different respond options
+            if respond_option == "Using Respond to Webhook Node":
+                # Placeholder for future implementation
+                # Still execute the workflow in the background
+                execute_workflow_run.delay(str(run.id))
+
+                return Response(
+                    {
+                        "status": "error",
+                        "data": {"run_id": str(run.id)},
+                        "message": "Feature not yet implemented: 'Using Respond to Webhook Node' option is coming soon. Workflow has been triggered in the background.",
+                    },
+                    status=status.HTTP_501_NOT_IMPLEMENTED,
+                )
+
+            elif respond_option == "When Last Node Finishes":
+                # Execute synchronously and return the outputs
+                from ..tasks import execute_workflow_run_sync
+
+                result = execute_workflow_run_sync(str(run.id))
+
+                logger.info(
+                    f"Webhook executed workflow {workflow_version.workflow.id} sync via webhook {webhook_id}",
+                    extra={
+                        "webhook_id": str(webhook_id),
+                        "workflow_id": str(workflow_version.workflow.id),
+                        "run_id": str(run.id),
+                        "run_status": result.get("status"),
+                    },
+                )
+
+                # Filter outputs to exclude the webhook trigger step
+                outputs = result.get("outputs", {})
+                filtered_outputs = {
+                    step_id: step_output
+                    for step_id, step_output in outputs.items()
+                    if step_id != str(webhook_id)  # Exclude the trigger node
+                }
+
+                # Determine the response status code based on run status
+                run_status = result.get("status")
+                http_status = status.HTTP_200_OK
+                if run_status == "failed":
+                    http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
+
+                # Format response with clean structure
+                response_status = "success" if run_status == "completed" else "error"
+
+                return Response(
+                    {
+                        "status": response_status,
+                        "data": {
+                            "run_id": str(run.id),
+                            "outputs": filtered_outputs,
+                        },
+                        "message": f"Workflow executed with status: {response_status}",
+                    },
+                    status=http_status,
+                )
+
+            else:
+                # Default: "Immediately" - respond immediately, execute in background
+                execute_workflow_run.delay(str(run.id))
+
+                logger.info(
+                    f"Webhook triggered workflow {workflow_version.workflow.id} async via webhook {webhook_id}",
+                    extra={
+                        "webhook_id": str(webhook_id),
+                        "workflow_id": str(workflow_version.workflow.id),
+                        "run_id": str(run.id),
+                    },
+                )
+
+                return Response(
+                    {
+                        "status": "success",
+                        "data": {"run_id": str(run.id)},
+                        "message": "Webhook received and workflow run created",
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
 
         except ValidationError as e:
             return Response(
