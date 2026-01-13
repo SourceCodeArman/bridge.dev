@@ -43,7 +43,7 @@ interface JsonTreeNodeProps {
     isLast?: boolean;
 }
 
-const JsonTreeNode: React.FC<JsonTreeNodeProps> = ({ keyName, value, level = 0, isLast = true }) => {
+const JsonTreeNode: React.FC<JsonTreeNodeProps> = ({ keyName, value, level = 0 }) => {
     const [isOpen, setIsOpen] = useState(true);
     const type = getDataType(value);
     const isExpandable = type === 'object' || type === 'array';
@@ -185,7 +185,7 @@ export function JsonViewer({ data, className }: JsonViewerProps) {
                 </TabsContent>
 
                 <TabsContent value="json" className="flex-1 overflow-auto min-h-0">
-                    <pre className="text-xs font-mono p-4 whitespace-pre-wrap break-words text-muted-foreground">
+                    <pre className="text-xs font-mono p-4 whitespace-pre-wrap wrap-break-word text-muted-foreground">
                         {JSON.stringify(data, null, 2)}
                     </pre>
                 </TabsContent>

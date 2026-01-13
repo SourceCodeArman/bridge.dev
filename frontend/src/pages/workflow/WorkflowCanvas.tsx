@@ -768,22 +768,6 @@ const WorkflowCanvasInner = () => {
         return undefined;
     }, [pendingConnection]);
 
-
-    const handleApplyWorkflow = useCallback((definition: any) => {
-        if (definition.nodes && definition.edges) {
-            // Hydrate nodes with onAddClick callback
-            const hydratedNodes = definition.nodes.map((node: Node) => ({
-                ...node,
-                data: {
-                    ...node.data,
-                    onAddClick: handleSmartAdd
-                }
-            }));
-            setNodes(hydratedNodes);
-            setEdges(definition.edges);
-        }
-    }, [handleSmartAdd, setNodes, setEdges]);
-
     const handleApplyActions = useCallback((actions: any[]) => {
         console.log('🔧 handleApplyActions called with:', actions);
 

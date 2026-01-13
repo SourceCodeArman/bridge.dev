@@ -271,7 +271,6 @@ class WebhookTriggerView(APIView):
                     node_data = node.get("data", {})
                     # Check if this is a webhook node with matching ID
                     # The node's id field is the webhook_id (React Flow node ID)
-                    connector_type = node_data.get("connectorType")
                     node_id = node.get("id")
 
                     # Check if node matches the requested Webhook ID.
