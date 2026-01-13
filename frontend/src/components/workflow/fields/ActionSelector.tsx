@@ -33,7 +33,9 @@ export default function ActionSelector({
             <Label htmlFor="action-selector">{label}</Label>
             <Select value={value || ''} onValueChange={onChange}>
                 <SelectTrigger id="action-selector" className="bg-card border-border">
-                    <SelectValue placeholder="Select an action..." className="text-muted-foreground" />
+                    <SelectValue placeholder="Select an action...">
+                        {value && actions.find(a => a.id === value)?.name}
+                    </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-background border-border">
                     {actions.map((action) => (
@@ -42,7 +44,7 @@ export default function ActionSelector({
                             value={action.id}
                             className="text-foreground hover:bg-card focus:bg-card"
                         >
-                            <div>
+                            <div className="flex flex-col items-start">
                                 <div className="font-medium">{action.name}</div>
                                 {action.description && (
                                     <div className="text-xs text-muted-foreground">

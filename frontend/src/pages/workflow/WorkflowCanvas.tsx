@@ -32,6 +32,7 @@ import { Save, Layout, Plus, Sparkles, Loader2 } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
 
 import { AddNodeSheet } from '../../components/workflow/AddNodeSheet';
+import { CreateCredentialModal } from '../../components/credentials/CreateCredentialModal';
 import { AIAssistantWidget } from '@/components/workflow/AIAssistantWidget';
 
 
@@ -177,6 +178,7 @@ const WorkflowCanvasInner = () => {
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
+    const [isCreateCredentialOpen, setIsCreateCredentialOpen] = useState(false);
     const [pendingConnection, setPendingConnection] = useState<{ sourceId: string; handleId: string; type: string; allowedTypes?: string[]; nodeWidth?: number } | null>(null);
     const reactFlowWrapper = useRef(null);
     const { screenToFlowPosition, fitView } = useReactFlow();
@@ -360,9 +362,12 @@ const WorkflowCanvasInner = () => {
         if (connectorDataVal) {
             label = connectorDataVal.display_name || connectorDataVal.name;
             description = connectorDataVal.description || '';
-            connectorType = connectorDataVal.connector_type || type; // Use the actual connector_type
-            slug = connectorDataVal.slug || ''; // Store the slug separately
+            // IMPORTANT: connectorType must be the Connector ID (slug) for backend validation to work
+            // The API returns 'id' as the unique slug (e.g. 'webhook', 'openai')
+            connectorType = connectorDataVal.id;
+            slug = connectorDataVal.id || ''; // Use id as slug
             connectorId = connectorDataVal.id || ''; // Extract connector ID
+
             // For action nodes, we might need a specific actionId, but default to 'action' or first action if available?
             // For now keeping it simple as before:
             if (type === 'action') actionId = 'action';
@@ -371,7 +376,7 @@ const WorkflowCanvasInner = () => {
             if (type === 'trigger') {
                 label = 'Webhook Trigger';
                 description = 'Starts workflow via webhook';
-                connectorType = 'trigger';
+                connectorType = 'webhook'; // CORRECT: Use legal connector ID
                 slug = 'webhook';
             } else if (type === 'condition') {
                 label = 'If / Else';
@@ -379,7 +384,7 @@ const WorkflowCanvasInner = () => {
                 slug = 'condition';
             } else if (type === 'agent') {
                 label = 'AI Agent';
-                connectorType = 'agent';
+                connectorType = 'ai-agent'; // Match backend agent connector
                 slug = 'ai-agent';
             } else if (type === 'modelNode') {
                 label = 'Model';
@@ -1259,6 +1264,13 @@ const WorkflowCanvasInner = () => {
                         return n;
                     }));
                 }}
+                onCreateCredential={() => setIsCreateCredentialOpen(true)}
+            />
+
+            <CreateCredentialModal
+                open={isCreateCredentialOpen}
+                onOpenChange={setIsCreateCredentialOpen}
+                connectors={allConnectors}
             />
 
             {/* AI Assistant Widget */}

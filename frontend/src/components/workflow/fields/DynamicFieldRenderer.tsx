@@ -4,6 +4,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
+import GoogleCalendarSelector from './GoogleCalendarSelector';
+import DateTimePicker from './DateTimePicker';
 
 interface JSONSchemaProperty {
     type: string | string[];
@@ -18,6 +20,8 @@ interface JSONSchemaProperty {
     required?: boolean;
     readOnly?: boolean;
     displayName?: string;
+    'ui:component'?: string;
+    'ui:range-pair'?: string;
 }
 
 interface DynamicFieldRendererProps {
@@ -27,6 +31,10 @@ interface DynamicFieldRendererProps {
     onChange: (value: any) => void;
     required?: boolean;
     error?: string;
+    credentialId?: string;
+    allSchemas?: Record<string, JSONSchemaProperty>;
+    allValues?: Record<string, any>;
+    onMultiChange?: (updates: Record<string, any>) => void;
 }
 
 export default function DynamicFieldRenderer({
@@ -36,6 +44,10 @@ export default function DynamicFieldRenderer({
     onChange,
     required = false,
     error,
+    credentialId,
+    allSchemas,
+    allValues,
+    onMultiChange,
 }: DynamicFieldRendererProps) {
     const [jsonError, setJsonError] = useState<string>('');
 
@@ -47,6 +59,46 @@ export default function DynamicFieldRenderer({
         .split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+
+    // Handle date-time range pairs
+    const rangePair = schema['ui:range-pair'];
+    console.log(`[${fieldName}] Processing:`, {
+        rangePair,
+        component: schema['ui:component'],
+        format: schema.format,
+        hasAllSchemas: !!allSchemas,
+        hasAllValues: !!allValues,
+        hasOnMultiChange: !!onMultiChange,
+        allSchemasCount: allSchemas ? Object.keys(allSchemas).length : 0
+    });
+
+    // Handle custom UI components
+    if (schema['ui:component'] === 'google_calendar_selector') {
+        return (
+            <GoogleCalendarSelector
+                value={value}
+                onChange={onChange}
+                credentialId={credentialId}
+                label={label}
+                required={required}
+                error={error}
+            />
+        );
+    }
+
+    // Handle date-time format fields (including range fields that couldn't be paired)
+    if (schema.format === 'date-time') {
+        return (
+            <DateTimePicker
+                value={value}
+                onChange={onChange}
+                label={label}
+                required={required}
+                error={error}
+                placeholder={schema.description || 'Select date and time'}
+            />
+        );
+    }
 
     // Handle webhook_url format - display generated URL as read-only
     if (schema.format === 'webhook_url' && schema.readOnly) {

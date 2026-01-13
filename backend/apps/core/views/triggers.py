@@ -274,7 +274,9 @@ class WebhookTriggerView(APIView):
                     connector_type = node_data.get("connectorType")
                     node_id = node.get("id")
 
-                    if connector_type == "webhook" and str(node_id) == str(webhook_id):
+                    # Check if node matches the requested Webhook ID.
+                    # We allow any node to be triggered if the ID matches, supporting Custom Connectors.
+                    if str(node_id) == str(webhook_id):
                         workflow_version = version
                         webhook_node = node
                         break

@@ -1,5 +1,7 @@
 import { createContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '@/lib/api';
+import apiClient from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/constants';
 import { STORAGE_KEYS, getItem, setItem, removeItem, isTokenExpired } from '@/lib/utils/storage';
 import type { User, LoginRequest, RegisterRequest, ApiError } from '@/types';
 
@@ -48,6 +50,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (savedUser) {
                 setUser(savedUser);
                 setLoading(false);
+                // Ensure workspace is set
+                const wsId = getItem<string>('current_workspace_id');
+                if (!wsId) {
+                    apiClient.get(API_ENDPOINTS.WORKSPACES.LIST).then(res => {
+                        const workspaces = res.data?.results || res.data;
+                        if (workspaces && workspaces.length > 0) {
+                            setItem('current_workspace_id', workspaces[0].id);
+                        }
+                    }).catch(console.error);
+                }
                 return;
             }
 
@@ -56,6 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const currentUser = await authService.getCurrentUser();
                 setUser(currentUser);
                 setItem(STORAGE_KEYS.USER, currentUser);
+
+                // Fetch and set default workspace
+                const wsRes = await apiClient.get(API_ENDPOINTS.WORKSPACES.LIST);
+                const workspaces = wsRes.data?.results || wsRes.data;
+                if (workspaces && workspaces.length > 0) {
+                    setItem('current_workspace_id', workspaces[0].id);
+                }
             } catch {
                 // Token invalid despite not being expired, clear auth
                 removeItem(STORAGE_KEYS.AUTH_TOKEN);

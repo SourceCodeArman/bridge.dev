@@ -7,6 +7,7 @@ These settings override base.py for development environment.
 from .base import *
 import os
 from apps.common.logging_config import CorrelationIDFormatter
+from corsheaders.defaults import default_headers
 
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
@@ -32,6 +33,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-workspace-id",
+    "x-correlation-id",
+]
 
 # Logging configuration for development
 LOGGING = {

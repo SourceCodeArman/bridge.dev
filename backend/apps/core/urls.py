@@ -32,6 +32,7 @@ from .views.assistant import (
     AIAssistantThreadDetailView,
 )
 from .health import health_check
+from .views.integrations import IntegrationViewSet
 
 router = DefaultRouter()
 router.register(r"workflows", WorkflowViewSet, basename="workflow")
@@ -59,6 +60,7 @@ router.register(r"presence", WorkflowPresenceViewSet, basename="workflowpresence
 router.register(
     r"custom-connectors", CustomConnectorViewSet, basename="customconnector"
 )
+router.register(r"integrations", IntegrationViewSet, basename="integration")
 router.register(
     r"custom-connector-versions",
     CustomConnectorVersionViewSet,
@@ -70,11 +72,31 @@ app_name = "core"
 urlpatterns = [
     path("", include(router.urls)),
     # AI Assistant endpoints
-    path("assistant/<uuid:workflow_id>/chat/", AIAssistantChatView.as_view(), name="aiassistant-chat"),
-    path("assistant/<uuid:workflow_id>/chat/stream/", AIAssistantChatStreamView.as_view(), name="aiassistant-chat-stream"),
-    path("assistant/<uuid:workflow_id>/history/", AIAssistantHistoryView.as_view(), name="aiassistant-history"),
-    path("assistant/<uuid:workflow_id>/threads/", AIAssistantThreadsView.as_view(), name="aiassistant-threads"),
-    path("assistant/<uuid:workflow_id>/threads/<uuid:thread_id>/", AIAssistantThreadDetailView.as_view(), name="aiassistant-thread-detail"),
+    path(
+        "assistant/<uuid:workflow_id>/chat/",
+        AIAssistantChatView.as_view(),
+        name="aiassistant-chat",
+    ),
+    path(
+        "assistant/<uuid:workflow_id>/chat/stream/",
+        AIAssistantChatStreamView.as_view(),
+        name="aiassistant-chat-stream",
+    ),
+    path(
+        "assistant/<uuid:workflow_id>/history/",
+        AIAssistantHistoryView.as_view(),
+        name="aiassistant-history",
+    ),
+    path(
+        "assistant/<uuid:workflow_id>/threads/",
+        AIAssistantThreadsView.as_view(),
+        name="aiassistant-threads",
+    ),
+    path(
+        "assistant/<uuid:workflow_id>/threads/<uuid:thread_id>/",
+        AIAssistantThreadDetailView.as_view(),
+        name="aiassistant-thread-detail",
+    ),
     path(
         "webhook/<uuid:webhook_id>/",
         WebhookTriggerView.as_view(),

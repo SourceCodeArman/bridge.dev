@@ -1,47 +1,66 @@
-import { MOCK_CREDENTIALS_RESPONSE, MOCK_CREDENTIALS } from '@/lib/mockData';
+import apiClient from '@/lib/api/client';
 import type { PaginatedResponse, Credential, CreateCredentialRequest } from '@/types';
 
-const SIMULATED_DELAY = 800;
+// Helper to map frontend auth types to backend credential types
+const mapCredentialType = (type: string): string => {
+    switch (type) {
+        case 'oauth2':
+        case 'oauth':
+            return 'oauth_token';
+        case 'api_key':
+        case 'apikey':
+            return 'api_key';
+        case 'basic':
+        case 'basic_auth':
+            return 'basic_auth';
+        default:
+            return 'custom';
+    }
+};
 
 export const credentialService = {
     list: async (page = 1, pageSize = 10) => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        return MOCK_CREDENTIALS_RESPONSE;
+        const response = await apiClient.get<PaginatedResponse<Credential>>('/api/v1/core/credentials/', {
+            params: { page, page_size: pageSize }
+        });
+        return response.data;
     },
 
     get: async (id: string) => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        const credential = MOCK_CREDENTIALS.find(c => c.id === id);
-        if (!credential) throw new Error('Credential not found');
-        return credential;
+        const response = await apiClient.get<Credential>(`/api/v1/core/credentials/${id}/`);
+        return response.data;
     },
 
-    create: async (data: CreateCredentialRequest) => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        const newCredential: Credential = {
-            id: `cred-${Date.now()}`,
+    create: async (data: CreateCredentialRequest & { type?: string }) => {
+        // Map frontend CreateCredentialRequest to backend Serializer expectation
+        // Backend expects: { name, credential_type, data: { ...secrets } }
+        // Frontend sends: { name, connector_id, credentials: { ...secrets }, type: "oauth2" }
+
+        const payload = {
             name: data.name,
-            connector_id: data.connector_id,
-            connector_name: 'Mock Connector', // Ideally lookup from connector list
-            workspace_id: 'ws-1',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            credential_type: mapCredentialType(data.type || 'custom'),
+            data: {
+                ...data.credentials,
+                // We optionally store connector_id in the encrypted data for reference
+                _connector_id: data.connector_id
+            }
         };
-        // In a real mock we'd push to array, but for "visualization" returning is enough
-        // MOCK_CREDENTIALS.push(newCredential); 
-        return newCredential;
+
+        const response = await apiClient.post<Credential>('/api/v1/core/credentials/', payload);
+        return response.data;
     },
 
     update: async (id: string, data: Partial<CreateCredentialRequest>) => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        const existing = MOCK_CREDENTIALS.find(c => c.id === id);
-        if (!existing) throw new Error('Credential not found');
-        return { ...existing, ...data };
+        // For updates, we primarily update name or secrets (data)
+        const payload: any = {};
+        if (data.name) payload.name = data.name;
+        if (data.credentials) payload.data = data.credentials;
+
+        const response = await apiClient.patch<Credential>(`/api/v1/core/credentials/${id}/`, payload);
+        return response.data;
     },
 
     delete: async (id: string) => {
-        await new Promise(resolve => setTimeout(resolve, SIMULATED_DELAY));
-        // console.log('Mock deleted credential', id);
+        await apiClient.delete(`/api/v1/core/credentials/${id}/`);
     },
 };

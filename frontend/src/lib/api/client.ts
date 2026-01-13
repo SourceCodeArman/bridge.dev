@@ -77,6 +77,33 @@ apiClient.interceptors.request.use(
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Add Workspace ID header
+        // For MVP/Dev, we can fallback to a known ID if not in storage, but ideally it comes from storage
+        // Assuming 'ws-1' is the dev workspace ID based on previous context or we can fetch it.
+        // For now, let's try to get from storage or default to a safe value/let backend fallback.
+        // Actually, the backend fallback logic seems to efficiently find the first workspace.
+        // BUT, if the user has multiple, we need to be specific.
+        // Let's assume the frontend should store current workspace ID.
+
+        // Use a hardcoded dev ID if not found, or relied on backend default. 
+        // Given the error, backend default MIGHT exist but maybe the user has no workspace or logic failed?
+        // Wait, the "You do not have permission" suggests IsWorkspaceMember failed.
+        // That middleware *finds* a workspace. If it found one, but user isn't member, then 403.
+        // If it didn't find one, request.workspace is None.
+        // IsWorkspaceMember: if not workspace -> return True (lines 38-40). 
+        // Wait! BasePermission IsWorkspaceMember:
+        // if not workspace: return True (line 40)
+        // So if NO workspace found, it passes? 
+        // Ah, look at perform_create in CredentialViewSet: "Workspace context required".
+        // But the error is 403 permission denied.
+
+        // Let's explicitly header it.
+        const workspaceId = getItem<string>('current_workspace_id');
+        if (workspaceId && config.headers) {
+            config.headers['X-Workspace-Id'] = workspaceId;
+        }
+
         return config;
     },
     (error: AxiosError) => {

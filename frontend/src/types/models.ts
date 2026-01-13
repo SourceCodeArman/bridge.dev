@@ -138,7 +138,7 @@ export interface ConnectorManifest {
     name: string;
     version: string;
     description: string;
-    auth: AuthConfig;
+    auth_config: AuthConfig;
     actions: Record<string, ConnectorAction>;
     triggers?: Record<string, unknown>; // Added for completeness based on SheetConnectorManifest
     ui?: {
@@ -154,7 +154,7 @@ export interface ConnectorManifest {
 }
 
 export interface AuthConfig {
-    type: 'none' | 'api_key' | 'oauth2' | 'basic';
+    type: 'none' | 'api_key' | 'oauth2' | 'basic' | 'oauth';
     fields?: AuthField[];
 }
 
@@ -163,6 +163,8 @@ export interface AuthField {
     label: string;
     type: string;
     required: boolean;
+    description?: string;
+    hidden?: boolean;
 }
 
 export interface JSONSchema {

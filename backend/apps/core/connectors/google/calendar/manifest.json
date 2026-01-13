@@ -9,34 +9,30 @@
         "type": "oauth",
         "fields": [
             {
-                "name": "access_token",
-                "type": "password",
-                "required": true,
-                "description": "OAuth access token"
-            },
-            {
-                "name": "refresh_token",
-                "type": "password",
-                "required": true,
-                "description": "OAuth refresh token"
-            },
-            {
                 "name": "client_id",
                 "type": "string",
-                "required": false,
-                "description": "OAuth client ID (required for token refresh)"
+                "required": true,
+                "description": "OAuth Client ID from Google Cloud Console"
             },
             {
                 "name": "client_secret",
                 "type": "password",
-                "required": false,
-                "description": "OAuth client secret (required for token refresh)"
+                "required": true,
+                "description": "OAuth Client Secret from Google Cloud Console"
             },
             {
-                "name": "service_account_key",
-                "type": "object",
+                "name": "access_token",
+                "type": "password",
                 "required": false,
-                "description": "Service account key JSON (alternative to OAuth)"
+                "description": "OAuth access token (generated automatically)",
+                "hidden": true
+            },
+            {
+                "name": "refresh_token",
+                "type": "password",
+                "required": false,
+                "description": "OAuth refresh token (generated automatically)",
+                "hidden": true
             }
         ]
     },
@@ -47,6 +43,20 @@
             "description": "Create a new calendar event",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "calendar_id",
+                    "summary",
+                    "description",
+                    "location",
+                    "start_time",
+                    "end_time",
+                    "timezone",
+                    "attendees",
+                    "send_notifications",
+                    "reminders",
+                    "recurrence",
+                    "visibility"
+                ],
                 "required": [
                     "summary",
                     "start_time",
@@ -56,7 +66,8 @@
                     "calendar_id": {
                         "type": "string",
                         "default": "primary",
-                        "description": "Calendar ID (default: primary)"
+                        "description": "Calendar ID (default: primary)",
+                        "ui:component": "google_calendar_selector"
                     },
                     "summary": {
                         "type": "string",
@@ -73,12 +84,12 @@
                     "start_time": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Start time (ISO 8601 format, e.g., 2024-01-15T09:00:00-08:00)"
+                        "description": "Start time"
                     },
                     "end_time": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "End time (ISO 8601 format)"
+                        "description": "End time"
                     },
                     "timezone": {
                         "type": "string",
@@ -172,6 +183,10 @@
             "description": "Get a specific calendar event by ID",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "calendar_id",
+                    "event_id"
+                ],
                 "required": [
                     "event_id"
                 ],
@@ -179,7 +194,8 @@
                     "calendar_id": {
                         "type": "string",
                         "default": "primary",
-                        "description": "Calendar ID"
+                        "description": "Calendar ID (default: primary)",
+                        "ui:component": "google_calendar_selector"
                     },
                     "event_id": {
                         "type": "string",
@@ -238,21 +254,31 @@
             "description": "List calendar events within a time range",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "calendar_id",
+                    "time_min",
+                    "time_max",
+                    "max_results",
+                    "query",
+                    "single_events",
+                    "order_by"
+                ],
                 "properties": {
                     "calendar_id": {
                         "type": "string",
                         "default": "primary",
-                        "description": "Calendar ID"
+                        "description": "Calendar ID (default: primary)",
+                        "ui:component": "google_calendar_selector"
                     },
                     "time_min": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Lower bound for event start time (ISO 8601)"
+                        "description": "Lower bound for event start time"
                     },
                     "time_max": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Upper bound for event start time (ISO 8601)"
+                        "description": "Upper bound for event start time"
                     },
                     "max_results": {
                         "type": "integer",
@@ -328,6 +354,18 @@
             "description": "Update an existing calendar event",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "calendar_id",
+                    "event_id",
+                    "summary",
+                    "description",
+                    "location",
+                    "start_time",
+                    "end_time",
+                    "timezone",
+                    "attendees",
+                    "send_notifications"
+                ],
                 "required": [
                     "event_id"
                 ],
@@ -335,7 +373,8 @@
                     "calendar_id": {
                         "type": "string",
                         "default": "primary",
-                        "description": "Calendar ID"
+                        "description": "Calendar ID (default: primary)",
+                        "ui:component": "google_calendar_selector"
                     },
                     "event_id": {
                         "type": "string",
@@ -356,12 +395,12 @@
                     "start_time": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "New start time (ISO 8601)"
+                        "description": "New start time"
                     },
                     "end_time": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "New end time (ISO 8601)"
+                        "description": "New end time"
                     },
                     "timezone": {
                         "type": "string",
@@ -413,6 +452,11 @@
             "description": "Delete a calendar event",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "calendar_id",
+                    "event_id",
+                    "send_notifications"
+                ],
                 "required": [
                     "event_id"
                 ],
@@ -420,7 +464,8 @@
                     "calendar_id": {
                         "type": "string",
                         "default": "primary",
-                        "description": "Calendar ID"
+                        "description": "Calendar ID (default: primary)",
+                        "ui:component": "google_calendar_selector"
                     },
                     "event_id": {
                         "type": "string",
@@ -456,6 +501,9 @@
             "description": "List all calendars accessible to the user",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "show_hidden"
+                ],
                 "properties": {
                     "show_hidden": {
                         "type": "boolean",
@@ -514,30 +562,32 @@
             "description": "Check free/busy availability for calendars",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "calendar_id",
+                    "time_min",
+                    "time_max",
+                    "timezone"
+                ],
                 "required": [
                     "time_min",
                     "time_max"
                 ],
                 "properties": {
+                    "calendar_id": {
+                        "type": "string",
+                        "default": "primary",
+                        "description": "Calendar ID (default: primary)",
+                        "ui:component": "google_calendar_selector"
+                    },
                     "time_min": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Start of the interval (ISO 8601)"
+                        "description": "Start of the interval"
                     },
                     "time_max": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "End of the interval (ISO 8601)"
-                    },
-                    "calendar_ids": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "default": [
-                            "primary"
-                        ],
-                        "description": "List of calendar IDs to check"
+                        "description": "End of the interval"
                     },
                     "timezone": {
                         "type": "string",

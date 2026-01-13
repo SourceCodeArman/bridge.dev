@@ -9,28 +9,30 @@
     "type": "oauth",
     "fields": [
       {
-        "name": "access_token",
-        "type": "password",
-        "required": true,
-        "description": "OAuth access token"
-      },
-      {
-        "name": "refresh_token",
-        "type": "password",
-        "required": true,
-        "description": "OAuth refresh token"
-      },
-      {
         "name": "client_id",
         "type": "string",
-        "required": false,
-        "description": "OAuth client ID (required for token refresh)"
+        "required": true,
+        "description": "OAuth Client ID from Google Cloud Console"
       },
       {
         "name": "client_secret",
         "type": "password",
+        "required": true,
+        "description": "OAuth Client Secret from Google Cloud Console"
+      },
+      {
+        "name": "access_token",
+        "type": "password",
         "required": false,
-        "description": "OAuth client secret (required for token refresh)"
+        "description": "OAuth access token (generated automatically)",
+        "hidden": true
+      },
+      {
+        "name": "refresh_token",
+        "type": "password",
+        "required": false,
+        "description": "OAuth refresh token (generated automatically)",
+        "hidden": true
       },
       {
         "name": "service_account_key",
@@ -47,7 +49,11 @@
       "description": "Send an email via Gmail",
       "input_schema": {
         "type": "object",
-        "required": ["to", "subject", "body"],
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
         "properties": {
           "to": {
             "type": "string",
@@ -92,7 +98,11 @@
           }
         }
       },
-      "required_fields": ["to", "subject", "body"]
+      "required_fields": [
+        "to",
+        "subject",
+        "body"
+      ]
     },
     {
       "id": "read_emails",
@@ -172,7 +182,9 @@
       "description": "Get a specific email by ID",
       "input_schema": {
         "type": "object",
-        "required": ["message_id"],
+        "required": [
+          "message_id"
+        ],
         "properties": {
           "message_id": {
             "type": "string",
@@ -217,9 +229,9 @@
           }
         }
       },
-      "required_fields": ["message_id"]
+      "required_fields": [
+        "message_id"
+      ]
     }
   ]
 }
-
-

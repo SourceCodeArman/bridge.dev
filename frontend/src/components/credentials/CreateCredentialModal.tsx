@@ -25,6 +25,7 @@ import {
 import { credentialService } from "@/lib/api/services/credential";
 import { toast } from "sonner";
 import type { Connector, AuthField } from "@/types";
+import OAuthButton from "../workflow/fields/OAuthButton";
 
 interface CreateCredentialModalProps {
     open: boolean;
@@ -39,7 +40,7 @@ export function CreateCredentialModal({ open, onOpenChange, connectors }: Create
     const selectedConnector = connectors.find(c => c.id === selectedConnectorId);
     // Filter connectors that actually require auth or are custom
     const authConnectors = connectors.filter(c =>
-        c.manifest?.auth?.type !== 'none' || c.manifest?.auth?.fields?.length
+        c.manifest?.auth_config?.type !== 'none' || c.manifest?.auth_config?.fields?.length
     );
 
     // Dynamic schema generation based on selected connector
@@ -94,7 +95,10 @@ export function CreateCredentialModal({ open, onOpenChange, connectors }: Create
     });
 
     const onSubmit = (data: FormValues) => {
-        createMutation.mutate(data);
+        createMutation.mutate({
+            ...data,
+            type: selectedConnector?.manifest?.auth_config?.type
+        });
     };
 
     return (
@@ -145,34 +149,67 @@ export function CreateCredentialModal({ open, onOpenChange, connectors }: Create
                         )}
                     </div>
 
-                    {selectedConnector && selectedConnector.manifest.auth.fields && (
+                    {selectedConnector && selectedConnector.manifest.auth_config.fields && (
                         <div className="space-y-4 border-t pt-4">
                             <Label className="text-muted-foreground">Authentication Details</Label>
-                            {selectedConnector.manifest.auth.fields.map((field: AuthField) => (
-                                <div key={field.name} className="space-y-2">
-                                    <Label htmlFor={`creds-${field.name}`}>
-                                        {field.label} {field.required && <span className="text-destructive">*</span>}
-                                    </Label>
-                                    <Controller
-                                        name={`credentials.${field.name}`}
-                                        control={control}
-                                        rules={{ required: field.required ? `${field.label} is required` : false }}
-                                        render={({ field: { onChange, value } }) => (
-                                            <Input
-                                                id={`creds-${field.name}`}
-                                                type={field.type === 'password' ? 'password' : 'text'}
-                                                value={value as string || ''}
-                                                onChange={onChange}
-                                                placeholder={field.label}
-                                            />
-                                        )}
+                            {selectedConnector.manifest.auth_config.fields.map((field: AuthField) => {
+                                // Skip hidden fields from manual input, we'll handle them via state/OAuth
+                                if (field.hidden === true) return null;
+
+                                return (
+                                    <div key={field.name} className="space-y-2">
+                                        <Label htmlFor={`creds-${field.name}`}>
+                                            {field.label || field.name} {field.required && <span className="text-destructive">*</span>}
+                                        </Label>
+                                        <Controller
+                                            name={`credentials.${field.name}`}
+                                            control={control}
+                                            rules={{ required: field.required ? `${field.label || field.name} is required` : false }}
+                                            render={({ field: { onChange, value } }) => (
+                                                <Input
+                                                    id={`creds-${field.name}`}
+                                                    type={field.type === 'password' ? 'password' : 'text'}
+                                                    value={value as string || ''}
+                                                    onChange={onChange}
+                                                    placeholder={field.description || field.label || field.name}
+                                                />
+                                            )}
+                                        />
+                                    </div>
+                                )
+                            })}
+
+                            {/* OAuth Flow Section */}
+                            {selectedConnector.manifest.auth_config.type === 'oauth' && (
+                                <div className="pt-2">
+                                    <OAuthButton
+                                        clientId={control._formValues.credentials?.client_id || ''}
+                                        clientSecret={control._formValues.credentials?.client_secret || ''}
+                                        redirectUri={`${window.location.protocol}//${window.location.host}/api/v1/core/integrations/google/callback/`} // This needs to match backend expectation or just use a dummy one if backend handles it dynamically
+                                        // Actually, backend now expects us to send redirect_uri so it can match.
+                                        // For localhost dev: http://localhost:5173 (or whatever frontend origin is)
+                                        // But wait, the popup callback sends a message to window.opener.
+                                        // The redirect_uri passed to Google must match what is configured in Google Console.
+                                        // Let's assume standard localhost:5173 for now or window.location.origin
+                                        // The backend doesn't enforce a specific one, but Google does.
+                                        // We will pass window.location.origin to the hook, assuming the user added that to Google Console.
+                                        onSuccess={(tokens) => {
+                                            if (tokens.access_token) setValue('credentials.access_token', tokens.access_token);
+                                            if (tokens.refresh_token) setValue('credentials.refresh_token', tokens.refresh_token);
+                                        }}
+                                        disabled={!control._formValues.credentials?.client_id || !control._formValues.credentials?.client_secret}
+                                        label="Connect Account"
                                     />
+                                    {/* Hidden fields for tokens to ensure they are submitted */}
+                                    <Controller name="credentials.access_token" control={control} render={() => <input type="hidden" />} />
+                                    <Controller name="credentials.refresh_token" control={control} render={() => <input type="hidden" />} />
                                 </div>
-                            ))}
+                            )}
+
                         </div>
                     )}
 
-                    {selectedConnector && !selectedConnector.manifest.auth?.fields?.length && (
+                    {selectedConnector && !selectedConnector.manifest.auth_config?.fields?.length && (
                         <div className="flex items-center justify-center p-4 bg-muted/50 rounded-md text-sm text-muted-foreground">
                             This connector does not require any additional configuration.
                         </div>

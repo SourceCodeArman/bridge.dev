@@ -49,41 +49,53 @@ class Command(BaseCommand):
 
             item_path = os.path.join(connectors_dir, item)
             if os.path.isdir(item_path):
+                # Check for nested connectors (e.g. google/calendar)
                 manifest_path = os.path.join(item_path, "manifest.json")
                 if os.path.exists(manifest_path):
-                    try:
-                        with open(manifest_path, "r") as f:
-                            manifest = json.load(f)
-
-                        slug = manifest.get("id")
-                        # Ensure slug matches directory name or manifest ID
-                        if not slug:
-                            self.stdout.write(
-                                self.style.WARNING(f"Manifest in {item} missing 'id'")
+                    manifests_to_process = [manifest_path]
+                else:
+                    # Check subdirectories
+                    manifests_to_process = []
+                    for subitem in os.listdir(item_path):
+                        subitem_path = os.path.join(item_path, subitem)
+                        if os.path.isdir(subitem_path):
+                            sub_manifest_path = os.path.join(
+                                subitem_path, "manifest.json"
                             )
-                            continue
+                            if os.path.exists(sub_manifest_path):
+                                manifests_to_process.append(sub_manifest_path)
 
-                        # Use the icon map
-                        icon_url = ICON_URLS.get(slug, DEFAULT_ICON)
+            for manifest_path in manifests_to_process:
+                try:
+                    with open(manifest_path, "r") as f:
+                        manifest = json.load(f)
 
-                        Connector.objects.update_or_create(
-                            slug=slug,
-                            defaults={
-                                "display_name": manifest.get("name", slug.title()),
-                                "description": manifest.get("description", ""),
-                                "version": manifest.get("version", "1.0.0"),
-                                "manifest": manifest,
-                                "icon_url": icon_url,
-                                "is_active": True,
-                            },
-                        )
+                    slug = manifest.get("id")
+                    # Ensure slug matches directory name or manifest ID
+                    if not slug:
                         self.stdout.write(
-                            self.style.SUCCESS(f"Synced connector: {slug}")
+                            self.style.WARNING(f"Manifest in {item} missing 'id'")
                         )
-                        count += 1
-                    except Exception as e:
-                        self.stdout.write(
-                            self.style.ERROR(f"Failed to sync {item}: {e}")
-                        )
+                        continue
+
+                    # Use the icon map
+                    icon_url = ICON_URLS.get(slug, DEFAULT_ICON)
+
+                    Connector.objects.update_or_create(
+                        slug=slug,
+                        defaults={
+                            "display_name": manifest.get("name", slug.title()),
+                            "description": manifest.get("description", ""),
+                            "version": manifest.get("version", "1.0.0"),
+                            "manifest": manifest,
+                            "icon_url_light": icon_url,
+                            "icon_url_dark": icon_url,
+                            "is_active": True,
+                        },
+                    )
+                    self.stdout.write(self.style.SUCCESS(f"Synced connector: {slug}"))
+                    count += 1
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"Failed to sync {item}: {e}"))
 
         self.stdout.write(self.style.SUCCESS(f"Successfully synced {count} connectors"))

@@ -79,5 +79,23 @@ export const connectorService = {
 
         // Standard format
         return responseData;
+    },
+
+    executeAction: async (connectorId: string, actionId: string, config: any, credentialId?: string): Promise<any> => {
+        const payload = {
+            action_id: actionId,
+            credential_id: credentialId || undefined,
+            config
+        };
+
+        const response = await apiClient.post<any>(`${API_ENDPOINTS.CONNECTORS.DETAIL(connectorId)}execute/`, payload);
+        const data = response.data;
+
+        // Custom format from connectors endpoint
+        if (data.data) {
+            return data.data;
+        }
+
+        return data;
     }
 };

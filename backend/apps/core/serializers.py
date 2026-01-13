@@ -56,6 +56,7 @@ class ConnectorSerializer(serializers.ModelSerializer):
             "connector_type",
         ]
 
+
 class WorkflowSerializer(serializers.ModelSerializer):
     """Serializer for Workflow model"""
 
@@ -360,6 +361,7 @@ class CredentialListSerializer(serializers.ModelSerializer):
 
     workspace_name = serializers.CharField(source="workspace.name", read_only=True)
     created_by_email = serializers.CharField(source="created_by.email", read_only=True)
+    connector_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Credential
@@ -373,8 +375,18 @@ class CredentialListSerializer(serializers.ModelSerializer):
             "created_by_email",
             "created_at",
             "updated_at",
+            "connector_id",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_connector_id(self, obj):
+        """Extract connector_id from encrypted data"""
+        try:
+            encryption_service = get_encryption_service()
+            data = encryption_service.decrypt_dict(obj.encrypted_data)
+            return data.get("_connector_id")
+        except Exception:
+            return None
 
 
 class CredentialCreateSerializer(serializers.ModelSerializer):
@@ -387,6 +399,7 @@ class CredentialCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Credential
         fields = ("name", "credential_type", "workspace", "data")
+        read_only_fields = ("workspace",)
 
     def validate_data(self, value):
         """Validate that data is a dictionary"""

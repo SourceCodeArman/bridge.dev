@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { credentialService } from '@/lib/api/services/credential';
 import { Plus } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface CredentialSelectorProps {
     value?: string;
@@ -11,6 +12,7 @@ interface CredentialSelectorProps {
     connectorType?: string;
     label?: string;
     required?: boolean;
+    onCreate?: () => void;
 }
 
 export default function CredentialSelector({
@@ -19,16 +21,19 @@ export default function CredentialSelector({
     connectorType,
     label = 'Credential',
     required = false,
+    onCreate,
 }: CredentialSelectorProps) {
     const { data: credentials, isLoading } = useQuery({
         queryKey: ['credentials'],
         queryFn: () => credentialService.list(),
     });
+    console.log(credentials, isLoading)
 
     // Filter credentials by connector type if provided
     const filteredCredentials = credentials?.results?.filter(
         (cred) => !connectorType || cred.connector_id === connectorType
     ) || [];
+    useEffect(() => console.log(filteredCredentials), [filteredCredentials]);
 
     return (
         <div className="space-y-2">
@@ -60,8 +65,7 @@ export default function CredentialSelector({
                     size="icon"
                     title="Create new credential"
                     onClick={() => {
-                        // TODO: Open create credential modal
-                        console.log('Create credential clicked');
+                        if (onCreate) onCreate();
                     }}
                 >
                     <Plus className="h-4 w-4" />

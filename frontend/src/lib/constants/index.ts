@@ -75,11 +75,11 @@ export const API_ENDPOINTS = {
         AVATAR: '/api/v1/users/avatar/',
     },
     WORKSPACES: {
-        LIST: '/api/v1/workspaces/',
-        DETAIL: (id: string) => `/api/v1/workspaces/${id}/`,
-        MEMBERS: (id: string) => `/api/v1/workspaces/${id}/members/`,
-        INVITE: (id: string) => `/api/v1/workspaces/${id}/invite/`,
-        REMOVE_MEMBER: (id: string, userId: string) => `/api/v1/workspaces/${id}/members/${userId}/`,
+        LIST: '/api/v1/auth/workspaces/',
+        DETAIL: (id: string) => `/api/v1/auth/workspaces/${id}/`,
+        MEMBERS: (id: string) => `/api/v1/auth/workspaces/${id}/members/`,
+        INVITE: (id: string) => `/api/v1/auth/workspaces/${id}/invite/`,
+        REMOVE_MEMBER: (id: string, userId: string) => `/api/v1/auth/workspaces/${id}/members/${userId}/`,
     },
     ERROR_REPORTING: {
         REPORT: '/api/v1/errors/report/',

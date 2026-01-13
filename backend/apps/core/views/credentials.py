@@ -20,6 +20,8 @@ from ..serializers import (
     CredentialDetailSerializer,
     CredentialUsageSerializer,
 )
+from apps.core.encryption import get_encryption_service
+from apps.core.connectors.google.calendar.connector import GoogleCalendarConnector
 
 logger = get_logger(__name__)
 
@@ -48,6 +50,9 @@ class CredentialViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter credentials by workspace"""
         workspace = getattr(self.request, "workspace", None)
+        logger.info(
+            f"CredentialViewSet.get_queryset: workspace={workspace}, user={self.request.user}"
+        )
         if workspace:
             return Credential.objects.filter(workspace=workspace)
         return Credential.objects.none()
@@ -100,3 +105,30 @@ class CredentialViewSet(viewsets.ModelViewSet):
                 "message": "Connection test initiated (not implemented)",
             }
         )
+
+    @action(detail=True, methods=["get"], url_path="google/calendars")
+    def list_google_calendars(self, request, pk=None):
+        """List Google Calendars for a credential"""
+        credential = self.get_object()
+
+        try:
+            # Decrypt credential secrets
+            encryption_service = get_encryption_service()
+            config = encryption_service.decrypt_dict(credential.encrypted_data)
+
+            # Initialize connector
+            connector = GoogleCalendarConnector(config)
+            # We need to initialize the service
+            connector._initialize()
+
+            # List calendars
+            result = connector._execute_list_calendars({"show_hidden": False})
+
+            return Response(result)
+
+        except Exception as e:
+            logger.error(
+                f"Failed to list calendars: {str(e)}",
+                extra={"credential_id": str(credential.id)},
+            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

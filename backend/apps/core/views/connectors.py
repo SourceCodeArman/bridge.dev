@@ -203,6 +203,115 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    @action(detail=True, methods=["post"])
+    def execute(self, request, pk=None):
+        """
+        Execute a connector action for testing purposes.
+
+        POST /api/v1/core/connectors/{id}/execute/
+        Body:
+        {
+            "action_id": "string",
+            "credential_id": "uuid" (optional),
+            "config": {} (action inputs)
+        }
+        """
+        from ..connectors.base import ConnectorRegistry
+        from ..models import Credential
+        from ..encryption import get_encryption_service
+
+        action_id = request.data.get("action_id")
+        credential_id = request.data.get("credential_id")
+        config = request.data.get("config", {})
+
+        if not action_id:
+            return Response(
+                {"status": "error", "message": "action_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # 1. Get connector class
+            # First, resolve the database ID (pk) to the actual connector ID (slug/manifest ID)
+            try:
+                connector_instance = self.get_queryset().get(pk=pk)
+                connector_pk = (
+                    connector_instance.manifest.get("id") or connector_instance.slug
+                )
+            except (Connector.DoesNotExist, ValidationError):
+                # Fallback for when pk might be the slug itself (though less likely in this viewset pattern)
+                connector_pk = pk
+
+            registry = ConnectorRegistry()
+            connector_class = registry.get(connector_pk)
+
+            if not connector_class:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": f"Connector class for '{connector_pk}' not found in registry",
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # 2. Get credential if provided
+            credential_config = {}
+            if credential_id:
+                try:
+                    # Filter by workspace for security
+                    workspace = getattr(request, "workspace", None)
+                    credential = Credential.objects.get(
+                        id=credential_id, workspace=workspace
+                    )
+
+                    # Decrypt secrets
+                    encryption_service = get_encryption_service()
+                    credential_config = encryption_service.decrypt_dict(
+                        credential.encrypted_data
+                    )
+                except Credential.DoesNotExist:
+                    return Response(
+                        {"status": "error", "message": "Credential not found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                except Exception as e:
+                    return Response(
+                        {
+                            "status": "error",
+                            "message": f"Failed to decrypt credential: {str(e)}",
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+
+            # 3. Instantiate and execute
+            # Merge inputs with credential config
+            full_config = {**config, **credential_config}
+
+            connector = connector_class(full_config)
+            result = connector.execute(action_id, config)
+
+            return Response(
+                {
+                    "status": "success",
+                    "data": result,
+                    "message": "Action executed successfully",
+                }
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Error executing action {action_id} for connector {pk}: {str(e)}",
+                exc_info=e,
+                extra={"connector_id": pk, "action_id": action_id},
+            )
+            return Response(
+                {
+                    "status": "error",
+                    "message": f"Execution failed: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class CustomConnectorViewSet(viewsets.ModelViewSet):
     """
