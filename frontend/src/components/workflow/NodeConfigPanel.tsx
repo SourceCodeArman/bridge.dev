@@ -197,7 +197,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                         <CredentialSelector
                                             value={credentialId}
                                             onChange={handleCredentialChange}
-                                            connectorType={connector.id}
+                                            slug={connector.slug}
                                             required={connector.manifest.auth_config.fields?.some(f => f.required)}
                                             onCreate={onCreateCredential}
                                         />

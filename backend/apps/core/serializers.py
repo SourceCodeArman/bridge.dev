@@ -361,7 +361,7 @@ class CredentialListSerializer(serializers.ModelSerializer):
 
     workspace_name = serializers.CharField(source="workspace.name", read_only=True)
     created_by_email = serializers.CharField(source="created_by.email", read_only=True)
-    connector_id = serializers.SerializerMethodField()
+    slug = serializers.SerializerMethodField()
 
     class Meta:
         model = Credential
@@ -375,16 +375,27 @@ class CredentialListSerializer(serializers.ModelSerializer):
             "created_by_email",
             "created_at",
             "updated_at",
-            "connector_id",
+            "slug",
         )
         read_only_fields = ("id", "created_at", "updated_at")
 
-    def get_connector_id(self, obj):
-        """Extract connector_id from encrypted data"""
+    def get_slug(self, obj):
+        """Extract connector slug from encrypted data and normalize to hyphen format"""
         try:
             encryption_service = get_encryption_service()
             data = encryption_service.decrypt_dict(obj.encrypted_data)
-            return data.get("_connector_id")
+            slug = data.get("_connector_id")
+
+            if slug:
+                # Normalize legacy underscore format to hyphen format
+                # e.g., google_sheets -> google-sheets, google_calendar -> google-calendar
+                slug = slug.replace("_", "-")
+
+                # Handle special case: google-gmail -> gmail (to match actual connector slug)
+                if slug == "google-gmail":
+                    slug = "gmail"
+
+            return slug
         except Exception:
             return None
 

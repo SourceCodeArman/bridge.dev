@@ -49,6 +49,11 @@
       "description": "Read data from a sheet range",
       "input_schema": {
         "type": "object",
+        "ui:order": [
+          "spreadsheet_id",
+          "worksheet_name",
+          "range"
+        ],
         "required": [
           "spreadsheet_id",
           "range"
@@ -56,11 +61,17 @@
         "properties": {
           "spreadsheet_id": {
             "type": "string",
-            "description": "Google Sheets spreadsheet ID (from URL)"
+            "description": "Google Sheets spreadsheet ID (from URL)",
+            "ui:component": "google_spreadsheet_selector"
+          },
+          "worksheet_name": {
+            "type": "string",
+            "description": "Worksheet (tab) name",
+            "ui:component": "google_worksheet_selector"
           },
           "range": {
             "type": "string",
-            "description": "Range to read (e.g., \"Sheet1!A1:B10\" or \"A1:B10\")"
+            "description": "Cell range to read (e.g., \"A1:B10\")"
           }
         }
       },
@@ -90,6 +101,12 @@
       "description": "Write data to a sheet range (overwrites existing data)",
       "input_schema": {
         "type": "object",
+        "ui:order": [
+          "spreadsheet_id",
+          "worksheet_name",
+          "range",
+          "values"
+        ],
         "required": [
           "spreadsheet_id",
           "range",
@@ -98,11 +115,17 @@
         "properties": {
           "spreadsheet_id": {
             "type": "string",
-            "description": "Google Sheets spreadsheet ID"
+            "description": "Google Sheets spreadsheet ID",
+            "ui:component": "google_spreadsheet_selector"
+          },
+          "worksheet_name": {
+            "type": "string",
+            "description": "Worksheet (tab) name",
+            "ui:component": "google_worksheet_selector"
           },
           "range": {
             "type": "string",
-            "description": "Range to write (e.g., \"Sheet1!A1:B10\")"
+            "description": "Cell range to write (e.g., \"A1:B10\")"
           },
           "values": {
             "type": "array",
@@ -141,19 +164,25 @@
       "description": "Append rows to the end of a sheet range",
       "input_schema": {
         "type": "object",
+        "ui:order": [
+          "spreadsheet_id",
+          "worksheet_name",
+          "values"
+        ],
         "required": [
           "spreadsheet_id",
-          "range",
           "values"
         ],
         "properties": {
           "spreadsheet_id": {
             "type": "string",
-            "description": "Google Sheets spreadsheet ID"
+            "description": "Google Sheets spreadsheet ID",
+            "ui:component": "google_spreadsheet_selector"
           },
-          "range": {
+          "worksheet_name": {
             "type": "string",
-            "description": "Sheet name or range (e.g., \"Sheet1\" or \"Sheet1!A1\")"
+            "description": "Worksheet (tab) name",
+            "ui:component": "google_worksheet_selector"
           },
           "values": {
             "type": "array",
@@ -196,6 +225,11 @@
       "description": "Clear data from a sheet range",
       "input_schema": {
         "type": "object",
+        "ui:order": [
+          "spreadsheet_id",
+          "worksheet_name",
+          "range"
+        ],
         "required": [
           "spreadsheet_id",
           "range"
@@ -203,11 +237,17 @@
         "properties": {
           "spreadsheet_id": {
             "type": "string",
-            "description": "Google Sheets spreadsheet ID"
+            "description": "Google Sheets spreadsheet ID",
+            "ui:component": "google_spreadsheet_selector"
+          },
+          "worksheet_name": {
+            "type": "string",
+            "description": "Worksheet (tab) name",
+            "ui:component": "google_worksheet_selector"
           },
           "range": {
             "type": "string",
-            "description": "Range to clear (e.g., \"Sheet1!A1:B10\")"
+            "description": "Cell range to clear (e.g., \"A1:B10\")"
           }
         }
       },
@@ -223,6 +263,123 @@
       "required_fields": [
         "spreadsheet_id",
         "range"
+      ]
+    },
+    {
+      "id": "create_spreadsheet",
+      "name": "Create Spreadsheet",
+      "description": "Create a new Google Spreadsheet",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Title of the new spreadsheet"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "description": "ID of the created spreadsheet"
+          },
+          "spreadsheet_url": {
+            "type": "string",
+            "description": "URL of the created spreadsheet"
+          }
+        }
+      },
+      "required_fields": [
+        "title"
+      ]
+    },
+    {
+      "id": "add_worksheet",
+      "name": "Add Worksheet",
+      "description": "Add a new worksheet (tab) to a spreadsheet",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "spreadsheet_id",
+          "title"
+        ],
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "description": "Google Sheets spreadsheet ID",
+            "ui:component": "google_spreadsheet_selector"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the new worksheet"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "sheet_id": {
+            "type": "integer",
+            "description": "ID of the created worksheet"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the created worksheet"
+          }
+        }
+      },
+      "required_fields": [
+        "spreadsheet_id",
+        "title"
+      ]
+    },
+    {
+      "id": "list_worksheets",
+      "name": "List Worksheets",
+      "description": "List all worksheets in a spreadsheet",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "spreadsheet_id"
+        ],
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "description": "Google Sheets spreadsheet ID",
+            "ui:component": "google_spreadsheet_selector"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "worksheets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sheet_id": {
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "index": {
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "List of worksheets in the spreadsheet"
+          }
+        }
+      },
+      "required_fields": [
+        "spreadsheet_id"
       ]
     }
   ]

@@ -132,3 +132,72 @@ class CredentialViewSet(viewsets.ModelViewSet):
                 extra={"credential_id": str(credential.id)},
             )
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["get"], url_path="google/spreadsheets")
+    def list_google_spreadsheets(self, request, pk=None):
+        """List Google Spreadsheets for a credential"""
+        credential = self.get_object()
+
+        try:
+            from apps.core.connectors.google.sheets.connector import (
+                GoogleSheetsConnector,
+            )
+
+            # Decrypt credential secrets
+            encryption_service = get_encryption_service()
+            config = encryption_service.decrypt_dict(credential.encrypted_data)
+
+            # Initialize connector
+            connector = GoogleSheetsConnector(config)
+            connector._initialize()
+
+            # List spreadsheets
+            result = connector._execute_list_spreadsheets({})
+
+            return Response(result)
+
+        except Exception as e:
+            logger.error(
+                f"Failed to list spreadsheets: {str(e)}",
+                extra={"credential_id": str(credential.id)},
+            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="google/spreadsheets/(?P<spreadsheet_id>[^/.]+)/worksheets",
+    )
+    def list_google_worksheets(self, request, pk=None, spreadsheet_id=None):
+        """List worksheets (tabs) for a specific Google Spreadsheet"""
+        credential = self.get_object()
+
+        try:
+            from apps.core.connectors.google.sheets.connector import (
+                GoogleSheetsConnector,
+            )
+
+            # Decrypt credential secrets
+            encryption_service = get_encryption_service()
+            config = encryption_service.decrypt_dict(credential.encrypted_data)
+
+            # Initialize connector
+            connector = GoogleSheetsConnector(config)
+            connector._initialize()
+
+            # List worksheets for the spreadsheet
+            result = connector._execute_list_worksheets(
+                {"spreadsheet_id": spreadsheet_id}
+            )
+
+            return Response(result)
+
+        except Exception as e:
+            logger.error(
+                f"Failed to list worksheets: {str(e)}",
+                extra={
+                    "credential_id": str(credential.id),
+                    "spreadsheet_id": spreadsheet_id,
+                },
+            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

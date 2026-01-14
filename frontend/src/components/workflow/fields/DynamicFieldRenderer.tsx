@@ -5,6 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import GoogleCalendarSelector from './GoogleCalendarSelector';
+import GoogleSpreadsheetSelector from './GoogleSpreadsheetSelector';
+import GoogleWorksheetSelector from './GoogleWorksheetSelector';
 import DateTimePicker from './DateTimePicker';
 
 interface JSONSchemaProperty {
@@ -79,6 +81,35 @@ export default function DynamicFieldRenderer({
                 value={value}
                 onChange={onChange}
                 credentialId={credentialId}
+                label={label}
+                required={required}
+                error={error}
+            />
+        );
+    }
+
+    if (schema['ui:component'] === 'google_spreadsheet_selector') {
+        return (
+            <GoogleSpreadsheetSelector
+                value={value}
+                onChange={onChange}
+                credentialId={credentialId}
+                label={label}
+                required={required}
+                error={error}
+            />
+        );
+    }
+
+    if (schema['ui:component'] === 'google_worksheet_selector') {
+        // Get spreadsheet_id from allValues for cascading selection
+        const spreadsheetId = allValues?.spreadsheet_id;
+        return (
+            <GoogleWorksheetSelector
+                value={value}
+                onChange={onChange}
+                credentialId={credentialId}
+                spreadsheetId={spreadsheetId}
                 label={label}
                 required={required}
                 error={error}

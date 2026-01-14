@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 interface CredentialSelectorProps {
     value?: string;
     onChange: (credentialId: string) => void;
-    connectorType?: string;
+    slug?: string;
     label?: string;
     required?: boolean;
     onCreate?: () => void;
@@ -18,7 +18,7 @@ interface CredentialSelectorProps {
 export default function CredentialSelector({
     value,
     onChange,
-    connectorType,
+    slug,
     label = 'Credential',
     required = false,
     onCreate,
@@ -31,7 +31,7 @@ export default function CredentialSelector({
 
     // Filter credentials by connector type if provided
     const filteredCredentials = credentials?.results?.filter(
-        (cred) => !connectorType || cred.connector_id === connectorType
+        (cred) => !cred.slug || cred.slug === slug
     ) || [];
     useEffect(() => console.log(filteredCredentials), [filteredCredentials]);
 

@@ -55,11 +55,10 @@ class GoogleCalendarConnector(BaseConnector):
     def _initialize(self) -> None:
         """Initialize Google Calendar service"""
         try:
-            scopes = [
-                "https://www.googleapis.com/auth/calendar",
-                "https://www.googleapis.com/auth/calendar.events",
-            ]
-            self.config = refresh_google_token(self.config, scopes)
+            # Refresh token if needed before initializing (using combined scopes)
+            from ..auth import GOOGLE_COMBINED_SCOPES
+
+            self.config = refresh_google_token(self.config, GOOGLE_COMBINED_SCOPES)
 
             self.service = get_google_service(self.config, "calendar", "v3")
 

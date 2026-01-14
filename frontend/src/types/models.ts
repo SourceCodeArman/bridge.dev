@@ -194,7 +194,7 @@ export interface ConnectorListParams {
 export interface Credential {
     id: string;
     name: string;
-    connector_id: string;
+    slug: string;
     connector_name?: string;
     workspace_id: string;
     created_at: string;

@@ -9,6 +9,26 @@ from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
+# Service-specific Google OAuth scopes
+# Keys should match connector slugs (hyphen format)
+GOOGLE_SCOPES = {
+    "google-sheets": [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.readonly",  # For listing spreadsheets
+    ],
+    "google-calendar": [
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/calendar.events",
+    ],
+    "gmail": [
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.readonly",
+    ],
+    "google-drive": [
+        "https://www.googleapis.com/auth/drive",
+    ],
+}
+
 
 class IntegrationViewSet(viewsets.GenericViewSet):
     """
@@ -80,6 +100,7 @@ class IntegrationViewSet(viewsets.GenericViewSet):
         client_id = request.data.get("client_id")
         client_secret = request.data.get("client_secret")
         redirect_uri = request.data.get("redirect_uri")
+        connector_type = request.data.get("connector_type", "google-calendar")
 
         if not all([client_id, client_secret, redirect_uri]):
             return Response(
@@ -88,11 +109,15 @@ class IntegrationViewSet(viewsets.GenericViewSet):
             )
 
         try:
-            # Default scopes for Google Calendar
-            scopes = [
-                "https://www.googleapis.com/auth/calendar",
-                "https://www.googleapis.com/auth/calendar.events",
-            ]
+            # Get scopes based on connector type
+            scopes = GOOGLE_SCOPES.get(connector_type)
+            if not scopes:
+                return Response(
+                    {
+                        "error": f"Unknown connector type: {connector_type}. Valid types: {list(GOOGLE_SCOPES.keys())}"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             url = GoogleAuthService.get_authorization_url(
                 client_id=client_id,
@@ -116,6 +141,7 @@ class IntegrationViewSet(viewsets.GenericViewSet):
         client_secret = request.data.get("client_secret")
         code = request.data.get("code")
         redirect_uri = request.data.get("redirect_uri")
+        connector_type = request.data.get("connector_type", "google-calendar")
 
         if not all([client_id, client_secret, code, redirect_uri]):
             return Response(
@@ -126,11 +152,13 @@ class IntegrationViewSet(viewsets.GenericViewSet):
             )
 
         try:
-            # Default scopes for Google Calendar - must match auth-url
-            scopes = [
-                "https://www.googleapis.com/auth/calendar",
-                "https://www.googleapis.com/auth/calendar.events",
-            ]
+            # Get scopes based on connector type - must match auth-url
+            scopes = GOOGLE_SCOPES.get(connector_type)
+            if not scopes:
+                return Response(
+                    {"error": f"Unknown connector type: {connector_type}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             tokens = GoogleAuthService.exchange_code_for_token(
                 client_id=client_id,

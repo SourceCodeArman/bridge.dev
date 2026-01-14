@@ -8,6 +8,7 @@ interface OAuthButtonProps {
     clientId: string;
     clientSecret: string;
     redirectUri: string;
+    connectorType?: string;
     onSuccess: (tokens: any) => void;
     onError?: (error: any) => void;
     label?: string;
@@ -18,6 +19,7 @@ export default function OAuthButton({
     clientId,
     clientSecret,
     redirectUri,
+    connectorType = 'google_calendar',
     onSuccess,
     onError,
     label = 'Connect with Google',
@@ -44,6 +46,7 @@ export default function OAuthButton({
                         client_secret: clientSecret,
                         code: event.data.code,
                         redirect_uri: redirectUri,
+                        connector_type: connectorType,
                     });
 
                     toast.success('Successfully connected to Google');
@@ -66,7 +69,7 @@ export default function OAuthButton({
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [clientId, clientSecret, redirectUri, onSuccess, onError, popupWindow]);
+    }, [clientId, clientSecret, redirectUri, connectorType, onSuccess, onError, popupWindow]);
 
     const handleConnect = async () => {
         if (!clientId || !clientSecret) {
@@ -82,6 +85,7 @@ export default function OAuthButton({
                 client_id: clientId,
                 client_secret: clientSecret,
                 redirect_uri: redirectUri,
+                connector_type: connectorType,
             });
 
             // Calculate center position for popup

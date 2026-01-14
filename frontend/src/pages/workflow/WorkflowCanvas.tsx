@@ -362,11 +362,13 @@ const WorkflowCanvasInner = () => {
         if (connectorDataVal) {
             label = connectorDataVal.display_name || connectorDataVal.name;
             description = connectorDataVal.description || '';
-            // IMPORTANT: connectorType must be the Connector ID (slug) for backend validation to work
-            // The API returns 'id' as the unique slug (e.g. 'webhook', 'openai')
-            connectorType = connectorDataVal.id;
-            slug = connectorDataVal.id || ''; // Use id as slug
-            connectorId = connectorDataVal.id || ''; // Extract connector ID
+            // connector_type: The type of connector (action, trigger, agent, condition, agent-tool, agent-model, agent-memory)
+            // This comes from the connector's connector_type field in the database
+            connectorType = connectorDataVal.connector_type || 'action';
+            // slug: The connector's unique slug identifier (e.g., 'google-calendar', 'openai', 'webhook')
+            slug = connectorDataVal.slug || '';
+            // connector_id: The database UUID of the connector
+            connectorId = connectorDataVal.id || '';
 
             // For action nodes, we might need a specific actionId, but default to 'action' or first action if available?
             // For now keeping it simple as before:
@@ -1254,7 +1256,6 @@ const WorkflowCanvasInner = () => {
             <CreateCredentialModal
                 open={isCreateCredentialOpen}
                 onOpenChange={setIsCreateCredentialOpen}
-                connectors={allConnectors}
             />
 
             {/* AI Assistant Widget */}

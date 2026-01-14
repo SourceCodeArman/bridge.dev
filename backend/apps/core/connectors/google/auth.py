@@ -12,6 +12,16 @@ from apps.common.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
+# Unified Google OAuth scopes - single credential for all Google services
+GOOGLE_COMBINED_SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/drive",
+]
+
 
 def get_google_credentials(config: Dict[str, Any], scopes: List[str]) -> Credentials:
     """
@@ -124,12 +134,7 @@ def get_gmail_service(config: Dict[str, Any]):
     Returns:
         googleapiclient.discovery.Resource instance for Gmail API
     """
-    scopes = [
-        "https://www.googleapis.com/auth/gmail.send",
-        "https://www.googleapis.com/auth/gmail.readonly",
-    ]
-
-    credentials = get_google_credentials(config, scopes)
+    credentials = get_google_credentials(config, GOOGLE_COMBINED_SCOPES)
     service = build("gmail", "v1", credentials=credentials)
 
     return service
@@ -145,9 +150,7 @@ def get_sheets_service(config: Dict[str, Any]):
     Returns:
         googleapiclient.discovery.Resource instance for Sheets API
     """
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-
-    credentials = get_google_credentials(config, scopes)
+    credentials = get_google_credentials(config, GOOGLE_COMBINED_SCOPES)
     service = build("sheets", "v4", credentials=credentials)
 
     return service
@@ -163,12 +166,7 @@ def get_calendar_service(config: Dict[str, Any]):
     Returns:
         googleapiclient.discovery.Resource instance for Calendar API
     """
-    scopes = [
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/calendar.events",
-    ]
-
-    credentials = get_google_credentials(config, scopes)
+    credentials = get_google_credentials(config, GOOGLE_COMBINED_SCOPES)
     service = build("calendar", "v3", credentials=credentials)
 
     return service

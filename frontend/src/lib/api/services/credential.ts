@@ -23,6 +23,7 @@ export const credentialService = {
         const response = await apiClient.get<PaginatedResponse<Credential>>('/api/v1/core/credentials/', {
             params: { page, page_size: pageSize }
         });
+        console.log(response)
         return response.data;
     },
 
