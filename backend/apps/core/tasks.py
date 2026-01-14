@@ -410,6 +410,19 @@ def _execute_step_logic(run_step: RunStep) -> Dict[str, Any]:
     credential_id = run_step.inputs.get("credential_id")
     config = {}
 
+    # Validate that credential_id is a valid UUID (not a connector slug)
+    if credential_id:
+        import uuid
+
+        try:
+            uuid.UUID(str(credential_id))
+        except (ValueError, AttributeError):
+            logger.warning(
+                f"Invalid credential_id '{credential_id}' for step {run_step.step_id} - not a valid UUID, skipping credential lookup",
+                extra={"credential_id": credential_id, "step_id": run_step.step_id},
+            )
+            credential_id = None  # Reset to None so we don't try to look it up
+
     if credential_id:
         try:
             # Get credential and decrypt

@@ -1,6 +1,9 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Lock } from 'lucide-react';
 import type { ConnectorAction } from '@/types/models';
+import { useEffect } from 'react';
 
 interface ActionSelectorProps {
     actions: ConnectorAction[];
@@ -15,19 +18,44 @@ export default function ActionSelector({
     onChange,
     label = 'Action',
 }: ActionSelectorProps) {
-    // Auto-select first action if only one available
-    if (actions.length === 1 && !value) {
-        const firstAction = actions[0];
-        if (firstAction) {
-            setTimeout(() => onChange(firstAction.id), 0);
+    // Auto-select single action
+    useEffect(() => {
+        if (actions.length === 1 && !value) {
+            const firstAction = actions[0];
+            if (firstAction) {
+                onChange(firstAction.id);
+            }
         }
-    }
+    }, [actions, value, onChange]);
 
-    // Don't render if only one action (it's implicit)
-    if (actions.length <= 1) {
+    // No actions available - return null
+    if (actions.length < 1) {
         return null;
     }
 
+    // Single action - show as locked field
+    if (actions.length === 1) {
+        const action = actions[0];
+        return (
+            <div className="space-y-2">
+                <Label htmlFor="action-selector">{label}</Label>
+                <div className="relative">
+                    <Input
+                        id="action-selector"
+                        value={action?.name || ''}
+                        disabled
+                        className="bg-muted/50 border-border pr-10"
+                    />
+                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
+                {action?.description && (
+                    <p className="text-xs text-muted-foreground">{action.description}</p>
+                )}
+            </div>
+        );
+    }
+
+    // Multiple actions - show dropdown
     return (
         <div className="space-y-2">
             <Label htmlFor="action-selector">{label}</Label>

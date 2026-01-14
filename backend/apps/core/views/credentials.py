@@ -201,3 +201,115 @@ class CredentialViewSet(viewsets.ModelViewSet):
                 },
             )
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["get"], url_path="ai/models")
+    def list_ai_models(self, request, pk=None):
+        """List AI models available for this credential's provider"""
+        credential = self.get_object()
+
+        try:
+            from apps.core.encryption import get_encryption_service
+
+            # Decrypt credential secrets
+            encryption_service = get_encryption_service()
+            config = encryption_service.decrypt_dict(credential.encrypted_data)
+            api_key = config.get("api_key")
+
+            if not api_key:
+                return Response(
+                    {"error": "No API key found in credential"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Extract connector slug from encrypted data
+            connector_slug = config.get("_connector_id", "")
+            # Normalize: replace underscores with hyphens
+            connector_slug = connector_slug.replace("_", "-") if connector_slug else ""
+
+            models = []
+
+            if connector_slug in ("openai", "openai-model"):
+                # Fetch models from OpenAI API
+                import openai
+
+                client = openai.OpenAI(api_key=api_key)
+                response = client.models.list()
+
+                # Filter to relevant GPT models
+                gpt_prefixes = ("gpt-4", "gpt-3.5", "o1", "o3")
+                for model in response.data:
+                    if model.id.startswith(gpt_prefixes):
+                        models.append(
+                            {
+                                "id": model.id,
+                                "name": model.id,
+                            }
+                        )
+
+                # Sort by name
+                models.sort(key=lambda x: x["id"])
+
+            elif connector_slug == "anthropic":
+                from anthropic import Anthropic
+
+                client = Anthropic(api_key=api_key)
+                response = client.models.list()
+
+                for model in response:
+                    models.append(
+                        {
+                            "id": model.id,
+                            "name": model.id,
+                        }
+                    )
+
+                models.sort(key=lambda x: x["id"])
+
+            elif connector_slug == "gemini":
+                # Fetch models from Google Gemini API
+                import google.generativeai as genai
+
+                genai.configure(api_key=api_key)
+
+                for model in genai.list_models():
+                    # Filter to generative models
+                    if "generateContent" in model.supported_generation_methods:
+                        # Extract readable name from full model name
+                        model_id = model.name.replace("models/", "")
+                        models.append(
+                            {
+                                "id": model_id,
+                                "name": model.display_name or model_id,
+                            }
+                        )
+
+            elif connector_slug == "deepseek":
+                from openai import OpenAI
+
+                client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+                response = client.models.list()
+
+                for model in response.data:
+                    models.append(
+                        {
+                            "id": model.id,
+                            "name": model.id,
+                        }
+                    )
+
+                models.sort(key=lambda x: x["id"])
+
+            else:
+                return Response(
+                    {"error": f"Unknown connector: {connector_slug}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response({"models": models})
+
+        except Exception as e:
+            logger.error(
+                f"Failed to list AI models: {str(e)}",
+                extra={"credential_id": str(credential.id)},
+            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

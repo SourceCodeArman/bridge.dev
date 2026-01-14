@@ -257,6 +257,19 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
             # 2. Get credential if provided
             credential_config = {}
             if credential_id:
+                # Validate that credential_id is a valid UUID
+                import uuid as uuid_module
+
+                try:
+                    uuid_module.UUID(str(credential_id))
+                except (ValueError, AttributeError):
+                    logger.warning(
+                        f"Invalid credential_id '{credential_id}' - not a valid UUID, skipping credential lookup",
+                        extra={"credential_id": credential_id, "connector_id": pk},
+                    )
+                    credential_id = None  # Reset to skip lookup
+
+            if credential_id:
                 try:
                     # Filter by workspace for security
                     workspace = getattr(request, "workspace", None)

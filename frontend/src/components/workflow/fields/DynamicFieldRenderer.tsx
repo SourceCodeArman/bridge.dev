@@ -8,6 +8,7 @@ import GoogleCalendarSelector from './GoogleCalendarSelector';
 import GoogleSpreadsheetSelector from './GoogleSpreadsheetSelector';
 import GoogleWorksheetSelector from './GoogleWorksheetSelector';
 import DateTimePicker from './DateTimePicker';
+import AIModelSelector from './AIModelSelector';
 
 interface JSONSchemaProperty {
     type: string | string[];
@@ -34,6 +35,7 @@ interface DynamicFieldRendererProps {
     required?: boolean;
     error?: string;
     credentialId?: string;
+    connectorSlug?: string;
     allSchemas?: Record<string, JSONSchemaProperty>;
     allValues?: Record<string, any>;
     onMultiChange?: (updates: Record<string, any>) => void;
@@ -47,6 +49,7 @@ export default function DynamicFieldRenderer({
     required = false,
     error,
     credentialId,
+    connectorSlug,
     allSchemas,
     allValues,
     onMultiChange,
@@ -73,6 +76,23 @@ export default function DynamicFieldRenderer({
         hasOnMultiChange: !!onMultiChange,
         allSchemasCount: allSchemas ? Object.keys(allSchemas).length : 0
     });
+
+    // Handle AI model selector for model fields on AI connectors
+    const AI_CONNECTORS = ['openai', 'anthropic', 'gemini', 'deepseek'];
+    if (fieldName === 'model' && connectorSlug && AI_CONNECTORS.includes(connectorSlug)) {
+        return (
+            <AIModelSelector
+                value={value}
+                onChange={onChange}
+                connectorSlug={connectorSlug}
+                credentialId={credentialId}
+                label={label}
+                required={required}
+                error={error}
+                description={schema.description}
+            />
+        );
+    }
 
     // Handle custom UI components
     if (schema['ui:component'] === 'google_calendar_selector') {

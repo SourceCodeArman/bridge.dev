@@ -26,6 +26,9 @@ class CoreConfig(AppConfig):
                 GoogleCalendarConnector,
             )
             from apps.core.connectors.openai.connector import OpenAIConnector
+            from apps.core.connectors.openai_model.connector import (
+                OpenAIModelConnector,
+            )
             from apps.core.connectors.anthropic.connector import AnthropicConnector
             from apps.core.connectors.gemini.connector import GeminiConnector
             from apps.core.connectors.deepseek.connector import DeepSeekConnector
@@ -41,6 +44,7 @@ class CoreConfig(AppConfig):
             registry.register(GoogleSheetsConnector)
             registry.register(GoogleCalendarConnector)
             registry.register(OpenAIConnector)
+            registry.register(OpenAIModelConnector)
             registry.register(AnthropicConnector)
             registry.register(GeminiConnector)
             registry.register(DeepSeekConnector)

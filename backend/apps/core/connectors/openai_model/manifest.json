@@ -5,6 +5,7 @@
     "description": "OpenAI LLM",
     "author": "Bridge.dev",
     "connector_type": "agent-model",
+    "credential_alias": "openai",
     "auth_config": {
         "type": "api_key",
         "fields": [
@@ -70,69 +71,6 @@
                 }
             },
             "required_fields": []
-        },
-        {
-            "id": "generate",
-            "name": "Generate Response",
-            "description": "Generate a response from the model",
-            "input_schema": {
-                "type": "object",
-                "required": [
-                    "messages"
-                ],
-                "properties": {
-                    "messages": {
-                        "type": "array",
-                        "description": "Array of message objects with 'role' and 'content'",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "role": {
-                                    "type": "string",
-                                    "enum": [
-                                        "system",
-                                        "user",
-                                        "assistant"
-                                    ]
-                                },
-                                "content": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "role",
-                                "content"
-                            ]
-                        }
-                    }
-                }
-            },
-            "output_schema": {
-                "type": "object",
-                "properties": {
-                    "response": {
-                        "type": "string",
-                        "description": "Generated response"
-                    },
-                    "usage": {
-                        "type": "object",
-                        "properties": {
-                            "prompt_tokens": {
-                                "type": "integer"
-                            },
-                            "completion_tokens": {
-                                "type": "integer"
-                            },
-                            "total_tokens": {
-                                "type": "integer"
-                            }
-                        }
-                    }
-                }
-            },
-            "required_fields": [
-                "messages"
-            ]
         }
     ]
 }

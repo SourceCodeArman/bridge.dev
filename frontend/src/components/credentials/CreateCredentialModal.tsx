@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -23,23 +23,10 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { credentialService } from "@/lib/api/services/credential";
+import { connectorService } from "@/lib/api/services/connector";
 import { toast } from "sonner";
-import type { AuthField } from "@/types";
 import OAuthButton from "../workflow/fields/OAuthButton";
-
-// Google services with service-specific scopes
-const GOOGLE_SERVICES = [
-    { id: 'google-sheets', name: 'Google Sheets', description: 'Spreadsheets and data' },
-    { id: 'google-calendar', name: 'Google Calendar', description: 'Events and scheduling' },
-    { id: 'gmail', name: 'Gmail', description: 'Email sending and reading' },
-];
-
-
-// OAuth auth fields for Google services
-const GOOGLE_AUTH_FIELDS: AuthField[] = [
-    { name: 'client_id', type: 'string', required: true, label: 'Client ID', description: 'OAuth Client ID from Google Cloud Console' },
-    { name: 'client_secret', type: 'password', required: true, label: 'Client Secret', description: 'OAuth Client Secret from Google Cloud Console' },
-];
+import type { Connector } from "@/types/models";
 
 // Component to display and copy callback URL
 function CallbackUrlDisplay() {
@@ -85,10 +72,39 @@ interface CreateCredentialModalProps {
 }
 
 export function CreateCredentialModal({ open, onOpenChange }: CreateCredentialModalProps) {
-    const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+    const [selectedConnectorId, setSelectedConnectorId] = useState<string>("");
     const queryClient = useQueryClient();
 
-    const selectedService = GOOGLE_SERVICES.find(s => s.id === selectedServiceId);
+    // Fetch all connectors from API
+    const { data: connectorsData, isLoading: connectorsLoading } = useQuery({
+        queryKey: ['connectors'],
+        queryFn: connectorService.list,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    // Get connectors array from paginated response
+    const connectors = connectorsData?.results || [];
+
+    // Filter connectors that have auth_config (can create credentials for them)
+    const credentialConnectors = useMemo(() => {
+        return connectors.filter((c: Connector) =>
+            c.manifest?.auth_config?.type &&
+            (c.manifest?.auth_config?.fields?.length ?? 0) > 0
+        );
+    }, [connectors]);
+
+    // Get selected connector
+    const selectedConnector = credentialConnectors.find((c: Connector) => c.slug === selectedConnectorId);
+    console.log(selectedConnector);
+    const authConfig = selectedConnector?.manifest?.auth_config;
+    const authType = authConfig?.type;
+    const authFields = authConfig?.fields || [];
+
+    // Filter visible fields (not hidden)
+    const visibleFields = authFields.filter((f: any) => !f.hidden);
+
+    // Check if this is an OAuth connector
+    const isOAuthConnector = authType === 'oauth';
 
     // Dynamic schema generation
     const formSchema = z.object({
@@ -118,20 +134,19 @@ export function CreateCredentialModal({ open, onOpenChange }: CreateCredentialMo
     useEffect(() => {
         if (open) {
             reset({ name: "", connector_id: "", credentials: {} });
-            setSelectedServiceId("");
+            setSelectedConnectorId("");
         }
     }, [open, reset]);
 
     // Update connector_id in form when local state changes
     useEffect(() => {
-        if (selectedServiceId) {
-            setValue("connector_id", selectedServiceId);
-            const service = GOOGLE_SERVICES.find(s => s.id === selectedServiceId);
-            if (service) {
-                setValue("name", `${service.name} Credential`);
-            }
+        if (selectedConnectorId && selectedConnector) {
+            setValue("connector_id", selectedConnectorId);
+            setValue("name", `${selectedConnector.display_name} Credential`);
+            // Clear credentials when switching services
+            setValue("credentials", {});
         }
-    }, [selectedServiceId, setValue]);
+    }, [selectedConnectorId, selectedConnector, setValue]);
 
     const createMutation = useMutation({
         mutationFn: credentialService.create,
@@ -147,7 +162,7 @@ export function CreateCredentialModal({ open, onOpenChange }: CreateCredentialMo
         console.log("Submitting form data:", data);
         createMutation.mutate({
             ...data,
-            type: 'oauth'
+            type: authType || 'api_key'
         });
     };
 
@@ -165,17 +180,22 @@ export function CreateCredentialModal({ open, onOpenChange }: CreateCredentialMo
                     <div className="space-y-2">
                         <Label>App or Service</Label>
                         <Select
-                            value={selectedServiceId}
-                            onValueChange={setSelectedServiceId}
+                            value={selectedConnectorId}
+                            onValueChange={setSelectedConnectorId}
+                            disabled={connectorsLoading}
                         >
                             <SelectTrigger>
-                                <SelectValue placeholder="Select an app or service..." />
+                                <SelectValue placeholder={
+                                    connectorsLoading
+                                        ? "Loading services..."
+                                        : "Select an app or service..."
+                                } />
                             </SelectTrigger>
                             <SelectContent>
-                                {GOOGLE_SERVICES.map((service) => (
-                                    <SelectItem key={service.id} value={service.id}>
+                                {credentialConnectors.map((connector: Connector) => (
+                                    <SelectItem key={connector.slug} value={connector.slug || ''}>
                                         <div className="flex flex-col items-start">
-                                            <span>{service.name}</span>
+                                            <span>{connector.display_name}</span>
                                         </div>
                                     </SelectItem>
                                 ))}
@@ -198,13 +218,15 @@ export function CreateCredentialModal({ open, onOpenChange }: CreateCredentialMo
                         )}
                     </div>
 
-                    {selectedService && (
+                    {/* Dynamic Auth Fields */}
+                    {selectedConnector && visibleFields.length > 0 && (
                         <div className="space-y-4 border-t pt-4">
                             <Label className="text-muted-foreground">Authentication Details</Label>
-                            {GOOGLE_AUTH_FIELDS.map((field) => (
+                            {visibleFields.map((field: any) => (
                                 <div key={field.name} className="space-y-2">
                                     <Label htmlFor={`creds-${field.name}`}>
-                                        {field.label || field.name} {field.required && <span className="text-destructive">*</span>}
+                                        {field.label || field.name.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                        {field.required && <span className="text-destructive ml-1">*</span>}
                                     </Label>
                                     <Controller
                                         name={`credentials.${field.name}`}
@@ -216,33 +238,38 @@ export function CreateCredentialModal({ open, onOpenChange }: CreateCredentialMo
                                                 type={field.type === 'password' ? 'password' : 'text'}
                                                 value={value as string || ''}
                                                 onChange={onChange}
-                                                placeholder={field.description || field.label || field.name}
+                                                placeholder={field.description || field.name}
                                             />
                                         )}
                                     />
+                                    {field.description && (
+                                        <p className="text-xs text-muted-foreground">{field.description}</p>
+                                    )}
                                 </div>
                             ))}
 
-                            {/* OAuth Flow Section */}
-                            <div className="pt-2 space-y-3">
-                                <CallbackUrlDisplay />
+                            {/* OAuth Flow Section - only for OAuth connectors */}
+                            {isOAuthConnector && (
+                                <div className="pt-2 space-y-3">
+                                    <CallbackUrlDisplay />
 
-                                <OAuthButton
-                                    clientId={watchedCredentials?.client_id || ''}
-                                    clientSecret={watchedCredentials?.client_secret || ''}
-                                    redirectUri={`${window.location.protocol}//${window.location.host}/api/v1/core/integrations/google/callback/`}
-                                    connectorType={selectedServiceId}
-                                    onSuccess={(tokens) => {
-                                        if (tokens.access_token) setValue('credentials.access_token', tokens.access_token, { shouldValidate: true, shouldDirty: true });
-                                        if (tokens.refresh_token) setValue('credentials.refresh_token', tokens.refresh_token, { shouldValidate: true, shouldDirty: true });
-                                    }}
-                                    disabled={!watchedCredentials?.client_id || !watchedCredentials?.client_secret}
-                                    label="Connect Account"
-                                />
-                                {/* Hidden fields for tokens */}
-                                <input type="hidden" {...register("credentials.access_token")} />
-                                <input type="hidden" {...register("credentials.refresh_token")} />
-                            </div>
+                                    <OAuthButton
+                                        clientId={watchedCredentials?.client_id || ''}
+                                        clientSecret={watchedCredentials?.client_secret || ''}
+                                        redirectUri={`${window.location.protocol}//${window.location.host}/api/v1/core/integrations/google/callback/`}
+                                        connectorType={selectedConnectorId}
+                                        onSuccess={(tokens) => {
+                                            if (tokens.access_token) setValue('credentials.access_token', tokens.access_token, { shouldValidate: true, shouldDirty: true });
+                                            if (tokens.refresh_token) setValue('credentials.refresh_token', tokens.refresh_token, { shouldValidate: true, shouldDirty: true });
+                                        }}
+                                        disabled={!watchedCredentials?.client_id || !watchedCredentials?.client_secret}
+                                        label="Connect Account"
+                                    />
+                                    {/* Hidden fields for tokens */}
+                                    <input type="hidden" {...register("credentials.access_token")} />
+                                    <input type="hidden" {...register("credentials.refresh_token")} />
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -250,7 +277,7 @@ export function CreateCredentialModal({ open, onOpenChange }: CreateCredentialMo
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={!selectedServiceId || createMutation.isPending}>
+                        <Button type="submit" disabled={!selectedConnectorId || createMutation.isPending}>
                             {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                             Create Credential
                         </Button>

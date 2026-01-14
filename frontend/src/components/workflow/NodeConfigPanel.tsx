@@ -92,9 +92,10 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
         enabled: !!connectorId,
     });
 
-    // Get selected action
+    // Get selected action - fall back to first action if only one exists
     const selectedAction = connector?.manifest?.actions
-        ? Object.values(connector.manifest.actions).find((a: ConnectorAction) => a.id === actionId)
+        ? (Object.values(connector.manifest.actions).find((a: ConnectorAction) => a.id === actionId) ||
+            (Object.values(connector.manifest.actions).length === 1 ? Object.values(connector.manifest.actions)[0] as ConnectorAction : undefined))
         : undefined;
 
     // Sync state with selected node
@@ -204,7 +205,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                     )}
 
                                     {/* Action Selector */}
-                                    {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 1 && (
+                                    {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 0 && (
                                         <ActionSelector
                                             actions={Object.values(connector.manifest.actions)}
                                             value={actionId}
@@ -236,70 +237,71 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                                     return properties.map(([fieldName, fieldSchema]: [string, any]) => {
                                                         if (fieldName === 'step_context' || fieldName === 'credential_id') return null;
 
-    const isRequired = selectedAction.input_schema.required?.includes(fieldName) || false;
+                                                        const isRequired = selectedAction.input_schema.required?.includes(fieldName) || false;
 
-    // Check if field is a webhook URL field either by format or name/context
-    const isWebhookUrlField = fieldSchema.format === 'webhook_url' || (fieldName === 'path' && connector?.id === 'webhook');
-    const fieldValue = (isWebhookUrlField && computedWebhookUrl)
-        ? computedWebhookUrl
-        : fieldValues[fieldName];
+                                                        // Check if field is a webhook URL field either by format or name/context
+                                                        const isWebhookUrlField = fieldSchema.format === 'webhook_url' || (fieldName === 'path' && connector?.id === 'webhook');
+                                                        const fieldValue = (isWebhookUrlField && computedWebhookUrl)
+                                                            ? computedWebhookUrl
+                                                            : fieldValues[fieldName];
 
-    return (
-        <DynamicFieldRenderer
-            key={fieldName}
-            fieldName={fieldName}
-            schema={fieldSchema}
-            value={fieldValue}
-            onChange={(value) => handleFieldChange(fieldName, value)}
-            required={isRequired}
-            credentialId={credentialId}
-            allSchemas={selectedAction.input_schema.properties}
-            allValues={fieldValues}
-            onMultiChange={(updates) => {
-                const newValues = { ...fieldValues, ...updates };
-                setFieldValues(newValues);
-            }}
-        />
-    );
-});
-                                                }) ()}
+                                                        return (
+                                                            <DynamicFieldRenderer
+                                                                key={fieldName}
+                                                                fieldName={fieldName}
+                                                                schema={fieldSchema}
+                                                                value={fieldValue}
+                                                                onChange={(value) => handleFieldChange(fieldName, value)}
+                                                                required={isRequired}
+                                                                credentialId={credentialId}
+                                                                connectorSlug={connector.slug}
+                                                                allSchemas={selectedAction.input_schema.properties}
+                                                                allValues={fieldValues}
+                                                                onMultiChange={(updates) => {
+                                                                    const newValues = { ...fieldValues, ...updates };
+                                                                    setFieldValues(newValues);
+                                                                }}
+                                                            />
+                                                        );
+                                                    });
+                                                })()}
                                             </div >
                                         </>
                                     )}
 
-{/* No action selected message */ }
-{
-    connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 0 && !selectedAction && (
-        <div className="text-sm text-foreground bg-muted/50 p-4 rounded-md">
-            Select an action to configure parameters
-        </div>
-    )
-}
+                                    {/* No action selected message */}
+                                    {
+                                        connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 0 && !selectedAction && (
+                                            <div className="text-sm text-foreground bg-muted/50 p-4 rounded-md">
+                                                Select an action to configure parameters
+                                            </div>
+                                        )
+                                    }
                                 </div >
                             )}
 
-{/* Non-connector nodes or Error State */ }
-{
-    !connector && !connectorLoading && connectorId && (
-        <div className="text-sm text-foreground bg-muted/50 p-4 rounded-md">
-            {selectedNode.type === 'condition' ? (
-                <p>Condition logic builder will be available here.</p>
-            ) : selectedNode.type === 'trigger' ? (
-                <p>Trigger configuration (schedule, webhook URL) will appear here.</p>
-            ) : (
-                <div className="flex flex-col gap-2 text-destructive">
-                    <p className="font-medium">Configuration Error</p>
-                    <p>Connector type "{connectorId}" not found. This node may be invalid or the connector is missing.</p>
-                    <p className="text-xs text-muted-foreground">Try deleting and re-creating this node.</p>
-                </div>
-            )}
-        </div>
-    )
-}
+                            {/* Non-connector nodes or Error State */}
+                            {
+                                !connector && !connectorLoading && connectorId && (
+                                    <div className="text-sm text-foreground bg-muted/50 p-4 rounded-md">
+                                        {selectedNode.type === 'condition' ? (
+                                            <p>Condition logic builder will be available here.</p>
+                                        ) : selectedNode.type === 'trigger' ? (
+                                            <p>Trigger configuration (schedule, webhook URL) will appear here.</p>
+                                        ) : (
+                                            <div className="flex flex-col gap-2 text-destructive">
+                                                <p className="font-medium">Configuration Error</p>
+                                                <p>Connector type "{connectorId}" not found. This node may be invalid or the connector is missing.</p>
+                                                <p className="text-xs text-muted-foreground">Try deleting and re-creating this node.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            }
                         </div >
 
-    {/* Right Column: Execution Result & Test Controls */ }
-    < div className = "flex flex-col h-full border-l pl-6 min-h-0" >
+                        {/* Right Column: Execution Result & Test Controls */}
+                        < div className="flex flex-col h-full border-l pl-6 min-h-0" >
                             <div className="flex items-center justify-between shrink-0 mb-4 h-8">
                                 <h4 className="text-sm font-medium">
                                     {executionResult ? 'Execution Output' : showMockInput ? 'Mock Data Input' : 'Test Action'}

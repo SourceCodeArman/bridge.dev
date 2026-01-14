@@ -284,41 +284,56 @@ class ConnectorRegistry:
         try:
             # Import locally to avoid circular imports
             from apps.core.models import CustomConnector
+            import uuid
 
-            # Look up by ID
+            # Only attempt ID lookup if connector_id looks like a valid UUID
+            is_valid_uuid = False
             try:
-                custom_connector = CustomConnector.objects.get(id=connector_id)
+                uuid.UUID(str(connector_id))
+                is_valid_uuid = True
+            except (ValueError, AttributeError):
+                pass
 
-                # Check if it has a current version with a manifest
-                if (
-                    custom_connector.current_version
-                    and custom_connector.current_version.manifest
-                ):
-                    manifest = custom_connector.current_version.manifest
-                else:
-                    # Construct a minimal manifest from the connector model itself for draft/incomplete ones
-                    manifest = {
-                        "id": str(custom_connector.id),
-                        "name": custom_connector.display_name,
-                        "description": custom_connector.description,
-                        "version": "0.0.1",
-                        "connector_type": "action",  # Default, should maybe come from model if added
-                        "actions": [],  # Empty actions for now if no version
-                        "triggers": [],
-                    }
+            # Look up by ID (only if it's a valid UUID)
+            if is_valid_uuid:
+                try:
+                    custom_connector = CustomConnector.objects.get(id=connector_id)
 
-                # Create a dynamic class for this connector on the fly
-                # We use DatabaseCustomConnector as the base
-                return type(
-                    f"DynamicCustomConnector_{connector_id.replace('-', '_')}",
-                    (DatabaseCustomConnector,),
-                    {
-                        "connector_id": property(lambda self: str(custom_connector.id)),
-                        "get_manifest": lambda self: manifest,
-                    },
-                )
-            except (CustomConnector.DoesNotExist, ValueError):
-                # Try finding in standard Connector model by ID (system connectors in DB)
+                    # Check if it has a current version with a manifest
+                    if (
+                        custom_connector.current_version
+                        and custom_connector.current_version.manifest
+                    ):
+                        manifest = custom_connector.current_version.manifest
+                    else:
+                        # Construct a minimal manifest from the connector model itself for draft/incomplete ones
+                        manifest = {
+                            "id": str(custom_connector.id),
+                            "name": custom_connector.display_name,
+                            "description": custom_connector.description,
+                            "version": "0.0.1",
+                            "connector_type": "action",  # Default, should maybe come from model if added
+                            "actions": [],  # Empty actions for now if no version
+                            "triggers": [],
+                        }
+
+                    # Create a dynamic class for this connector on the fly
+                    # We use DatabaseCustomConnector as the base
+                    return type(
+                        f"DynamicCustomConnector_{connector_id.replace('-', '_')}",
+                        (DatabaseCustomConnector,),
+                        {
+                            "connector_id": property(
+                                lambda self: str(custom_connector.id)
+                            ),
+                            "get_manifest": lambda self: manifest,
+                        },
+                    )
+                except CustomConnector.DoesNotExist:
+                    pass
+
+            # Try finding in standard Connector model by ID (system connectors in DB)
+            if is_valid_uuid:
                 try:
                     from apps.core.models import Connector
 
@@ -339,7 +354,7 @@ class ConnectorRegistry:
                             "get_manifest": lambda self: connector.manifest or {},
                         },
                     )
-                except (Connector.DoesNotExist, ValueError):
+                except Connector.DoesNotExist:
                     pass
 
         except ImportError:

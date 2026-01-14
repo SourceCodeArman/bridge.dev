@@ -29,9 +29,34 @@ export default function CredentialSelector({
     });
     console.log(credentials, isLoading)
 
-    // Filter credentials by connector type if provided
+    // Credential aliases - connectors that can share credentials
+    // Key: connector that needs credentials, Value: connectors whose credentials can be used
+    const credentialAliases: Record<string, string[]> = {
+        'openai-model': ['openai', 'openai-model'],
+    };
+
+    // Get allowed slugs for filtering (include aliases)
+    const getAllowedSlugs = (connectorSlug?: string): string[] => {
+        if (!connectorSlug) return [];
+        // Check if this slug has aliases defined
+        if (credentialAliases[connectorSlug]) {
+            return credentialAliases[connectorSlug];
+        }
+        // Check if this slug is an alias target (e.g., 'openai' can be used by 'openai-model')
+        const reverseMatches = Object.entries(credentialAliases)
+            .filter(([, aliases]) => aliases.includes(connectorSlug))
+            .flatMap(([, aliases]) => aliases);
+        if (reverseMatches.length > 0) {
+            return [...new Set([connectorSlug, ...reverseMatches])];
+        }
+        return [connectorSlug];
+    };
+
+    const allowedSlugs = getAllowedSlugs(slug);
+
+    // Filter credentials by connector type if provided (with alias support)
     const filteredCredentials = credentials?.results?.filter(
-        (cred) => !cred.slug || cred.slug === slug
+        (cred) => !cred.slug || !slug || allowedSlugs.includes(cred.slug)
     ) || [];
     useEffect(() => console.log(filteredCredentials), [filteredCredentials]);
 
