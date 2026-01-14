@@ -132,6 +132,11 @@
             "minimum": 1,
             "maximum": 4096,
             "default": 2000
+          },
+          "system_prompt": {
+            "type": "string",
+            "description": "System prompt for the model (optional)",
+            "maxLength": 10000
           }
         }
       },

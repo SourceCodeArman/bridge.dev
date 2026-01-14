@@ -372,6 +372,17 @@ class WebhookTriggerView(APIView):
                 or "Immediately"
             )
 
+            # Debug logging for respond option
+            logger.info(
+                f"Webhook respond option: '{respond_option}'",
+                extra={
+                    "webhook_id": str(webhook_id),
+                    "respond_option": respond_option,
+                    "webhook_config": webhook_config,
+                    "node_data_keys": list(node_data.keys()),
+                },
+            )
+
             # Handle different respond options
             if respond_option == "Using Respond to Webhook Node":
                 # Placeholder for future implementation

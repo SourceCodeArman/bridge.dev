@@ -313,3 +313,31 @@ class CredentialViewSet(viewsets.ModelViewSet):
                 extra={"credential_id": str(credential.id)},
             )
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["get"], url_path="slack/channels")
+    def list_slack_channels(self, request, pk=None):
+        """List Slack channels for a credential"""
+        credential = self.get_object()
+
+        try:
+            from apps.core.connectors.slack.connector import SlackConnector
+
+            # Decrypt credential secrets
+            encryption_service = get_encryption_service()
+            config = encryption_service.decrypt_dict(credential.encrypted_data)
+
+            # Initialize connector
+            connector = SlackConnector(config)
+            connector._initialize()
+
+            # List channels
+            result = connector._execute_list_channels({"types": ["public_channel"]})
+
+            return Response(result)
+
+        except Exception as e:
+            logger.error(
+                f"Failed to list slack channels: {str(e)}",
+                extra={"credential_id": str(credential.id)},
+            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

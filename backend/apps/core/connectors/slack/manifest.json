@@ -47,11 +47,15 @@
       "description": "Send a message to a Slack channel or DM",
       "input_schema": {
         "type": "object",
-        "required": ["channel", "text"],
+        "required": [
+          "channel",
+          "text"
+        ],
         "properties": {
           "channel": {
             "type": "string",
-            "description": "Channel ID (C1234567890) or channel name (#general or general)"
+            "description": "Channel ID (C1234567890) or channel name (#general or general)",
+            "ui:component": "slack_channel_selector"
           },
           "text": {
             "type": "string",
@@ -84,7 +88,10 @@
           }
         }
       },
-      "required_fields": ["channel", "text"]
+      "required_fields": [
+        "channel",
+        "text"
+      ]
     },
     {
       "id": "list_channels",
@@ -97,9 +104,16 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["public_channel", "private_channel", "mpim", "im"]
+              "enum": [
+                "public_channel",
+                "private_channel",
+                "mpim",
+                "im"
+              ]
             },
-            "default": ["public_channel"],
+            "default": [
+              "public_channel"
+            ],
             "description": "Channel types to list"
           }
         }
@@ -142,5 +156,3 @@
     }
   ]
 }
-
-

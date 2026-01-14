@@ -231,8 +231,6 @@ node_modules/
 tasks.json
 tasks/ 
 .taskmaster/
-taskman/
-TASKS.md
 
 # Frontend
 frontend/node_modules/

@@ -9,6 +9,10 @@ import GoogleSpreadsheetSelector from './GoogleSpreadsheetSelector';
 import GoogleWorksheetSelector from './GoogleWorksheetSelector';
 import DateTimePicker from './DateTimePicker';
 import AIModelSelector from './AIModelSelector';
+import SlackChannelSelector from './SlackChannelSelector';
+import KeyValueEditor from './KeyValueEditor';
+import UrlWithParamsField from './UrlWithParamsField';
+import HttpBodyEditor from './HttpBodyEditor';
 
 interface JSONSchemaProperty {
     type: string | string[];
@@ -20,6 +24,7 @@ interface JSONSchemaProperty {
     pattern?: string;
     format?: string;
     items?: JSONSchemaProperty;
+    additionalProperties?: { type: string } | boolean;
     required?: boolean;
     readOnly?: boolean;
     displayName?: string;
@@ -94,6 +99,35 @@ export default function DynamicFieldRenderer({
         );
     }
 
+    // Handle URL field with params preview (for HTTP connector)
+    if (fieldName === 'url' && schema.format === 'uri' && allValues?.params) {
+        return (
+            <UrlWithParamsField
+                value={value}
+                onChange={onChange}
+                params={allValues.params as Record<string, string>}
+                label={label}
+                required={required}
+                error={error}
+                description={schema.description}
+            />
+        );
+    }
+
+    // Handle body field for HTTP connector - use Postman-style editor
+    if (fieldName === 'body' && connectorSlug === 'http') {
+        return (
+            <HttpBodyEditor
+                value={value}
+                onChange={onChange}
+                label={label}
+                required={required}
+                error={error}
+                description={schema.description}
+            />
+        );
+    }
+
     // Handle custom UI components
     if (schema['ui:component'] === 'google_calendar_selector') {
         return (
@@ -111,6 +145,19 @@ export default function DynamicFieldRenderer({
     if (schema['ui:component'] === 'google_spreadsheet_selector') {
         return (
             <GoogleSpreadsheetSelector
+                value={value}
+                onChange={onChange}
+                credentialId={credentialId}
+                label={label}
+                required={required}
+                error={error}
+            />
+        );
+    }
+
+    if (schema['ui:component'] === 'slack_channel_selector') {
+        return (
+            <SlackChannelSelector
                 value={value}
                 onChange={onChange}
                 credentialId={credentialId}
@@ -273,6 +320,22 @@ export default function DynamicFieldRenderer({
                 />
                 {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
+        );
+    }
+
+    // Handle object fields with additionalProperties (key-value pairs)
+    if (fieldType === 'object' && schema.additionalProperties) {
+        return (
+            <KeyValueEditor
+                value={value as Record<string, string> | undefined}
+                onChange={onChange}
+                label={label}
+                required={required}
+                error={error}
+                description={schema.description}
+                keyPlaceholder={fieldName === 'headers' ? 'Header Name' : fieldName === 'params' ? 'Parameter' : 'Key'}
+                valuePlaceholder={fieldName === 'headers' ? 'Header Value' : fieldName === 'params' ? 'Value' : 'Value'}
+            />
         );
     }
 

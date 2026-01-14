@@ -18,22 +18,19 @@
   },
   "actions": [
     {
-      "id": "request",
-      "name": "HTTP Request",
-      "description": "Make an HTTP request with support for templating and response parsing",
+      "id": "get",
+      "name": "GET Request",
+      "description": "Make an HTTP GET request to retrieve data",
       "input_schema": {
         "type": "object",
-        "required": ["url", "method"],
+        "required": [
+          "url"
+        ],
         "properties": {
           "url": {
             "type": "string",
             "format": "uri",
             "description": "URL to request (supports Jinja2 templating with {{step1.output.field}} syntax)"
-          },
-          "method": {
-            "type": "string",
-            "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
-            "description": "HTTP method"
           },
           "headers": {
             "type": "object",
@@ -41,10 +38,6 @@
               "type": "string"
             },
             "description": "HTTP headers (supports templating)"
-          },
-          "body": {
-            "type": ["object", "string", "null"],
-            "description": "Request body (for POST, PUT, PATCH). Supports templating if string."
           },
           "params": {
             "type": "object",
@@ -57,10 +50,6 @@
             "type": "number",
             "description": "Request timeout in seconds (default: 30)",
             "default": 30
-          },
-          "step_context": {
-            "type": "object",
-            "description": "Context from previous steps for templating (automatically provided by orchestrator)"
           }
         }
       },
@@ -71,6 +60,14 @@
             "type": "integer",
             "description": "HTTP status code"
           },
+          "body": {
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Response body (parsed if JSON/XML)"
+          },
           "headers": {
             "type": "object",
             "additionalProperties": {
@@ -78,19 +75,296 @@
             },
             "description": "Response headers"
           },
+          "raw_body": {
+            "type": "string",
+            "description": "Raw response body as string"
+          }
+        }
+      }
+    },
+    {
+      "id": "post",
+      "name": "POST Request",
+      "description": "Make an HTTP POST request to send data",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to request (supports Jinja2 templating)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP headers (supports templating)"
+          },
           "body": {
-            "type": ["object", "string", "null"],
-            "description": "Response body (parsed if JSON/XML, otherwise raw text)"
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Request body. Supports templating if string."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "URL query parameters (supports templating)"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "Request timeout in seconds (default: 30)",
+            "default": 30
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "body": {
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Response body (parsed if JSON/XML)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Response headers"
           },
           "raw_body": {
             "type": "string",
             "description": "Raw response body as string"
           }
         }
+      }
+    },
+    {
+      "id": "put",
+      "name": "PUT Request",
+      "description": "Make an HTTP PUT request to update/replace data",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to request (supports Jinja2 templating)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP headers (supports templating)"
+          },
+          "body": {
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Request body. Supports templating if string."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "URL query parameters (supports templating)"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "Request timeout in seconds (default: 30)",
+            "default": 30
+          }
+        }
       },
-      "required_fields": ["url", "method"]
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "body": {
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Response body (parsed if JSON/XML)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Response headers"
+          },
+          "raw_body": {
+            "type": "string",
+            "description": "Raw response body as string"
+          }
+        }
+      }
+    },
+    {
+      "id": "patch",
+      "name": "PATCH Request",
+      "description": "Make an HTTP PATCH request to partially update data",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to request (supports Jinja2 templating)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP headers (supports templating)"
+          },
+          "body": {
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Request body. Supports templating if string."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "URL query parameters (supports templating)"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "Request timeout in seconds (default: 30)",
+            "default": 30
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "body": {
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Response body (parsed if JSON/XML)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Response headers"
+          },
+          "raw_body": {
+            "type": "string",
+            "description": "Raw response body as string"
+          }
+        }
+      }
+    },
+    {
+      "id": "delete",
+      "name": "DELETE Request",
+      "description": "Make an HTTP DELETE request to remove data",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to request (supports Jinja2 templating)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP headers (supports templating)"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "URL query parameters (supports templating)"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "Request timeout in seconds (default: 30)",
+            "default": 30
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "body": {
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "description": "Response body (parsed if JSON/XML)"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Response headers"
+          },
+          "raw_body": {
+            "type": "string",
+            "description": "Raw response body as string"
+          }
+        }
+      }
     }
   ]
 }
-
-

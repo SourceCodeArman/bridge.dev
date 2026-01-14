@@ -98,8 +98,14 @@ class Workflow(models.Model):
 
         for node in nodes:
             node_data = node.get("data", {})
-            connector_id = node_data.get("connectorType")
-            action_id = node_data.get("action_id")
+            # Try multiple fields for connector identification
+            # Priority: slug > connector_id > connectorType
+            connector_id = (
+                node_data.get("slug")
+                or node_data.get("connector_id")
+                or node_data.get("connectorType")
+            )
+            action_id = node_data.get("action_id") or node_data.get("actionId")
 
             if connector_id and action_id:
                 validation_result = editor.validate_node_config(

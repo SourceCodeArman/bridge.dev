@@ -8,6 +8,7 @@ import { connectorService } from '@/lib/api/services/connector';
 import CredentialSelector from './fields/CredentialSelector';
 import ActionSelector from './fields/ActionSelector';
 import DynamicFieldRenderer from './fields/DynamicFieldRenderer';
+import HttpRequestResponseTabs from './fields/HttpRequestResponseTabs';
 import type { Connector, ConnectorAction } from '@/types/models';
 import { Loader2, Play, X, FileJson, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,9 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
     const [mockJson, setMockJson] = useState('');
     const [mockError, setMockError] = useState<string | null>(null);
 
+    // Track the request that was sent (for HTTP connector)
+    const [executionRequest, setExecutionRequest] = useState<any>(null);
+
     const executeAction = async () => {
         if (!connectorId || !actionId) return;
 
@@ -52,6 +56,14 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                 fieldValues,
                 credentialId
             );
+            // Store the request that was sent (for HTTP connector)
+            setExecutionRequest({
+                method: actionId.toUpperCase(),
+                url: fieldValues.url,
+                headers: fieldValues.headers,
+                params: fieldValues.params,
+                body: fieldValues.body,
+            });
             setExecutionResult(result);
             setExecutionStatus('success');
         } catch (error: any) {
@@ -109,6 +121,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
 
             // Reset execution state on new node
             setExecutionResult(null);
+            setExecutionRequest(null);
             setExecutionStatus('idle');
             setShowMockInput(false);
             setMockJson('');
@@ -183,16 +196,25 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                 </DialogHeader>
 
                 {selectedNode && (
-                    <div className="grid grid-cols-2 gap-6 flex-1 min-h-0">
-                        {/* Left Column: Configuration */}
-                        <div className="space-y-6 overflow-y-auto pr-2">
+                    <div className={cn(
+                        "flex-1 min-h-0",
+                        // HTTP connector: full width until execution, then split
+                        connector?.slug === 'http' && !executionResult
+                            ? "flex flex-col"
+                            : "grid grid-cols-2 gap-6"
+                    )}>
+                        {/* Left Column / Full Width: Configuration */}
+                        <div className={cn(
+                            "space-y-6 overflow-y-auto pr-2",
+                            connector?.slug === 'http' && !executionResult && "flex-1"
+                        )}>
                             {/* Connector Configuration */}
                             {connectorLoading && (
                                 <div className="text-sm text-foreground">Loading connector...</div>
                             )}
 
                             {connector && (
-                                <div className="space-y-4">
+                                <div className="space-y-4 p-0.5">
                                     {/* Credential Selector */}
                                     {connector.manifest?.auth_config && connector.manifest.auth_config.type !== 'none' && (
                                         <CredentialSelector
@@ -300,144 +322,179 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                             }
                         </div >
 
-                        {/* Right Column: Execution Result & Test Controls */}
-                        < div className="flex flex-col h-full border-l pl-6 min-h-0" >
-                            <div className="flex items-center justify-between shrink-0 mb-4 h-8">
-                                <h4 className="text-sm font-medium">
-                                    {executionResult ? 'Execution Output' : showMockInput ? 'Mock Data Input' : 'Test Action'}
-                                </h4>
-
-                                {executionResult ? (
-                                    <div className="flex items-center gap-2">
-                                        <span className={cn(
-                                            "text-xs font-medium px-2 py-0.5 rounded-full uppercase",
-                                            executionStatus === 'success' ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
-                                                executionStatus === 'error' ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
-                                                    "bg-gray-100 text-gray-700"
-                                        )}>
-                                            {executionStatus === 'success' ? 'Success' : 'Error'}
-                                        </span>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={executeAction}
-                                            disabled={isExecuting}
-                                            className="h-7 text-xs"
-                                        >
-                                            <Play className="mr-2 h-3 w-3" />
-                                            Run Again
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0"
-                                            onClick={() => {
-                                                setExecutionResult(null);
-                                                setShowMockInput(false);
-                                            }}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ) : null}
+                        {/* Send Request button for HTTP connector (full-width mode) */}
+                        {connector?.slug === 'http' && !executionResult && (
+                            <div className="shrink-0 pt-4 border-t mt-4">
+                                <Button
+                                    onClick={executeAction}
+                                    disabled={isExecuting || !actionId}
+                                    size="lg"
+                                    className="w-full"
+                                >
+                                    {isExecuting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Sending Request...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Play className="mr-2 h-4 w-4" />
+                                            Send Request
+                                        </>
+                                    )}
+                                </Button>
                             </div>
+                        )}
 
-                            <div className="flex-1 bg-muted/30 rounded-md border min-h-0 relative flex flex-col">
-                                {executionResult ? (
-                                    <JsonViewer
-                                        data={executionResult}
-                                        className="h-full w-full p-1"
-                                    />
-                                ) : showMockInput ? (
-                                    <div className="flex-1 flex flex-col p-4 gap-4">
-                                        <div className="flex-1 relative">
-                                            <Textarea
-                                                value={mockJson}
-                                                onChange={(e) => setMockJson(e.target.value)}
-                                                placeholder="Paste JSON here..."
-                                                className={cn(
-                                                    "absolute inset-0 resize-none font-mono text-xs border-none shadow-none",
-                                                    mockError && "border-red-500 focus-visible:ring-red-500"
-                                                )}
-                                                spellCheck={false}
-                                            />
-                                        </div>
-                                        {mockError && (
-                                            <div className="text-xs text-red-500 font-medium">{mockError}</div>
-                                        )}
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setShowMockInput(false);
-                                                    setMockError(null);
-                                                }}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                onClick={handleVisualizeMock}
-                                                disabled={!mockJson.trim()}
-                                            >
-                                                <Check className="mr-2 h-3 w-3" />
-                                                Visualize
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
-                                        <div className="mb-4 p-4 rounded-full bg-muted">
-                                            <Play className="h-8 w-8 text-muted-foreground/50" />
-                                        </div>
-                                        <h3 className="font-medium text-foreground mb-2">Ready to Test</h3>
-                                        <p className="text-sm mb-6 max-w-xs">
-                                            Configure your step on the left, then run it here to verify the output.
-                                        </p>
-                                        <div className="flex flex-col gap-3 w-full max-w-xs">
-                                            <Button
-                                                onClick={executeAction}
-                                                disabled={isExecuting || !actionId}
-                                                size="lg"
-                                                className="w-full"
-                                            >
-                                                {isExecuting ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Executing...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Play className="mr-2 h-4 w-4" />
-                                                        Test Step
-                                                    </>
-                                                )}
-                                            </Button>
+                        {/* Right Column: Execution Result & Test Controls - hidden for HTTP until execution */}
+                        {(connector?.slug !== 'http' || executionResult) && (
+                            < div className="flex flex-col h-full border-l pl-6 min-h-0" >
+                                <div className="flex items-center justify-between shrink-0 mb-4 h-8">
+                                    <h4 className="text-sm font-medium">
+                                        {executionResult ? 'Execution Output' : showMockInput ? 'Mock Data Input' : 'Test Action'}
+                                    </h4>
 
-                                            <div className="relative">
-                                                <div className="absolute inset-0 flex items-center">
-                                                    <span className="w-full border-t" />
-                                                </div>
-                                                <div className="relative flex justify-center text-xs uppercase">
-                                                    <span className="bg-muted/30 px-2 text-muted-foreground">Or</span>
-                                                </div>
-                                            </div>
-
+                                    {executionResult ? (
+                                        <div className="flex items-center gap-2">
+                                            <span className={cn(
+                                                "text-xs font-medium px-2 py-0.5 rounded-full uppercase",
+                                                executionStatus === 'success' ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                                                    executionStatus === 'error' ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+                                                        "bg-gray-100 text-gray-700"
+                                            )}>
+                                                {executionStatus === 'success' ? 'Success' : 'Error'}
+                                            </span>
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => setShowMockInput(true)}
-                                                className="w-full"
+                                                onClick={executeAction}
+                                                disabled={isExecuting}
+                                                className="h-7 text-xs"
                                             >
-                                                <FileJson className="mr-2 h-4 w-4" />
-                                                Use Mock Data
+                                                <Play className="mr-2 h-3 w-3" />
+                                                Run Again
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0"
+                                                onClick={() => {
+                                                    setExecutionResult(null);
+                                                    setShowMockInput(false);
+                                                }}
+                                            >
+                                                <X className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div >
+                                    ) : null}
+                                </div>
+
+                                <div className="flex-1 bg-muted/30 rounded-md border min-h-0 relative flex flex-col overflow-hidden">
+                                    {executionResult ? (
+                                        // Check if this is an HTTP connector result (has status_code)
+                                        connector?.slug === 'http' && executionRequest && executionResult.status_code !== undefined ? (
+                                            <HttpRequestResponseTabs
+                                                request={executionRequest}
+                                                response={executionResult}
+                                                className="h-full p-3 flex flex-col"
+                                            />
+                                        ) : (
+                                            <JsonViewer
+                                                data={executionResult}
+                                                className="h-full w-full p-1"
+                                            />
+                                        )
+                                    ) : showMockInput ? (
+                                        <div className="flex-1 flex flex-col p-4 gap-4">
+                                            <div className="flex-1 relative">
+                                                <Textarea
+                                                    value={mockJson}
+                                                    onChange={(e) => setMockJson(e.target.value)}
+                                                    placeholder="Paste JSON here..."
+                                                    className={cn(
+                                                        "absolute inset-0 resize-none font-mono text-xs border-none shadow-none",
+                                                        mockError && "border-red-500 focus-visible:ring-red-500"
+                                                    )}
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                            {mockError && (
+                                                <div className="text-xs text-red-500 font-medium">{mockError}</div>
+                                            )}
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setShowMockInput(false);
+                                                        setMockError(null);
+                                                    }}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={handleVisualizeMock}
+                                                    disabled={!mockJson.trim()}
+                                                >
+                                                    <Check className="mr-2 h-3 w-3" />
+                                                    Visualize
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
+                                            <div className="mb-4 p-4 rounded-full bg-muted">
+                                                <Play className="h-8 w-8 text-muted-foreground/50" />
+                                            </div>
+                                            <h3 className="font-medium text-foreground mb-2">Ready to Test</h3>
+                                            <p className="text-sm mb-6 max-w-xs">
+                                                Configure your step on the left, then run it here to verify the output.
+                                            </p>
+                                            <div className="flex flex-col gap-3 w-full max-w-xs">
+                                                <Button
+                                                    onClick={executeAction}
+                                                    disabled={isExecuting || !actionId}
+                                                    size="lg"
+                                                    className="w-full"
+                                                >
+                                                    {isExecuting ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Executing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Play className="mr-2 h-4 w-4" />
+                                                            Test Step
+                                                        </>
+                                                    )}
+                                                </Button>
+
+                                                <div className="relative">
+                                                    <div className="absolute inset-0 flex items-center">
+                                                        <span className="w-full border-t" />
+                                                    </div>
+                                                    <div className="relative flex justify-center text-xs uppercase">
+                                                        <span className="bg-muted/30 px-2 text-muted-foreground">Or</span>
+                                                    </div>
+                                                </div>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setShowMockInput(true)}
+                                                    className="w-full"
+                                                >
+                                                    <FileJson className="mr-2 h-4 w-4" />
+                                                    Use Mock Data
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div >
+                        )}
                     </div >
                 )}
             </DialogContent >
