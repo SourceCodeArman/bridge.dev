@@ -1425,3 +1425,52 @@ class ChatMessage(models.Model):
     def __str__(self):
         preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
         return f"{self.role}: {preview}"
+
+
+class AgentMemoryMessage(models.Model):
+    """
+    Message stored in Bridge.dev's simple memory for agents.
+
+    Used by the Simple Memory connector to store conversation history
+    without requiring external services.
+    """
+
+    ROLE_CHOICES = [
+        ("user", "User"),
+        ("assistant", "Assistant"),
+        ("system", "System"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation_id = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="Unique conversation identifier",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        db_index=True,
+        help_text="Message role (user, assistant, or system)",
+    )
+    content = models.TextField(help_text="Message content")
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional message metadata",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "core_agentmemorymessage"
+        verbose_name = "Agent Memory Message"
+        verbose_name_plural = "Agent Memory Messages"
+        ordering = ["conversation_id", "created_at"]
+        indexes = [
+            models.Index(fields=["conversation_id", "created_at"]),
+            models.Index(fields=["conversation_id", "role"]),
+        ]
+
+    def __str__(self):
+        preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
+        return f"{self.conversation_id} - {self.role}: {preview}"

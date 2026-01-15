@@ -1,26 +1,13 @@
 {
-    "id": "xata-memory",
-    "name": "Xata Memory",
+    "id": "simple-memory",
+    "name": "Simple Memory",
     "version": "1.0.0",
-    "description": "Xata Chat Memory",
+    "description": "Simple in-app memory storage for agent conversations. No external authentication required.",
     "author": "Bridge.dev",
     "connector_type": "agent-memory",
     "auth_config": {
-        "type": "api_key",
-        "fields": [
-            {
-                "name": "api_key",
-                "type": "password",
-                "required": true,
-                "description": "Xata API key"
-            },
-            {
-                "name": "database_url",
-                "type": "string",
-                "required": true,
-                "description": "Xata database URL (e.g., https://workspace-database.region.xata.sh/db/branch)"
-            }
-        ]
+        "type": "none",
+        "fields": []
     },
     "actions": [
         {

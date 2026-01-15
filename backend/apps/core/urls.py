@@ -2,36 +2,37 @@
 URL configuration for core app
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
+from .health import health_check
 from .views import (
-    WorkflowViewSet,
-    WorkflowVersionViewSet,
-    RunViewSet,
-    RunStepViewSet,
-    TriggerViewSet,
-    WebhookTriggerView,
-    CredentialViewSet,
-    ConnectorViewSet,
-    RunLogViewSet,
-    RunTraceViewSet,
     AlertConfigurationViewSet,
     AlertHistoryViewSet,
+    ConnectorViewSet,
+    CredentialViewSet,
+    CustomConnectorVersionViewSet,
+    CustomConnectorViewSet,
     ErrorSuggestionViewSet,
-    WorkflowTemplateViewSet,
+    RunLogViewSet,
+    RunStepViewSet,
+    RunTraceViewSet,
+    RunViewSet,
+    TriggerViewSet,
+    WebhookTriggerView,
     WorkflowCommentViewSet,
     WorkflowPresenceViewSet,
-    CustomConnectorViewSet,
-    CustomConnectorVersionViewSet,
+    WorkflowTemplateViewSet,
+    WorkflowVersionViewSet,
+    WorkflowViewSet,
 )
 from .views.assistant import (
-    AIAssistantChatView,
     AIAssistantChatStreamView,
+    AIAssistantChatView,
     AIAssistantHistoryView,
-    AIAssistantThreadsView,
     AIAssistantThreadDetailView,
+    AIAssistantThreadsView,
 )
-from .health import health_check
 from .views.integrations import IntegrationViewSet
 
 router = DefaultRouter()
@@ -70,6 +71,11 @@ router.register(
 app_name = "core"
 
 urlpatterns = [
+    path(
+        "integrations/<str:service>/callback/",
+        IntegrationViewSet.as_view({"get": "generic_callback"}),
+        name="integration-callback",
+    ),
     path("", include(router.urls)),
     # AI Assistant endpoints
     path(

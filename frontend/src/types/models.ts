@@ -195,6 +195,7 @@ export interface Credential {
     id: string;
     name: string;
     slug: string;
+    auth_type?: string;
     connector_name?: string;
     workspace_id: string;
     created_at: string;

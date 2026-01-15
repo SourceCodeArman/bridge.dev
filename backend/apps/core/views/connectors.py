@@ -4,17 +4,18 @@ Connector-related views.
 ViewSets for Connector, CustomConnector, and CustomConnectorVersion models.
 """
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
-from rest_framework import viewsets, status, filters
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.core.exceptions import ValidationError
+from rest_framework.response import Response
 
-from apps.accounts.permissions import IsWorkspaceMember, IsWorkspaceAdmin
+from apps.accounts.permissions import IsWorkspaceAdmin, IsWorkspaceMember
 from apps.common.logging_utils import get_logger
+
 from ..models import Connector, CustomConnector, CustomConnectorVersion
 from ..serializers import (
     ConnectorSerializer,
@@ -217,8 +218,8 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
         }
         """
         from ..connectors.base import ConnectorRegistry
-        from ..models import Credential
         from ..encryption import get_encryption_service
+        from ..models import Credential
 
         action_id = request.data.get("action_id")
         credential_id = request.data.get("credential_id")
@@ -299,6 +300,11 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
             # 3. Instantiate and execute
             # Merge inputs with credential config
             full_config = {**config, **credential_config}
+
+            logger.info(f"Execute action {action_id} for connector {connector_pk}")
+            logger.info(f"Credential ID: {credential_id}")
+            logger.info(f"Credential Config Keys: {list(credential_config.keys())}")
+            logger.info(f"Full Config Keys: {list(full_config.keys())}")
 
             connector = connector_class(full_config)
             result = connector.execute(action_id, config)
@@ -429,9 +435,10 @@ class CustomConnectorViewSet(viewsets.ModelViewSet):
     def test_upload(self, request):
         """Test endpoint for file upload"""
         import os
+        import uuid
+
         from django.conf import settings
         from supabase import create_client
-        import uuid
 
         file_obj = request.FILES.get("file")
         if not file_obj:

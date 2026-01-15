@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api/client';
-import type { PaginatedResponse, Credential, CreateCredentialRequest } from '@/types';
+import type { CreateCredentialRequest, Credential, PaginatedResponse } from '@/types';
 
 // Helper to map frontend auth types to backend credential types
 const mapCredentialType = (type: string): string => {
@@ -43,7 +43,8 @@ export const credentialService = {
             data: {
                 ...data.credentials,
                 // We optionally store connector_id in the encrypted data for reference
-                _connector_id: data.connector_id
+                _connector_id: data.connector_id,
+                _auth_type: data.type || 'custom'
             }
         };
 

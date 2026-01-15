@@ -199,14 +199,14 @@ export default function HttpBodyEditor({
             )}
 
             {/* Body Type Selector */}
-            <Tabs value={bodyType} onValueChange={(v) => handleBodyTypeChange(v as BodyType)}>
-                <TabsList className="h-10 px-0.5 w-full grid grid-cols-6 text-xs">
-                    <TabsTrigger value="none" className="h-7 text-xs px-2">none</TabsTrigger>
-                    <TabsTrigger value="form-data" className="h-7 text-xs px-2">form-data</TabsTrigger>
-                    <TabsTrigger value="x-www-form-urlencoded" className="h-7 text-xs px-1">urlencoded</TabsTrigger>
-                    <TabsTrigger value="raw" className="h-7 text-xs px-2">raw</TabsTrigger>
-                    <TabsTrigger value="binary" className="h-7 text-xs px-2">binary</TabsTrigger>
-                    <TabsTrigger value="graphql" className="h-7 text-xs px-2">GraphQL</TabsTrigger>
+            <Tabs value={bodyType} onValueChange={(v) => handleBodyTypeChange(v as BodyType)} className="w-full">
+                <TabsList className="w-full grid grid-cols-6 text-xs">
+                    <TabsTrigger value="none" className="text-xs px-2">none</TabsTrigger>
+                    <TabsTrigger value="form-data" className="text-xs px-2">form-data</TabsTrigger>
+                    <TabsTrigger value="x-www-form-urlencoded" className="text-xs px-1">urlencoded</TabsTrigger>
+                    <TabsTrigger value="raw" className="text-xs px-2">raw</TabsTrigger>
+                    <TabsTrigger value="binary" className="text-xs px-2">binary</TabsTrigger>
+                    <TabsTrigger value="graphql" className="text-xs px-2">GraphQL</TabsTrigger>
                 </TabsList>
 
                 {/* None */}

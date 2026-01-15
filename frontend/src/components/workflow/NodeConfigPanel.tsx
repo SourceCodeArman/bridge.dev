@@ -1,25 +1,25 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import type { Node } from '@xyflow/react';
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { JsonViewer } from '@/components/ui/json-viewer';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { connectorService } from '@/lib/api/services/connector';
-import CredentialSelector from './fields/CredentialSelector';
+import { cn } from '@/lib/utils';
+import type { Connector, ConnectorAction } from '@/types/models';
+import { useQuery } from '@tanstack/react-query';
+import type { Node } from '@xyflow/react';
+import { Check, FileJson, Loader2, Play, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import ActionSelector from './fields/ActionSelector';
+import CredentialSelector from './fields/CredentialSelector';
 import DynamicFieldRenderer from './fields/DynamicFieldRenderer';
 import HttpRequestResponseTabs from './fields/HttpRequestResponseTabs';
-import type { Connector, ConnectorAction } from '@/types/models';
-import { Loader2, Play, X, FileJson, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { JsonViewer } from '@/components/ui/json-viewer';
-import { Textarea } from '@/components/ui/textarea';
 
 interface NodeConfigPanelProps {
     selectedNode: Node | null;
     onClose: () => void;
     onUpdateNode: (nodeId: string, data: Record<string, unknown>) => void;
-    onCreateCredential?: () => void;
+    onCreateCredential?: (props?: { initialConnectorId?: string; authType?: string }) => void;
 }
 
 export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, onCreateCredential }: NodeConfigPanelProps) {
@@ -187,26 +187,33 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
 
     return (
         <Dialog open={!!selectedNode} onOpenChange={handleDialogOpenChange}>
-            <DialogContent className="h-[90vh] w-full max-w-[80vw] overflow-hidden flex flex-col duration-200">
+            <DialogContent className="h-[90vh] w-full max-w-[80vw] overflow-hidden flex flex-col duration-200 [&>button]:hidden">
                 <DialogHeader className="shrink-0 mb-4">
-                    <DialogTitle>{label}</DialogTitle>
-                    <DialogDescription>
-                        {description}
-                    </DialogDescription>
+                    <div className="flex items-center justify-between">
+                        <div className="flex flex-col items-start justify-between gap-2">
+                            <DialogTitle className="text-2xl font-bold">{label}</DialogTitle>
+                            <DialogDescription>
+                                {description}
+                            </DialogDescription>
+                        </div>
+                        <DialogTrigger>
+                            <X className="w-6 h-6" />
+                        </DialogTrigger>
+                    </div>
                 </DialogHeader>
 
                 {selectedNode && (
                     <div className={cn(
                         "flex-1 min-h-0",
                         // HTTP connector: full width until execution, then split
-                        connector?.slug === 'http' && !executionResult
+                        connector?.slug === 'http' || connector?.slug === 'http-tool' && !executionResult
                             ? "flex flex-col"
                             : "grid grid-cols-2 gap-6"
                     )}>
                         {/* Left Column / Full Width: Configuration */}
                         <div className={cn(
                             "space-y-6 overflow-y-auto pr-2",
-                            connector?.slug === 'http' && !executionResult && "flex-1"
+                            connector?.slug === 'http' || connector?.slug === 'http-tool' && !executionResult && "flex-1"
                         )}>
                             {/* Connector Configuration */}
                             {connectorLoading && (
@@ -215,8 +222,8 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
 
                             {connector && (
                                 <div className="space-y-4 p-0.5">
-                                    {/* Credential Selector */}
-                                    {connector.manifest?.auth_config && connector.manifest.auth_config.type !== 'none' && (
+                                    {/* Credential Selector - Hide for MCP tool which has custom placement */}
+                                    {connector.manifest?.auth_config && connector.manifest.auth_config.type !== 'none' && connector.slug !== 'mcp-client-tool' && (
                                         <CredentialSelector
                                             value={credentialId}
                                             onChange={handleCredentialChange}
@@ -227,7 +234,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                     )}
 
                                     {/* Action Selector */}
-                                    {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 0 && (
+                                    {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 1 && (
                                         <ActionSelector
                                             actions={Object.values(connector.manifest.actions)}
                                             value={actionId}
@@ -238,9 +245,13 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                     {/* Dynamic Fields from Action Schema */}
                                     {selectedAction?.input_schema?.properties && (
                                         <>
-                                            <Separator />
+                                            {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 1 && (
+                                                <Separator />
+                                            )}
                                             <div className="space-y-4">
-                                                <h4 className="text-sm font-medium">Parameters</h4>
+                                                {connector.manifest?.actions && Object.keys(connector.manifest.actions).length > 1 && (
+                                                    <h4 className="text-sm font-medium">Parameters</h4>
+                                                )}
                                                 {(() => {
                                                     const properties = Object.entries(selectedAction.input_schema.properties);
                                                     const uiOrder = selectedAction.input_schema['ui:order'] as string[] | undefined;
@@ -257,7 +268,9 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                                     }
 
                                                     return properties.map(([fieldName, fieldSchema]: [string, any]) => {
-                                                        if (fieldName === 'step_context' || fieldName === 'credential_id') return null;
+                                                        if (fieldName === 'step_context') return null;
+                                                        // Hide credential_id from dynamic fields unless it's MCP tool which handles it properly
+                                                        if (fieldName === 'credential_id' && connector.slug !== 'mcp-client-tool') return null;
 
                                                         const isRequired = selectedAction.input_schema.required?.includes(fieldName) || false;
 
@@ -283,6 +296,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                                                     const newValues = { ...fieldValues, ...updates };
                                                                     setFieldValues(newValues);
                                                                 }}
+                                                                onCreateCredential={onCreateCredential}
                                                             />
                                                         );
                                                     });
@@ -323,7 +337,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                         </div >
 
                         {/* Send Request button for HTTP connector (full-width mode) */}
-                        {connector?.slug === 'http' && !executionResult && (
+                        {connector?.slug === 'http' || connector?.slug === 'http-tool' && !executionResult && (
                             <div className="shrink-0 pt-4 border-t mt-4">
                                 <Button
                                     onClick={executeAction}
@@ -347,7 +361,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                         )}
 
                         {/* Right Column: Execution Result & Test Controls - hidden for HTTP until execution */}
-                        {(connector?.slug !== 'http' || executionResult) && (
+                        {(connector?.slug !== 'http' && connector?.slug !== 'http-tool' || executionResult) && (
                             < div className="flex flex-col h-full border-l pl-6 min-h-0" >
                                 <div className="flex items-center justify-between shrink-0 mb-4 h-8">
                                     <h4 className="text-sm font-medium">
@@ -390,21 +404,65 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                 </div>
 
                                 <div className="flex-1 bg-muted/30 rounded-md border min-h-0 relative flex flex-col overflow-hidden">
-                                    {executionResult ? (
+                                    {executionResult ? (() => {
                                         // Check if this is an HTTP connector result (has status_code)
-                                        connector?.slug === 'http' && executionRequest && executionResult.status_code !== undefined ? (
-                                            <HttpRequestResponseTabs
-                                                request={executionRequest}
-                                                response={executionResult}
-                                                className="h-full p-3 flex flex-col"
-                                            />
-                                        ) : (
+                                        if ((connector?.slug === 'http' || connector?.slug === 'http-tool') && executionRequest && executionResult.status_code !== undefined) {
+                                            return (
+                                                <HttpRequestResponseTabs
+                                                    request={executionRequest}
+                                                    response={executionResult}
+                                                    className="h-full p-3 flex flex-col"
+                                                />
+                                            );
+                                        }
+
+                                        // Check if this is an MCP connector result with nested text content
+                                        if (connector?.slug === 'mcp-client-tool' && executionResult?.result) {
+                                            const mcpResult = executionResult.result;
+                                            if (Array.isArray(mcpResult) && mcpResult.length > 0) {
+                                                const firstResult = mcpResult[0];
+                                                if (firstResult?.type === 'text' && firstResult?.text) {
+                                                    // Try to parse the text as JSON first
+                                                    try {
+                                                        const parsedJson = JSON.parse(firstResult.text);
+                                                        return (
+                                                            <JsonViewer
+                                                                data={parsedJson}
+                                                                className="h-full w-full p-1"
+                                                            />
+                                                        );
+                                                    } catch {
+                                                        // Not JSON - display as formatted text
+                                                        return (
+                                                            <div className="h-full w-full p-3 overflow-auto">
+                                                                <pre className="text-xs font-mono whitespace-pre-wrap break-words text-foreground">
+                                                                    {firstResult.text}
+                                                                </pre>
+                                                            </div>
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                            // Handle error case
+                                            if (executionResult.isError && typeof executionResult.error === 'string') {
+                                                return (
+                                                    <div className="h-full w-full p-3 overflow-auto">
+                                                        <pre className="text-xs font-mono whitespace-pre-wrap break-words text-red-500">
+                                                            {executionResult.error}
+                                                        </pre>
+                                                    </div>
+                                                );
+                                            }
+                                        }
+
+                                        // Default: show raw result
+                                        return (
                                             <JsonViewer
                                                 data={executionResult}
                                                 className="h-full w-full p-1"
                                             />
-                                        )
-                                    ) : showMockInput ? (
+                                        );
+                                    })() : showMockInput ? (
                                         <div className="flex-1 flex flex-col p-4 gap-4">
                                             <div className="flex-1 relative">
                                                 <Textarea

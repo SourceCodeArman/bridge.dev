@@ -45,7 +45,20 @@ class RedisMemoryConnector(BaseConnector):
             if not redis_url:
                 raise ValueError("redis_url is required")
 
-            self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            # Check if SSL is required (rediss:// scheme)
+            use_ssl = redis_url.startswith("rediss://")
+
+            logger.info(f"Connecting to Redis (SSL: {use_ssl})")
+
+            if use_ssl:
+                # For Upstash and other cloud Redis providers with TLS
+                # Use ssl_cert_reqs=None to skip certificate verification
+                # while still using TLS encryption
+                self.redis_client = redis.from_url(
+                    redis_url, decode_responses=True, ssl_cert_reqs=None
+                )
+            else:
+                self.redis_client = redis.from_url(redis_url, decode_responses=True)
 
             # Test connection
             self.redis_client.ping()

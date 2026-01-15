@@ -179,6 +179,7 @@ const WorkflowCanvasInner = () => {
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
     const [isCreateCredentialOpen, setIsCreateCredentialOpen] = useState(false);
+    const [createCredentialProps, setCreateCredentialProps] = useState<{ authType?: string; initialConnectorId?: string }>({});
     const [pendingConnection, setPendingConnection] = useState<{ sourceId: string; handleId: string; type: string; allowedTypes?: string[]; nodeWidth?: number } | null>(null);
     const reactFlowWrapper = useRef(null);
     const { screenToFlowPosition, fitView } = useReactFlow();
@@ -1250,12 +1251,17 @@ const WorkflowCanvasInner = () => {
                         return n;
                     }));
                 }}
-                onCreateCredential={() => setIsCreateCredentialOpen(true)}
+                onCreateCredential={(props) => {
+                    setCreateCredentialProps(props || {});
+                    setIsCreateCredentialOpen(true);
+                }}
             />
 
             <CreateCredentialModal
                 open={isCreateCredentialOpen}
                 onOpenChange={setIsCreateCredentialOpen}
+                initialConnectorId={createCredentialProps.initialConnectorId}
+                authType={createCredentialProps.authType}
             />
 
             {/* AI Assistant Widget */}

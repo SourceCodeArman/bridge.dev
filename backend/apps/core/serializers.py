@@ -2,38 +2,40 @@
 Serializers for core app
 """
 
-from rest_framework import serializers
-from .models import (
-    Workflow,
-    WorkflowVersion,
-    Run,
-    RunStep,
-    Trigger,
-    Credential,
-    CredentialUsage,
-    RunLog,
-    RunTrace,
-    AlertConfiguration,
-    AlertHistory,
-    ErrorSuggestion,
-    WorkflowTemplate,
-    WorkflowComment,
-    WorkflowPresence,
-    CustomConnector,
-    CustomConnectorVersion,
-    Connector,
-    ConversationThread,
-    ChatMessage,
-)
-from .encryption import get_encryption_service
-from .connectors.validator import validate_custom_connector_manifest
+import logging
+import os
+import uuid
+
+from django.conf import settings
 from django.db import transaction
 from django.utils.text import slugify
-from django.conf import settings
+from rest_framework import serializers
 from supabase import create_client
-import uuid
-import os
-import logging
+
+from .connectors.validator import validate_custom_connector_manifest
+from .encryption import get_encryption_service
+from .models import (
+    AlertConfiguration,
+    AlertHistory,
+    ChatMessage,
+    Connector,
+    ConversationThread,
+    Credential,
+    CredentialUsage,
+    CustomConnector,
+    CustomConnectorVersion,
+    ErrorSuggestion,
+    Run,
+    RunLog,
+    RunStep,
+    RunTrace,
+    Trigger,
+    Workflow,
+    WorkflowComment,
+    WorkflowPresence,
+    WorkflowTemplate,
+    WorkflowVersion,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -362,6 +364,7 @@ class CredentialListSerializer(serializers.ModelSerializer):
     workspace_name = serializers.CharField(source="workspace.name", read_only=True)
     created_by_email = serializers.CharField(source="created_by.email", read_only=True)
     slug = serializers.SerializerMethodField()
+    auth_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Credential
@@ -376,6 +379,7 @@ class CredentialListSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "slug",
+            "auth_type",
         )
         read_only_fields = ("id", "created_at", "updated_at")
 
@@ -396,6 +400,15 @@ class CredentialListSerializer(serializers.ModelSerializer):
                     slug = "gmail"
 
             return slug
+        except Exception:
+            return None
+
+    def get_auth_type(self, obj):
+        """Extract auth type from encrypted data"""
+        try:
+            encryption_service = get_encryption_service()
+            data = encryption_service.decrypt_dict(obj.encrypted_data)
+            return data.get("_auth_type")
         except Exception:
             return None
 

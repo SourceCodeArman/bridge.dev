@@ -3,6 +3,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { useState } from 'react';
 import GoogleCalendarSelector from './GoogleCalendarSelector';
 import GoogleSpreadsheetSelector from './GoogleSpreadsheetSelector';
@@ -13,6 +15,9 @@ import SlackChannelSelector from './SlackChannelSelector';
 import KeyValueEditor from './KeyValueEditor';
 import UrlWithParamsField from './UrlWithParamsField';
 import HttpBodyEditor from './HttpBodyEditor';
+import CredentialSelector from './CredentialSelector';
+import McpToolSelector from './McpToolSelector';
+import McpToolNameSelector from './McpToolNameSelector';
 
 interface JSONSchemaProperty {
     type: string | string[];
@@ -30,6 +35,7 @@ interface JSONSchemaProperty {
     displayName?: string;
     'ui:component'?: string;
     'ui:range-pair'?: string;
+    'ui:widget'?: string;
 }
 
 interface DynamicFieldRendererProps {
@@ -44,6 +50,7 @@ interface DynamicFieldRendererProps {
     allSchemas?: Record<string, JSONSchemaProperty>;
     allValues?: Record<string, any>;
     onMultiChange?: (updates: Record<string, any>) => void;
+    onCreateCredential?: (props?: { initialConnectorId?: string; authType?: string }) => void;
 }
 
 export default function DynamicFieldRenderer({
@@ -58,6 +65,7 @@ export default function DynamicFieldRenderer({
     allSchemas,
     allValues,
     onMultiChange,
+    onCreateCredential,
 }: DynamicFieldRendererProps) {
     const [jsonError, setJsonError] = useState<string>('');
 
@@ -114,8 +122,8 @@ export default function DynamicFieldRenderer({
         );
     }
 
-    // Handle body field for HTTP connector - use Postman-style editor
-    if (fieldName === 'body' && connectorSlug === 'http') {
+    // Handle body field for HTTP connectors - use Postman-style editor
+    if (fieldName === 'body' && (connectorSlug === 'http' || connectorSlug === 'http-tool')) {
         return (
             <HttpBodyEditor
                 value={value}
@@ -129,6 +137,60 @@ export default function DynamicFieldRenderer({
     }
 
     // Handle custom UI components
+    if (schema['ui:widget'] === 'credential-selector') {
+        const isVisible = allValues?.authentication && allValues.authentication !== 'none';
+
+        if (!isVisible) return null;
+
+        return (
+            <CredentialSelector
+                value={value}
+                onChange={onChange}
+                slug={connectorSlug}
+                label={label}
+                required={required}
+                authType={allValues?.authentication}
+                onCreate={onCreateCredential}
+            />
+        );
+    }
+
+    if (schema['ui:widget'] === 'tool-multiselect') {
+        const toolsSelection = allValues?.tools_selection || 'all';
+        const isVisible = toolsSelection === 'selected' || toolsSelection === 'all-except';
+
+        if (!isVisible) return null;
+
+        return (
+            <McpToolSelector
+                value={value}
+                onChange={onChange}
+                connectorId={connectorSlug}
+                config={allValues}
+                credentialId={credentialId}
+                label={label}
+                required={required}
+                error={error}
+            />
+        );
+    }
+
+    if (schema['ui:widget'] === 'tool-name-selector') {
+        return (
+            <McpToolNameSelector
+                value={value}
+                onChange={onChange}
+                connectorId={connectorSlug}
+                config={allValues}
+                credentialId={credentialId}
+                label={label}
+                required={required}
+                error={error}
+            />
+        );
+    }
+
+    // Handle legacy custom UI components
     if (schema['ui:component'] === 'google_calendar_selector') {
         return (
             <GoogleCalendarSelector
@@ -200,8 +262,6 @@ export default function DynamicFieldRenderer({
 
     // Handle webhook_url format - display generated URL as read-only
     if (schema.format === 'webhook_url' && schema.readOnly) {
-        // For now, show placeholder. The NodeConfigPanel should pass the actual webhook URL
-        // based on the workflow/trigger context
         const webhookUrl = value || 'Webhook URL will be generated after saving';
 
         return (
@@ -211,7 +271,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-foreground">{schema.description}</p>
+                    <p className="text-xs text-muted-foreground">{schema.description}</p>
                 )}
                 <div className="flex gap-2">
                     <Input
@@ -248,7 +308,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-foreground">{schema.description}</p>
+                    <p className="text-xs text-muted-foreground">{schema.description}</p>
                 )}
                 <Select value={value || schema.default || ''} onValueChange={onChange}>
                     <SelectTrigger id={fieldName} className="bg-background border-border">
@@ -271,8 +331,31 @@ export default function DynamicFieldRenderer({
         );
     }
 
-    // Handle boolean fields (checkbox)
+    // Handle boolean fields (checkbox or switch)
     if (fieldType === 'boolean') {
+        const isSwitch = schema['ui:widget'] === 'switch';
+
+        if (isSwitch) {
+            return (
+                <div className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">
+                            {label}
+                            {required && <span className="text-destructive ml-1">*</span>}
+                        </Label>
+                        {schema.description && (
+                            <p className="text-xs text-muted-foreground">{schema.description}</p>
+                        )}
+                    </div>
+                    <Switch
+                        checked={value ?? schema.default ?? false}
+                        onCheckedChange={(checked) => onChange(checked)}
+                    />
+                    {error && <p className="text-sm text-destructive ml-6">{error}</p>}
+                </div>
+            );
+        }
+
         return (
             <div className="space-y-2">
                 <div className="flex items-center space-x-2">
@@ -296,6 +379,68 @@ export default function DynamicFieldRenderer({
 
     // Handle number/integer fields
     if (fieldType === 'number' || fieldType === 'integer') {
+        // Use simple float input for temperature fields on LLM connectors
+        const isTemperatureField = fieldName === 'temperature' &&
+            schema.minimum !== undefined &&
+            schema.maximum !== undefined;
+
+        if (isTemperatureField) {
+            const min = schema.minimum ?? 0;
+            const max = schema.maximum ?? 2;
+            const step = 0.1;
+            const currentValue = value ?? schema.default ?? 1;
+
+            return (
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor={fieldName}>
+                            {label}
+                            {required && <span className="text-destructive ml-1">*</span>}
+                        </Label>
+                        <Input
+                            id={fieldName}
+                            type="number"
+                            value={typeof currentValue === 'number' ? currentValue : ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '') {
+                                    onChange(schema.default ?? 1);
+                                } else {
+                                    const parsed = parseFloat(val);
+                                    if (!isNaN(parsed)) {
+                                        const clamped = Math.min(max, Math.max(min, parsed));
+                                        onChange(clamped);
+                                    }
+                                }
+                            }}
+                            min={min}
+                            max={max}
+                            step={step}
+                            className="w-20 h-7 text-sm text-right border-0 shadow-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                    </div>
+                    {schema.description && (
+                        <p className="text-xs text-muted-foreground">{schema.description}</p>
+                    )}
+                    <div className="pt-1">
+                        <Slider
+                            value={[typeof currentValue === 'number' ? currentValue : parseFloat(currentValue) || 1]}
+                            onValueChange={(vals) => onChange(vals[0])}
+                            min={min}
+                            max={max}
+                            step={step}
+                            className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                            <span>{min} (Precise)</span>
+                            <span>{max} (Creative)</span>
+                        </div>
+                    </div>
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                </div>
+            );
+        }
+
         return (
             <div className="space-y-2">
                 <Label htmlFor={fieldName}>
@@ -303,7 +448,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-foreground">{schema.description}</p>
+                    <p className="text-xs text-muted-foreground">{schema.description}</p>
                 )}
                 <Input
                     id={fieldName}
@@ -348,7 +493,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-foreground">{schema.description}</p>
+                    <p className="text-xs text-muted-foreground">{schema.description}</p>
                 )}
                 <Textarea
                     id={fieldName}
@@ -378,7 +523,7 @@ export default function DynamicFieldRenderer({
     // Handle string fields (default)
     const isPassword = schema.format === 'password' || fieldName.toLowerCase().includes('password') || fieldName.toLowerCase().includes('token') || fieldName.toLowerCase().includes('secret');
     const isUri = schema.format === 'uri' || fieldName.toLowerCase().includes('url');
-    const isTextarea = schema.description?.toLowerCase().includes('long') || schema.description?.toLowerCase().includes('message') || schema.description?.toLowerCase().includes('body');
+    const isTextarea = schema['ui:widget'] === 'textarea' || schema.description?.toLowerCase().includes('long') || schema.description?.toLowerCase().includes('message') || schema.description?.toLowerCase().includes('body');
 
     if (isTextarea) {
         return (
@@ -388,7 +533,7 @@ export default function DynamicFieldRenderer({
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {schema.description && (
-                    <p className="text-xs text-foreground">{schema.description}</p>
+                    <p className="text-xs text-muted-foreground">{schema.description}</p>
                 )}
                 <Textarea
                     id={fieldName}
@@ -409,7 +554,7 @@ export default function DynamicFieldRenderer({
                 {required && <span className="text-destructive ml-1">*</span>}
             </Label>
             {schema.description && (
-                <p className="text-xs text-foreground">{schema.description}</p>
+                <p className="text-xs text-muted-foreground">{schema.description}</p>
             )}
             <Input
                 id={fieldName}

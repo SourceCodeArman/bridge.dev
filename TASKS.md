@@ -676,6 +676,20 @@ This section tracks all system-provided connectors, their available actions, and
   - [ ] Clear History
     - [ ] Conversation ID (Text Input)
 
+#### Simple Memory (`simple-memory`)
+- **Auth Type**: None
+- **Actions**:
+  - [x] Save Message
+    - [x] Role (Selector)
+    - [x] Content (Text Input)
+    - [x] Metadata (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Get History
+    - [x] Limit (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Clear History
+    - [x] Conversation ID (Text Input)
+
 #### Redis Memory (`redis-memory`)
 - **Auth Type**: Redis URL
 - **Actions**:
@@ -770,12 +784,12 @@ This section tracks all system-provided connectors, their available actions, and
     - [ ] Timeout (Integer Input)
 
 #### MCP Client (`mcp-client-tool`)
-- **Auth Type**: MCP Endpoint and API Key
+- **Auth Type**: MCP Endpoint (None, Bearer, API Key, Multi-Header)
 - **Actions**:
-  - [ ] Call MCP Tool
-    - [ ] Arguments (Text Input)
-    - [ ] Tool Name (Text Input)
-  - [ ] List MCP Tools
+  - [x] Call MCP Tool
+    - [x] Arguments (Text Input)
+    - [x] Tool Name (Text Input)
+  - [x] List MCP Tools
 
 ---
 

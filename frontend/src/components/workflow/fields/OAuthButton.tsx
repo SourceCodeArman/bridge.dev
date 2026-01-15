@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
 import { integrationService } from '@/lib/api/services/integration';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface OAuthButtonProps {
@@ -13,6 +13,10 @@ interface OAuthButtonProps {
     onError?: (error: any) => void;
     label?: string;
     disabled?: boolean;
+    mode?: 'google' | 'generic';
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    scope?: string;
 }
 
 export default function OAuthButton({
@@ -24,6 +28,10 @@ export default function OAuthButton({
     onError,
     label = 'Connect with Google',
     disabled = false,
+    mode = 'google',
+    authorizationUrl,
+    tokenUrl,
+    scope,
 }: OAuthButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [popupWindow, setPopupWindow] = useState<Window | null>(null);
@@ -41,15 +49,27 @@ export default function OAuthButton({
 
                 try {
                     // Exchange code for tokens
-                    const tokens = await integrationService.googleExchange({
-                        client_id: clientId,
-                        client_secret: clientSecret,
-                        code: event.data.code,
-                        redirect_uri: redirectUri,
-                        connector_type: connectorType,
-                    });
+                    let tokens;
+                    if (mode === 'generic') {
+                        if (!tokenUrl) throw new Error("Token URL is required for generic OAuth");
+                        tokens = await integrationService.genericExchange({
+                            token_url: tokenUrl,
+                            client_id: clientId,
+                            client_secret: clientSecret,
+                            code: event.data.code,
+                            redirect_uri: redirectUri,
+                        });
+                    } else {
+                        tokens = await integrationService.googleExchange({
+                            client_id: clientId,
+                            client_secret: clientSecret,
+                            code: event.data.code,
+                            redirect_uri: redirectUri,
+                            connector_type: connectorType,
+                        });
+                    }
 
-                    toast.success('Successfully connected to Google');
+                    toast.success('Successfully connected');
                     onSuccess(tokens);
                 } catch (error) {
                     console.error('Token exchange error:', error);
@@ -69,7 +89,7 @@ export default function OAuthButton({
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [clientId, clientSecret, redirectUri, connectorType, onSuccess, onError, popupWindow]);
+    }, [clientId, clientSecret, redirectUri, connectorType, onSuccess, onError, popupWindow, mode, tokenUrl]);
 
     const handleConnect = async () => {
         if (!clientId || !clientSecret) {
@@ -81,12 +101,25 @@ export default function OAuthButton({
 
         try {
             // Get auth URL from backend
-            const { url } = await integrationService.getGoogleAuthUrl({
-                client_id: clientId,
-                client_secret: clientSecret,
-                redirect_uri: redirectUri,
-                connector_type: connectorType,
-            });
+            let url;
+            if (mode === 'generic') {
+                if (!authorizationUrl) throw new Error("Authorization URL is required");
+                const res = await integrationService.getGenericAuthUrl({
+                    authorization_url: authorizationUrl,
+                    client_id: clientId,
+                    redirect_uri: redirectUri,
+                    scope: scope
+                });
+                url = res.url;
+            } else {
+                const res = await integrationService.getGoogleAuthUrl({
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    redirect_uri: redirectUri,
+                    connector_type: connectorType,
+                });
+                url = res.url;
+            }
 
             // Calculate center position for popup
             const width = 600;
@@ -97,7 +130,7 @@ export default function OAuthButton({
             // Open popup
             const popup = window.open(
                 url,
-                'Google Login',
+                'Login',
                 `width=${width},height=${height},top=${top},left=${left}`
             );
 

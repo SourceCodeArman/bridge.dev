@@ -1,11 +1,12 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+import requests
 from django.http import HttpResponse
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
-from apps.core.services.google_auth import GoogleAuthService
 from apps.common.logging_utils import get_logger
+from apps.core.services.google_auth import GoogleAuthService
 
 logger = get_logger(__name__)
 
@@ -40,12 +41,12 @@ class IntegrationViewSet(viewsets.GenericViewSet):
     @action(
         detail=False,
         methods=["get"],
-        url_path="google/callback",
+        url_path="(?P<service>[\w-]+)/callback",
         permission_classes=[AllowAny],
     )
-    def google_callback(self, request):
+    def generic_callback(self, request, service=None):
         """
-        Handle Google OAuth callback.
+        Handle Generic OAuth callback.
         Returns an HTML page that posts the code back to the opener.
         """
         code = request.query_params.get("code")
@@ -67,7 +68,7 @@ class IntegrationViewSet(viewsets.GenericViewSet):
                 console.log("OAuth Callback: Code received", "{code}");
                 if (window.opener) {{
                     console.log("Sending message to opener");
-                    window.opener.postMessage({{ type: 'oauth_callback', code: '{code}' }}, '*');
+                    window.opener.postMessage({{ type: 'oauth_callback', code: '{code}', service: '{service}' }}, '*');
                     console.log("Message sent, closing window");
                     window.close();
                 }} else {{
@@ -172,4 +173,74 @@ class IntegrationViewSet(viewsets.GenericViewSet):
 
         except Exception as e:
             logger.error(f"Error exchanging token: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["post"], url_path="generic/auth-url")
+    def generic_auth_url(self, request):
+        """
+        Generate Generic OAuth authorization URL.
+        """
+        authorization_url = request.data.get("authorization_url")
+        client_id = request.data.get("client_id")
+        redirect_uri = request.data.get("redirect_uri")
+        scope = request.data.get("scope", "")
+
+        if not all([authorization_url, client_id, redirect_uri]):
+            return Response(
+                {
+                    "error": "authorization_url, client_id, and redirect_uri are required"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            params = {
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "response_type": "code",
+                "scope": scope,
+                "access_type": "offline",
+            }
+            req = requests.Request("GET", authorization_url, params=params)
+            url = req.prepare().url
+            return Response({"url": url})
+
+        except Exception as e:
+            logger.error(f"Error generating generic auth URL: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["post"], url_path="generic/exchange")
+    def generic_exchange(self, request):
+        """
+        Exchange authorization code for tokens (Generic).
+        """
+        token_url = request.data.get("token_url")
+        client_id = request.data.get("client_id")
+        client_secret = request.data.get("client_secret")
+        code = request.data.get("code")
+        redirect_uri = request.data.get("redirect_uri")
+
+        if not all([token_url, client_id, client_secret, code, redirect_uri]):
+            return Response(
+                {
+                    "error": "token_url, client_id, client_secret, code, and redirect_uri are required"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            data = {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+            }
+            response = requests.post(token_url, data=data, timeout=30)
+            response.raise_for_status()
+            tokens = response.json()
+            return Response(tokens)
+
+        except Exception as e:
+            logger.error(f"Error exchanging generic token: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

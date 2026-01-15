@@ -29,9 +29,15 @@ class CoreConfig(AppConfig):
             from apps.core.connectors.openai_model.connector import (
                 OpenAIModelConnector,
             )
+            from apps.core.connectors.simple_memory.connector import SimpleMemoryConnector
             from apps.core.connectors.anthropic.connector import AnthropicConnector
             from apps.core.connectors.gemini.connector import GeminiConnector
             from apps.core.connectors.deepseek.connector import DeepSeekConnector
+            from apps.core.connectors.mongodb_memory.connector import MongoDBMemoryConnector
+            from apps.core.connectors.postgres_memory.connector import PostgresMemoryConnector
+            from apps.core.connectors.redis_memory.connector import RedisMemoryConnector
+            from apps.core.connectors.http_tool.connector import HTTPToolConnector
+            from apps.core.connectors.mcp_client_tool.connector import MCPClientConnector
 
             registry = ConnectorRegistry()
 
@@ -45,9 +51,15 @@ class CoreConfig(AppConfig):
             registry.register(GoogleCalendarConnector)
             registry.register(OpenAIConnector)
             registry.register(OpenAIModelConnector)
+            registry.register(SimpleMemoryConnector)
             registry.register(AnthropicConnector)
             registry.register(GeminiConnector)
             registry.register(DeepSeekConnector)
+            registry.register(MongoDBMemoryConnector)
+            registry.register(PostgresMemoryConnector)
+            registry.register(RedisMemoryConnector)
+            registry.register(HTTPToolConnector)
+            registry.register(MCPClientConnector)
 
             # Register inbound webhook connector
             from apps.core.connectors.webhook.connector import (

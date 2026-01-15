@@ -1,8 +1,8 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { credentialService } from '@/lib/api/services/credential';
+import { useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { useEffect } from 'react';
 
@@ -12,7 +12,8 @@ interface CredentialSelectorProps {
     slug?: string;
     label?: string;
     required?: boolean;
-    onCreate?: () => void;
+    authType?: string;
+    onCreate?: (props?: { initialConnectorId?: string; authType?: string }) => void;
 }
 
 export default function CredentialSelector({
@@ -21,6 +22,7 @@ export default function CredentialSelector({
     slug,
     label = 'Credential',
     required = false,
+    authType,
     onCreate,
 }: CredentialSelectorProps) {
     const { data: credentials, isLoading } = useQuery({
@@ -56,7 +58,11 @@ export default function CredentialSelector({
 
     // Filter credentials by connector type if provided (with alias support)
     const filteredCredentials = credentials?.results?.filter(
-        (cred) => !cred.slug || !slug || allowedSlugs.includes(cred.slug)
+        (cred) => {
+            const slugMatch = !cred.slug || !slug || allowedSlugs.includes(cred.slug);
+            const authTypeMatch = !authType || !cred.auth_type || cred.auth_type === authType;
+            return slugMatch && authTypeMatch;
+        }
     ) || [];
     useEffect(() => console.log(filteredCredentials), [filteredCredentials]);
 
@@ -90,7 +96,7 @@ export default function CredentialSelector({
                     size="icon"
                     title="Create new credential"
                     onClick={() => {
-                        if (onCreate) onCreate();
+                        if (onCreate) onCreate({ initialConnectorId: slug, authType });
                     }}
                 >
                     <Plus className="h-4 w-4" />

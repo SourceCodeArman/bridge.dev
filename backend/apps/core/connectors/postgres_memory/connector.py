@@ -53,12 +53,20 @@ class PostgresMemoryConnector(BaseConnector):
                 role VARCHAR(50) NOT NULL,
                 content TEXT NOT NULL,
                 metadata JSONB,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_conversation_id (conversation_id),
-                INDEX idx_timestamp (timestamp)
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
             self.cursor.execute(create_table_query)
+
+            # Create indexes separately (PostgreSQL syntax)
+            self.cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conversation_id 
+                ON conversation_messages (conversation_id);
+            """)
+            self.cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_timestamp 
+                ON conversation_messages (timestamp);
+            """)
             self.connection.commit()
 
             logger.info("Postgres Memory connector initialized successfully")
