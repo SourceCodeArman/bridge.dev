@@ -42,6 +42,12 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
     // Track the request that was sent (for HTTP connector)
     const [executionRequest, setExecutionRequest] = useState<any>(null);
 
+    // MCP tools shared state
+    const [mcpTools, setMcpTools] = useState<{ name: string; description?: string; inputSchema?: any }[]>([]);
+    const [mcpToolsLoading, setMcpToolsLoading] = useState(false);
+    const [mcpToolsError, setMcpToolsError] = useState<string | null>(null);
+    const [mcpToolsFetchKey, setMcpToolsFetchKey] = useState<string>('');
+
     const executeAction = async () => {
         if (!connectorId || !actionId) return;
 
@@ -50,11 +56,25 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
         setExecutionStatus('idle');
 
         try {
+            // Use filtered values to exclude hidden conditional fields
+            const filteredValues = getFilteredFieldValues();
+            // For MCP connector, use the credential_id from field values (selected in the config)
+            // For other connectors, use the top-level credentialId state
+            // Don't pass credential_id when authentication is "none"
+            let effectiveCredentialId = connector?.slug === 'mcp-client-tool'
+                ? (filteredValues.credential_id || credentialId)
+                : credentialId;
+
+            // Clear credential_id if authentication is "none" for MCP connector
+            if (connector?.slug === 'mcp-client-tool' && filteredValues.authentication === 'none') {
+                effectiveCredentialId = '';
+                delete filteredValues.credential_id;
+            }
             const result = await connectorService.executeAction(
                 connectorId,
                 actionId,
-                fieldValues,
-                credentialId
+                filteredValues,
+                effectiveCredentialId
             );
             // Store the request that was sent (for HTTP connector)
             setExecutionRequest({
@@ -110,6 +130,42 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
             (Object.values(connector.manifest.actions).length === 1 ? Object.values(connector.manifest.actions)[0] as ConnectorAction : undefined))
         : undefined;
 
+    // Filter out fields that don't meet their ui:showIf conditions
+    const getFilteredFieldValues = () => {
+        if (!selectedAction?.input_schema?.properties) return fieldValues;
+
+        const filteredValues: Record<string, any> = {};
+        const properties = selectedAction.input_schema.properties;
+
+        for (const [fieldName, value] of Object.entries(fieldValues)) {
+            const fieldSchema = properties[fieldName];
+
+            // If the field doesn't exist in schema or has no showIf, include it
+            if (!fieldSchema || !fieldSchema['ui:showIf']) {
+                filteredValues[fieldName] = value;
+                continue;
+            }
+
+            // Check if the showIf condition is met
+            const showIfCondition = fieldSchema['ui:showIf'];
+            let shouldInclude = true;
+
+            for (const [dependentField, allowedValues] of Object.entries(showIfCondition) as [string, string[]][]) {
+                const currentValue = fieldValues[dependentField];
+                if (!allowedValues.includes(currentValue)) {
+                    shouldInclude = false;
+                    break;
+                }
+            }
+
+            if (shouldInclude) {
+                filteredValues[fieldName] = value;
+            }
+        }
+
+        return filteredValues;
+    };
+
     // Sync state with selected node
     useEffect(() => {
         if (selectedNode) {
@@ -154,6 +210,90 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
         }
     }, [selectedAction?.id, fieldValues.timezone]);
 
+    // MCP tools fetch function
+    const fetchMcpTools = async () => {
+        if (!connectorId || connector?.slug !== 'mcp-client-tool') return;
+
+        setMcpToolsLoading(true);
+        setMcpToolsError(null);
+
+        try {
+            // Filter config based on transport
+            const transport = fieldValues.transport || 'sse';
+            const filteredConfig = { ...fieldValues };
+
+            if (transport === 'stdio') {
+                delete filteredConfig.endpoint;
+            } else {
+                delete filteredConfig.server_command;
+                delete filteredConfig.server_args;
+            }
+
+            // Clear credential_id if authentication is "none"
+            let effectiveCredentialId = filteredConfig.credential_id || credentialId;
+            if (filteredConfig.authentication === 'none') {
+                effectiveCredentialId = '';
+                delete filteredConfig.credential_id;
+            }
+
+            const result = await connectorService.executeAction(
+                connectorId,
+                "list_tools",
+                filteredConfig,
+                effectiveCredentialId
+            );
+
+            if (result && result.tools) {
+                setMcpTools(result.tools);
+            } else {
+                throw new Error("Invalid response format");
+            }
+        } catch (err: any) {
+            console.error("Failed to fetch MCP tools:", err);
+            setMcpToolsError(err.message || "Failed to fetch tools");
+        } finally {
+            setMcpToolsLoading(false);
+        }
+    };
+
+    // Auto-fetch MCP tools when endpoint or server config changes
+    useEffect(() => {
+        if (connector?.slug !== 'mcp-client-tool') return;
+
+        const transport = fieldValues.transport || 'sse';
+        let fetchKey = '';
+
+        if (transport === 'stdio') {
+            const cmd = fieldValues.server_command || '';
+            const args = fieldValues.server_args || '';
+            if (cmd) {
+                fetchKey = `stdio:${cmd}:${args}`;
+            }
+        } else {
+            const endpoint = fieldValues.endpoint || '';
+            if (endpoint) {
+                fetchKey = `${transport}:${endpoint}`;
+            }
+        }
+
+        // Only fetch if we have a valid config and it changed
+        if (fetchKey && fetchKey !== mcpToolsFetchKey) {
+            setMcpToolsFetchKey(fetchKey);
+            // Use a debounce to avoid fetching on every keystroke
+            const timeoutId = setTimeout(() => {
+                fetchMcpTools();
+            }, 500);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [connector?.slug, fieldValues.transport, fieldValues.endpoint, fieldValues.server_command, fieldValues.server_args]);
+
+    // Reset MCP tools when node changes
+    useEffect(() => {
+        setMcpTools([]);
+        setMcpToolsError(null);
+        setMcpToolsFetchKey('');
+    }, [selectedNode?.id]);
+
     const handleCredentialChange = (newCredentialId: string) => {
         setCredentialId(newCredentialId);
     };
@@ -168,17 +308,19 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
         setFieldValues(newValues);
     };
 
+
     const handleDialogOpenChange = (open: boolean) => {
         if (!open) {
             if (selectedNode) {
+                const filteredConfig = getFilteredFieldValues();
                 onUpdateNode(selectedNode.id, {
                     ...selectedNode.data,
                     label,
                     description,
                     credential_id: credentialId,
                     action_id: actionId,
-                    config: fieldValues,
-                    ...fieldValues
+                    config: filteredConfig,
+                    ...filteredConfig
                 });
             }
             onClose();
@@ -297,6 +439,10 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                                                     setFieldValues(newValues);
                                                                 }}
                                                                 onCreateCredential={onCreateCredential}
+                                                                mcpTools={mcpTools}
+                                                                mcpToolsLoading={mcpToolsLoading}
+                                                                mcpToolsError={mcpToolsError}
+                                                                onFetchMcpTools={fetchMcpTools}
                                                             />
                                                         );
                                                     });
@@ -435,7 +581,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                                         // Not JSON - display as formatted text
                                                         return (
                                                             <div className="h-full w-full p-3 overflow-auto">
-                                                                <pre className="text-xs font-mono whitespace-pre-wrap break-words text-foreground">
+                                                                <pre className="text-xs font-mono whitespace-pre-wrap wrap-break-word text-foreground">
                                                                     {firstResult.text}
                                                                 </pre>
                                                             </div>
@@ -447,7 +593,7 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                                             if (executionResult.isError && typeof executionResult.error === 'string') {
                                                 return (
                                                     <div className="h-full w-full p-3 overflow-auto">
-                                                        <pre className="text-xs font-mono whitespace-pre-wrap break-words text-red-500">
+                                                        <pre className="text-xs font-mono whitespace-pre-wrap wrap-break-word text-red-500">
                                                             {executionResult.error}
                                                         </pre>
                                                     </div>

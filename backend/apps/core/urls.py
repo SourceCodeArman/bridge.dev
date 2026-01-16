@@ -3,6 +3,7 @@ URL configuration for core app
 """
 
 from django.urls import include, path
+from rest_framework.permissions import AllowAny
 from rest_framework.routers import DefaultRouter
 
 from .health import health_check
@@ -73,7 +74,9 @@ app_name = "core"
 urlpatterns = [
     path(
         "integrations/<str:service>/callback/",
-        IntegrationViewSet.as_view({"get": "generic_callback"}),
+        IntegrationViewSet.as_view(
+            {"get": "generic_callback"}, permission_classes=[AllowAny]
+        ),
         name="integration-callback",
     ),
     path("", include(router.urls)),

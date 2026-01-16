@@ -307,7 +307,7 @@ class ConnectorViewSet(viewsets.ReadOnlyModelViewSet):
             logger.info(f"Full Config Keys: {list(full_config.keys())}")
 
             connector = connector_class(full_config)
-            result = connector.execute(action_id, config)
+            result = connector.execute(action_id, full_config)
 
             return Response(
                 {

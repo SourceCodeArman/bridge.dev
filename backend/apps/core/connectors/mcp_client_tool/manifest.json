@@ -2,7 +2,7 @@
     "id": "mcp-client-tool",
     "name": "MCP Client",
     "version": "1.0.0",
-    "description": "Connect to MCP Server",
+    "description": "Connect to MCP Server via HTTP/SSE or Stdio",
     "author": "Bridge.dev",
     "connector_type": "agent-tool",
     "auth_config": {
@@ -11,14 +11,128 @@
             {
                 "name": "server_command",
                 "type": "string",
-                "required": true,
-                "description": "Command to start the MCP server (e.g., 'npx -y @modelcontextprotocol/server-filesystem')"
+                "required": false,
+                "description": "Command to start the MCP server (for Stdio transport)"
             },
             {
                 "name": "server_args",
-                "type": "array",
+                "type": "string",
                 "required": false,
-                "description": "Optional arguments for the MCP server command"
+                "description": "Arguments for the MCP server (for Stdio transport)"
+            },
+            {
+                "name": "bearer_token",
+                "type": "string",
+                "required": false,
+                "description": "Bearer Token"
+            },
+            {
+                "name": "header_name",
+                "type": "string",
+                "required": false,
+                "description": "Header Name"
+            },
+            {
+                "name": "header_value",
+                "type": "string",
+                "required": false,
+                "description": "Header Value"
+            },
+            {
+                "name": "api_key",
+                "type": "string",
+                "required": false,
+                "description": "API Key (for header or multiple-headers auth)"
+            },
+            {
+                "name": "client_id",
+                "type": "string",
+                "required": false,
+                "description": "Client ID"
+            },
+            {
+                "name": "client_secret",
+                "type": "string",
+                "required": false,
+                "description": "Client Secret",
+                "ui:widget": "password"
+            },
+            {
+                "name": "authorization_url",
+                "type": "string",
+                "required": false,
+                "description": "Authorization URL"
+            },
+            {
+                "name": "token_url",
+                "type": "string",
+                "required": false,
+                "description": "Token URL"
+            },
+            {
+                "name": "scope",
+                "type": "string",
+                "required": false,
+                "description": "OAuth Scope"
+            },
+            {
+                "name": "oauth_redirect_url",
+                "type": "string",
+                "required": false,
+                "description": "OAuth Redirect URL (Auto-generated)",
+                "readOnly": true
+            },
+            {
+                "name": "use_dynamic_client_registration",
+                "type": "boolean",
+                "required": false,
+                "description": "Use Dynamic Client Registration",
+                "ui:widget": "switch"
+            },
+            {
+                "name": "access_token",
+                "type": "string",
+                "required": false,
+                "description": "OAuth Access Token (obtained after authorization)",
+                "hidden": true
+            },
+            {
+                "name": "refresh_token",
+                "type": "string",
+                "required": false,
+                "description": "OAuth Refresh Token (for token renewal)",
+                "hidden": true
+            },
+            {
+                "name": "server_url",
+                "type": "string",
+                "required": false,
+                "description": "MCP Server URL"
+            },
+            {
+                "name": "headers_json",
+                "type": "string",
+                "required": false,
+                "description": "Headers Object (JSON)",
+                "ui:widget": "textarea"
+            },
+            {
+                "name": "allowed_domains_mode",
+                "type": "string",
+                "required": false,
+                "description": "Allowed HTTP Request Domains",
+                "enum": [
+                    "all",
+                    "specific",
+                    "none"
+                ],
+                "default": "all"
+            },
+            {
+                "name": "allowed_domains",
+                "type": "string",
+                "required": false,
+                "description": "Allowed Domains (comma separated)"
             }
         ]
     },
@@ -30,18 +144,111 @@
             "input_schema": {
                 "type": "object",
                 "required": [
+                    "transport",
                     "tool_name"
                 ],
                 "properties": {
+                    "transport": {
+                        "type": "string",
+                        "enum": [
+                            "stdio",
+                            "http-streamable",
+                            "sse"
+                        ],
+                        "default": "sse",
+                        "description": "Transport protocol"
+                    },
+                    "endpoint": {
+                        "type": "string",
+                        "description": "MCP Server URL",
+                        "ui:showIf": {
+                            "transport": [
+                                "sse",
+                                "http-streamable"
+                            ]
+                        }
+                    },
+                    "server_command": {
+                        "type": "string",
+                        "description": "Command to start the MCP server (e.g., npx, python)",
+                        "ui:showIf": {
+                            "transport": [
+                                "stdio"
+                            ]
+                        }
+                    },
+                    "server_args": {
+                        "type": "string",
+                        "description": "Arguments for the server command (space-separated)",
+                        "ui:showIf": {
+                            "transport": [
+                                "stdio"
+                            ]
+                        }
+                    },
+                    "authentication": {
+                        "type": "string",
+                        "enum": [
+                            "none",
+                            "bearer",
+                            "header",
+                            "mcp-oauth2",
+                            "multiple-headers"
+                        ],
+                        "default": "none",
+                        "description": "Authentication method"
+                    },
+                    "credential_id": {
+                        "type": "string",
+                        "description": "Select Credential (if authentication required)",
+                        "ui:widget": "credential-selector"
+                    },
+                    "tools_selection": {
+                        "type": "string",
+                        "enum": [
+                            "all",
+                            "selected",
+                            "all-except"
+                        ],
+                        "default": "all",
+                        "description": "Which tools to include"
+                    },
+                    "tools_list": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Tools to include or exclude",
+                        "ui:widget": "tool-multiselect"
+                    },
+                    "timeout": {
+                        "type": "integer",
+                        "description": "Timeout in seconds",
+                        "default": 60
+                    },
                     "tool_name": {
                         "type": "string",
-                        "description": "Name of the MCP tool to call"
+                        "description": "Name of the MCP tool to call (Required)",
+                        "ui:widget": "tool-name-selector"
                     },
                     "arguments": {
                         "type": "object",
                         "description": "Arguments to pass to the tool"
                     }
-                }
+                },
+                "ui:order": [
+                    "transport",
+                    "endpoint",
+                    "server_command",
+                    "server_args",
+                    "authentication",
+                    "credential_id",
+                    "tools_selection",
+                    "tools_list",
+                    "timeout",
+                    "tool_name",
+                    "arguments"
+                ]
             },
             "output_schema": {
                 "type": "object",
@@ -51,45 +258,13 @@
                     },
                     "error": {
                         "type": "string",
-                        "description": "Error message if tool execution failed"
+                        "description": "Error message"
                     }
                 }
             },
             "required_fields": [
                 "tool_name"
             ]
-        },
-        {
-            "id": "list_tools",
-            "name": "List MCP Tools",
-            "description": "List all available tools on the MCP server",
-            "input_schema": {
-                "type": "object",
-                "properties": {}
-            },
-            "output_schema": {
-                "type": "object",
-                "properties": {
-                    "tools": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                },
-                                "description": {
-                                    "type": "string"
-                                },
-                                "inputSchema": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "required_fields": []
         }
     ]
 }

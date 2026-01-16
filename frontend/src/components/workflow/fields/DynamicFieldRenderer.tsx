@@ -1,23 +1,23 @@
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
+import AIModelSelector from './AIModelSelector';
+import CredentialSelector from './CredentialSelector';
+import DateTimePicker from './DateTimePicker';
 import GoogleCalendarSelector from './GoogleCalendarSelector';
 import GoogleSpreadsheetSelector from './GoogleSpreadsheetSelector';
 import GoogleWorksheetSelector from './GoogleWorksheetSelector';
-import DateTimePicker from './DateTimePicker';
-import AIModelSelector from './AIModelSelector';
-import SlackChannelSelector from './SlackChannelSelector';
-import KeyValueEditor from './KeyValueEditor';
-import UrlWithParamsField from './UrlWithParamsField';
 import HttpBodyEditor from './HttpBodyEditor';
-import CredentialSelector from './CredentialSelector';
-import McpToolSelector from './McpToolSelector';
+import KeyValueEditor from './KeyValueEditor';
 import McpToolNameSelector from './McpToolNameSelector';
+import McpToolSelector from './McpToolSelector';
+import SlackChannelSelector from './SlackChannelSelector';
+import UrlWithParamsField from './UrlWithParamsField';
 
 interface JSONSchemaProperty {
     type: string | string[];
@@ -36,6 +36,7 @@ interface JSONSchemaProperty {
     'ui:component'?: string;
     'ui:range-pair'?: string;
     'ui:widget'?: string;
+    'ui:showIf'?: Record<string, string[]>;
 }
 
 interface DynamicFieldRendererProps {
@@ -51,6 +52,11 @@ interface DynamicFieldRendererProps {
     allValues?: Record<string, any>;
     onMultiChange?: (updates: Record<string, any>) => void;
     onCreateCredential?: (props?: { initialConnectorId?: string; authType?: string }) => void;
+    // MCP tools shared state
+    mcpTools?: { name: string; description?: string; inputSchema?: any }[];
+    mcpToolsLoading?: boolean;
+    mcpToolsError?: string | null;
+    onFetchMcpTools?: () => void;
 }
 
 export default function DynamicFieldRenderer({
@@ -66,6 +72,10 @@ export default function DynamicFieldRenderer({
     allValues,
     onMultiChange,
     onCreateCredential,
+    mcpTools,
+    mcpToolsLoading,
+    mcpToolsError,
+    onFetchMcpTools,
 }: DynamicFieldRendererProps) {
     const [jsonError, setJsonError] = useState<string>('');
 
@@ -89,6 +99,17 @@ export default function DynamicFieldRenderer({
         hasOnMultiChange: !!onMultiChange,
         allSchemasCount: allSchemas ? Object.keys(allSchemas).length : 0
     });
+
+    // Handle ui:showIf conditional visibility
+    const showIfCondition = schema['ui:showIf'];
+    if (showIfCondition && allValues) {
+        for (const [dependentField, allowedValues] of Object.entries(showIfCondition)) {
+            const currentValue = allValues[dependentField];
+            if (!allowedValues.includes(currentValue)) {
+                return null;
+            }
+        }
+    }
 
     // Handle AI model selector for model fields on AI connectors
     const AI_CONNECTORS = ['openai', 'anthropic', 'gemini', 'deepseek'];
@@ -165,12 +186,13 @@ export default function DynamicFieldRenderer({
             <McpToolSelector
                 value={value}
                 onChange={onChange}
-                connectorId={connectorSlug}
-                config={allValues}
-                credentialId={credentialId}
                 label={label}
                 required={required}
                 error={error}
+                tools={mcpTools}
+                loading={mcpToolsLoading}
+                fetchError={mcpToolsError}
+                onFetchTools={onFetchMcpTools}
             />
         );
     }
@@ -180,12 +202,13 @@ export default function DynamicFieldRenderer({
             <McpToolNameSelector
                 value={value}
                 onChange={onChange}
-                connectorId={connectorSlug}
-                config={allValues}
-                credentialId={credentialId}
                 label={label}
                 required={required}
                 error={error}
+                tools={mcpTools}
+                loading={mcpToolsLoading}
+                fetchError={mcpToolsError}
+                onFetchTools={onFetchMcpTools}
             />
         );
     }
