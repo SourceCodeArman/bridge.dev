@@ -60,9 +60,16 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
             const filteredValues = getFilteredFieldValues();
             // For MCP connector, use the credential_id from field values (selected in the config)
             // For other connectors, use the top-level credentialId state
-            const effectiveCredentialId = connector?.slug === 'mcp-client-tool'
+            // Don't pass credential_id when authentication is "none"
+            let effectiveCredentialId = connector?.slug === 'mcp-client-tool'
                 ? (filteredValues.credential_id || credentialId)
                 : credentialId;
+
+            // Clear credential_id if authentication is "none" for MCP connector
+            if (connector?.slug === 'mcp-client-tool' && filteredValues.authentication === 'none') {
+                effectiveCredentialId = '';
+                delete filteredValues.credential_id;
+            }
             const result = await connectorService.executeAction(
                 connectorId,
                 actionId,
@@ -222,11 +229,18 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
                 delete filteredConfig.server_args;
             }
 
+            // Clear credential_id if authentication is "none"
+            let effectiveCredentialId = filteredConfig.credential_id || credentialId;
+            if (filteredConfig.authentication === 'none') {
+                effectiveCredentialId = '';
+                delete filteredConfig.credential_id;
+            }
+
             const result = await connectorService.executeAction(
                 connectorId,
                 "list_tools",
                 filteredConfig,
-                filteredConfig.credential_id || credentialId
+                effectiveCredentialId
             );
 
             if (result && result.tools) {
