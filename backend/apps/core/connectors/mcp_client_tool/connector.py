@@ -345,10 +345,37 @@ class MCPClientConnector(BaseConnector):
                     logger.info("Injected access_token into arguments")
             elif auth_type == "multiple-headers":
                 # Inject all multi-header auth fields
-                if self.config.get("api_key") and "api_key" not in arguments:
-                    arguments["api_key"] = self.config.get("api_key")
-                if self.config.get("client_id") and "client_id" not in arguments:
-                    arguments["client_id"] = self.config.get("client_id")
+                api_key = self.config.get("api_key")
+                client_id = self.config.get("client_id")
+
+                # Also check headers_json for X-API-Key and X-Client-ID
+                headers_json = self.config.get("headers_json")
+                if headers_json:
+                    try:
+                        headers = json.loads(headers_json)
+                        if isinstance(headers, dict):
+                            # Check for X-API-Key header
+                            if not api_key:
+                                api_key = headers.get("X-API-Key") or headers.get(
+                                    "x-api-key"
+                                )
+                            # Check for X-Client-ID header
+                            if not client_id:
+                                client_id = headers.get("X-Client-ID") or headers.get(
+                                    "x-client-id"
+                                )
+                    except json.JSONDecodeError:
+                        logger.warning(
+                            "Failed to parse headers_json for multiple-headers auth"
+                        )
+
+                logger.info(
+                    f"Multiple-headers auth injection - api_key found: {bool(api_key)}, client_id found: {bool(client_id)}"
+                )
+                if api_key and "api_key" not in arguments:
+                    arguments["api_key"] = api_key
+                if client_id and "client_id" not in arguments:
+                    arguments["client_id"] = client_id
 
         if not tool_name:
             raise ValueError("tool_name is required")

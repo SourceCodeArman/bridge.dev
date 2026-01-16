@@ -651,30 +651,30 @@ This section tracks all system-provided connectors, their available actions, and
 #### MongoDB Memory (`mongodb-memory`)
 - **Auth Type**: MongoDB Connection String
 - **Actions**:
-  - [ ] Save Message
-    - [ ] Role (Selector)
-    - [ ] Content (Text Input)
-    - [ ] Metadata (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Get History
-    - [ ] Limit (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Clear History
-    - [ ] Conversation ID (Text Input)
+  - [x] Save Message
+    - [x] Role (Selector)
+    - [x] Content (Text Input)
+    - [x] Metadata (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Get History
+    - [x] Limit (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Clear History
+    - [x] Conversation ID (Text Input)
 
 #### PostgreSQL Memory (`postgres-memory`)
 - **Auth Type**: PostgreSQL Connection String (password field)
 - **Actions**:
-  - [ ] Save Message
-    - [ ] Role (Selector)
-    - [ ] Content (Text Input)
-    - [ ] Metadata (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Get History
-    - [ ] Limit (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Clear History
-    - [ ] Conversation ID (Text Input)
+  - [x] Save Message
+    - [x] Role (Selector)
+    - [x] Content (Text Input)
+    - [x] Metadata (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Get History
+    - [x] Limit (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Clear History
+    - [x] Conversation ID (Text Input)
 
 #### Simple Memory (`simple-memory`)
 - **Auth Type**: None
@@ -693,30 +693,16 @@ This section tracks all system-provided connectors, their available actions, and
 #### Redis Memory (`redis-memory`)
 - **Auth Type**: Redis URL
 - **Actions**:
-  - [ ] Save Message
-    - [ ] Role (Selector)
-    - [ ] Content (Text Input)
-    - [ ] Metadata (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Get History
-    - [ ] Limit (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Clear History
-    - [ ] Conversation ID (Text Input)
-
-#### Xata Memory (`xata-memory`)
-- **Auth Type**: Xata API Key and Database URL
-- **Actions**:
-  - [ ] Save Message
-    - [ ] Role (Selector)
-    - [ ] Content (Text Input)
-    - [ ] Metadata (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Get History
-    - [ ] Limit (Text Input)
-    - [ ] Conversation ID (Text Input)
-  - [ ] Clear History
-    - [ ] Conversation ID (Text Input)
+  - [x] Save Message
+    - [x] Role (Selector)
+    - [x] Content (Text Input)
+    - [x] Metadata (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Get History
+    - [x] Limit (Text Input)
+    - [x] Conversation ID (Text Input)
+  - [x] Clear History
+    - [x] Conversation ID (Text Input)
 
 ---
 
@@ -775,13 +761,13 @@ This section tracks all system-provided connectors, their available actions, and
 #### HTTP Tool (`http-tool`)
 - **Auth Type**: User-defined
 - **Actions**:
-  - [ ] HTTP Request
-    - [ ] URL (Text Input)
-    - [ ] Body (Text Input -> Add Body button with rows of headers)
-    - [ ] Method (Dynamic Selector)
-    - [ ] Params (Text Input -> Add Param button with rows of headers)
-    - [ ] Headers (Text Input -> Add Header button with rows of headers)
-    - [ ] Timeout (Integer Input)
+  - [x] HTTP Request
+    - [x] URL (Text Input)
+    - [x] Body (Text Input -> Add Body button with rows of headers)
+    - [x] Method (Dynamic Selector)
+    - [x] Params (Text Input -> Add Param button with rows of headers)
+    - [x] Headers (Text Input -> Add Header button with rows of headers)
+    - [x] Timeout (Integer Input)
 
 #### MCP Client (`mcp-client-tool`)
 - **Auth Type**: MCP Endpoint (None, Bearer, API Key, Multi-Header)

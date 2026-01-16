@@ -39,6 +39,12 @@
                 "description": "Header Value"
             },
             {
+                "name": "api_key",
+                "type": "string",
+                "required": false,
+                "description": "API Key (for header or multiple-headers auth)"
+            },
+            {
                 "name": "client_id",
                 "type": "string",
                 "required": false,
