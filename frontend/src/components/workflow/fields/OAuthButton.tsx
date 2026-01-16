@@ -39,8 +39,10 @@ export default function OAuthButton({
     // Handle message from popup
     useEffect(() => {
         const handleMessage = async (event: MessageEvent) => {
-            // Verify origin matches
-            if (event.origin !== window.location.origin) return;
+            // Verify origin matches (either frontend or backend API)
+            const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+            const apiOrigin = new URL(apiUrl).origin;
+            if (event.origin !== window.location.origin && event.origin !== apiOrigin) return;
 
             // Check for oauth_code in message data
             if (event.data?.type === 'oauth_callback' && event.data?.code) {

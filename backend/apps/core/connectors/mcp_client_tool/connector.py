@@ -287,7 +287,68 @@ class MCPClientConnector(BaseConnector):
     def _execute_call_tool(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool, validating against filtering rules"""
         tool_name = inputs.get("tool_name") or self.config.get("tool_name")
-        arguments = inputs.get("arguments", {})
+        arguments = inputs.get("arguments", {}).copy()
+
+        # Inject auth credentials into tool arguments
+        # MCP tools often require auth as function arguments, not just HTTP headers
+        auth_type = self.config.get("authentication") or self.config.get(
+            "_auth_type", "none"
+        )
+
+        if auth_type != "none":
+            logger.info(f"Auth injection - auth_type: {auth_type}")
+            if auth_type == "bearer":
+                token = self.config.get("bearer_token")
+                if token and "bearer_token" not in arguments:
+                    arguments["bearer_token"] = token
+            elif auth_type == "header":
+                api_key = self.config.get("api_key") or self.config.get("header_value")
+
+                # Also try to extract from headers_json (used by credential modal)
+                if not api_key:
+                    headers_json = self.config.get("headers_json")
+                    if headers_json:
+                        try:
+                            if isinstance(headers_json, str):
+                                headers_dict = json.loads(headers_json)
+                            else:
+                                headers_dict = headers_json
+                            # Extract the first header value as api_key
+                            # Common header names for API keys
+                            for key in [
+                                "X-API-Key",
+                                "x-api-key",
+                                "Authorization",
+                                "Api-Key",
+                                "api-key",
+                            ]:
+                                if key in headers_dict:
+                                    api_key = headers_dict[key]
+                                    break
+                            # Fallback: use the first header value if no known key found
+                            if not api_key and headers_dict:
+                                api_key = list(headers_dict.values())[0]
+                        except (json.JSONDecodeError, TypeError):
+                            logger.warning(
+                                "Failed to parse headers_json for auth injection"
+                            )
+
+                if api_key and "api_key" not in arguments:
+                    arguments["api_key"] = api_key
+            elif auth_type in ["oauth2", "mcp-oauth2"]:
+                token = self.config.get("access_token")
+                logger.info(
+                    f"OAuth2 auth injection - token found: {bool(token)}, token: {token[:20] if token else 'None'}..."
+                )
+                if token and "access_token" not in arguments:
+                    arguments["access_token"] = token
+                    logger.info("Injected access_token into arguments")
+            elif auth_type == "multiple-headers":
+                # Inject all multi-header auth fields
+                if self.config.get("api_key") and "api_key" not in arguments:
+                    arguments["api_key"] = self.config.get("api_key")
+                if self.config.get("client_id") and "client_id" not in arguments:
+                    arguments["client_id"] = self.config.get("client_id")
 
         if not tool_name:
             raise ValueError("tool_name is required")

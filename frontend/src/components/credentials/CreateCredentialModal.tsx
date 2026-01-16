@@ -79,7 +79,7 @@ interface CreateCredentialModalProps {
 const mcpAuthFields: Record<string, string[]> = {
     'bearer': ['bearer_token', 'allowed_domains_mode', 'allowed_domains'],
     'header': ['headers_json', 'allowed_domains_mode', 'allowed_domains'],
-    'mcp-oauth2': ['client_id', 'client_secret', 'authorization_url', 'token_url', 'scope', 'oauth_redirect_url', 'server_url', 'allowed_domains_mode', 'allowed_domains'],
+    'mcp-oauth2': ['client_id', 'client_secret', 'authorization_url', 'token_url', 'scope', 'oauth_redirect_url', 'server_url', 'allowed_domains_mode', 'allowed_domains', 'access_token', 'refresh_token'],
     'multiple-headers': ['headers_json', 'allowed_domains_mode', 'allowed_domains'],
 };
 
@@ -344,7 +344,7 @@ export function CreateCredentialModal({ open, onOpenChange, initialConnectorId, 
                                         <OAuthButton
                                             clientId={watchedCredentials?.client_id || ''}
                                             clientSecret={watchedCredentials?.client_secret || ''}
-                                            redirectUri={`${window.location.protocol}//${window.location.host}/api/v1/core/integrations/mcp-client-tool/callback/`}
+                                            redirectUri={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/core/integrations/mcp-client-tool/callback/`}
                                             mode="generic"
                                             authorizationUrl={watchedCredentials?.authorization_url}
                                             tokenUrl={watchedCredentials?.token_url}

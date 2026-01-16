@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { connectorService } from '@/lib/api/services/connector';
-import { Label } from '@/components/ui/label';
 
 interface Tool {
     name: string;
@@ -14,56 +12,28 @@ interface Tool {
 interface McpToolNameSelectorProps {
     value: string;
     onChange: (value: string) => void;
-    connectorId?: string;
-    config: any;
-    credentialId?: string;
     label?: string;
     required?: boolean;
     error?: string;
+    // Shared tools state from parent
+    tools?: Tool[];
+    loading?: boolean;
+    fetchError?: string | null;
+    onFetchTools?: () => void;
 }
 
 export default function McpToolNameSelector({
     value,
     onChange,
-    connectorId,
-    config,
-    credentialId,
     label = "Tool Name",
     required = false,
-    error
+    error,
+    tools = [],
+    loading = false,
+    fetchError,
+    onFetchTools
 }: McpToolNameSelectorProps) {
-    const [tools, setTools] = useState<Tool[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [fetchError, setFetchError] = useState<string | null>(null);
-    const [hasFetched, setHasFetched] = useState(false);
-
-    const fetchTools = async () => {
-        if (!connectorId) return;
-
-        setLoading(true);
-        setFetchError(null);
-
-        try {
-            const result = await connectorService.executeAction(
-                connectorId,
-                "list_tools",
-                config,
-                credentialId
-            );
-
-            if (result && result.tools) {
-                setTools(result.tools);
-                setHasFetched(true);
-            } else {
-                throw new Error("Invalid response format");
-            }
-        } catch (err: any) {
-            console.error("Failed to fetch tools:", err);
-            setFetchError(err.message || "Failed to fetch tools");
-        } finally {
-            setLoading(false);
-        }
-    };
+    const hasFetched = tools.length > 0 || fetchError !== undefined;
 
     return (
         <div className="space-y-3">
@@ -72,20 +42,22 @@ export default function McpToolNameSelector({
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={fetchTools}
-                    disabled={loading}
-                    className="h-6 text-xs px-2"
-                >
-                    {loading ? (
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    ) : (
-                        <RefreshCw className="mr-2 h-3 w-3" />
-                    )}
-                    {hasFetched ? "Refresh" : "Fetch Tools"}
-                </Button>
+                {onFetchTools && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onFetchTools}
+                        disabled={loading}
+                        className="h-6 text-xs px-2"
+                    >
+                        {loading ? (
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        ) : (
+                            <RefreshCw className="mr-2 h-3 w-3" />
+                        )}
+                        {hasFetched ? "Refresh" : "Fetch Tools"}
+                    </Button>
+                )}
             </div>
 
             {fetchError && (

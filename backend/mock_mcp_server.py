@@ -19,6 +19,21 @@ Usage:
 
     # Test with MCP Inspector
     npx @modelcontextprotocol/inspector python mock_mcp_server.py
+
+Bridge.dev MCP Client Tool OAuth Configuration:
+    When creating an MCP OAuth credential in Bridge.dev, use these values:
+
+    Client ID:         mock_mcp_client_id_12345
+    Client Secret:     mock_mcp_client_secret_67890
+    Authorization URL: http://localhost:8000/mcp/oauth/authorize
+    Token URL:         http://localhost:8000/mcp/oauth/token
+    Scope:             read write admin
+    Server URL:        http://localhost:8000
+    Allowed Domains:   localhost,127.0.0.1,*.example.com
+
+    Demo Access Tokens (for testing):
+    - oauth2_demo_token (scopes: read, write, admin)
+    - oauth2_access_token_xyz (scopes: read, write)
 """
 
 import argparse
@@ -70,13 +85,15 @@ VALID_API_KEYS = {
     "demo_key": {"user_id": "user_001", "tier": "premium"},
 }
 
-# OAuth2 configuration
+# OAuth2 configuration - Compatible with Bridge.dev MCP Client Tool OAuth modal
 OAUTH2_CONFIG = {
-    "client_id": "mock_client_id",
-    "client_secret": "mock_client_secret",
-    "authorization_endpoint": "https://mock-auth.example.com/authorize",
-    "token_endpoint": "https://mock-auth.example.com/token",
-    "scopes": ["read", "write", "admin"],
+    "client_id": "mock_mcp_client_id_12345",
+    "client_secret": "mock_mcp_client_secret_67890",
+    "authorization_url": "http://localhost:8000/mcp/oauth/authorize",
+    "token_url": "http://localhost:8000/mcp/oauth/token",
+    "scope": "read write admin",  # Space-separated scopes for OAuth modal
+    "server_url": "http://localhost:8000",
+    "allowed_domains": "localhost,127.0.0.1,*.example.com",
 }
 
 # Mock OAuth2 tokens (in production, these would be validated against an auth server)
@@ -707,7 +724,7 @@ def validate_oauth2_token(
             False,
             (
                 "OAuth2 access token is required. "
-                f"Authorize at: {OAUTH2_CONFIG['authorization_endpoint']} "
+                f"Authorize at: {OAUTH2_CONFIG['authorization_url']} "
                 f"with client_id: {OAUTH2_CONFIG['client_id']}"
             ),
             {},
@@ -878,10 +895,13 @@ def get_auth_help(auth_method: AuthMethod) -> Dict[str, Any]:
     elif auth_method == AuthMethod.OAUTH2:
         return {
             "description": "OAuth2 authentication",
-            "authorization_endpoint": OAUTH2_CONFIG["authorization_endpoint"],
-            "token_endpoint": OAUTH2_CONFIG["token_endpoint"],
+            "authorization_url": OAUTH2_CONFIG["authorization_url"],
+            "token_url": OAUTH2_CONFIG["token_url"],
             "client_id": OAUTH2_CONFIG["client_id"],
-            "scopes": OAUTH2_CONFIG["scopes"],
+            "client_secret": OAUTH2_CONFIG["client_secret"],
+            "scope": OAUTH2_CONFIG["scope"],
+            "server_url": OAUTH2_CONFIG["server_url"],
+            "allowed_domains": OAUTH2_CONFIG["allowed_domains"],
             "demo_tokens": list(VALID_OAUTH2_TOKENS.keys()),
             "example": "Authorization: Bearer oauth2_demo_token",
         }
@@ -1616,9 +1636,13 @@ async def auth_get_info(
     if auth_method is None or auth_method == AuthMethod.OAUTH2:
         info = {
             "description": "OAuth2 authentication with scope-based access control",
-            "authorization_endpoint": OAUTH2_CONFIG["authorization_endpoint"],
-            "token_endpoint": OAUTH2_CONFIG["token_endpoint"],
-            "available_scopes": OAUTH2_CONFIG["scopes"],
+            "authorization_url": OAUTH2_CONFIG["authorization_url"],
+            "token_url": OAUTH2_CONFIG["token_url"],
+            "client_id": OAUTH2_CONFIG["client_id"],
+            "client_secret": OAUTH2_CONFIG["client_secret"],
+            "scope": OAUTH2_CONFIG["scope"],
+            "server_url": OAUTH2_CONFIG["server_url"],
+            "allowed_domains": OAUTH2_CONFIG["allowed_domains"],
             "tool": "auth_oauth2_protected",
         }
         if include_demo_credentials:
@@ -2293,6 +2317,9 @@ async def stats_resource() -> str:
 # Main Entry Point
 # =============================================================================
 
+# In-memory store for OAuth authorization codes
+OAUTH_AUTH_CODES: Dict[str, Dict[str, Any]] = {}
+
 
 def main():
     """Parse arguments and run the MCP server."""
@@ -2309,7 +2336,16 @@ def main():
     args = parser.parse_args()
 
     if args.http:
+        import secrets
+        import urllib.parse
+
         import uvicorn
+        from starlette.applications import Starlette
+        from starlette.middleware import Middleware
+        from starlette.middleware.cors import CORSMiddleware
+        from starlette.requests import Request
+        from starlette.responses import JSONResponse, RedirectResponse
+        from starlette.routing import Mount, Route
 
         # Configure transport security to allow requests from Docker containers
         # and local development
@@ -2320,11 +2356,217 @@ def main():
         # Update the mcp settings to use our security configuration
         mcp.settings.transport_security = security_settings
 
+        # Get the SSE app from FastMCP
+        sse_app = mcp.sse_app()
+
+        # OAuth2 Authorization endpoint
+        async def oauth_authorize(request: Request):
+            """
+            Mock OAuth2 authorization endpoint.
+
+            This simulates the authorization server's authorize endpoint.
+            In a real OAuth flow, this would show a login/consent page.
+            For testing, it auto-approves and redirects with an auth code.
+            """
+            client_id = request.query_params.get("client_id")
+            redirect_uri = request.query_params.get("redirect_uri")
+            state = request.query_params.get("state", "")
+            scope = request.query_params.get("scope", "read")
+
+            if not client_id or not redirect_uri:
+                return JSONResponse(
+                    {
+                        "error": "invalid_request",
+                        "error_description": "client_id and redirect_uri are required",
+                    },
+                    status_code=400,
+                )
+
+            # Generate an authorization code
+            auth_code = secrets.token_urlsafe(32)
+
+            # Store the auth code with its metadata (expires in 10 minutes)
+            OAUTH_AUTH_CODES[auth_code] = {
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "scope": scope,
+                "expires_at": time.time() + 600,  # 10 minutes
+                "user_id": "user_001",  # Auto-authenticate as demo user
+            }
+
+            # Build redirect URL with auth code
+            parsed = urllib.parse.urlparse(redirect_uri)
+            query_params = urllib.parse.parse_qs(parsed.query)
+            query_params["code"] = [auth_code]
+            if state:
+                query_params["state"] = [state]
+
+            new_query = urllib.parse.urlencode(query_params, doseq=True)
+            redirect_url = urllib.parse.urlunparse(
+                (
+                    parsed.scheme,
+                    parsed.netloc,
+                    parsed.path,
+                    parsed.params,
+                    new_query,
+                    parsed.fragment,
+                )
+            )
+
+            print(
+                f"[OAuth] Authorization granted. Redirecting to: {redirect_url[:100]}..."
+            )
+            return RedirectResponse(url=redirect_url, status_code=302)
+
+        # OAuth2 Token endpoint
+        async def oauth_token(request: Request):
+            """
+            Mock OAuth2 token endpoint.
+
+            This exchanges an authorization code for access and refresh tokens.
+            """
+            # Support both form data and JSON body
+            content_type = request.headers.get("content-type", "")
+            if "application/json" in content_type:
+                try:
+                    body = await request.json()
+                except:
+                    body = {}
+            else:
+                form = await request.form()
+                body = dict(form)
+
+            grant_type = body.get("grant_type")
+            code = body.get("code")
+            client_id = body.get("client_id")
+            client_secret = body.get("client_secret")
+            redirect_uri = body.get("redirect_uri")
+
+            # Handle refresh token grant
+            if grant_type == "refresh_token":
+                refresh_token = body.get("refresh_token")
+                if refresh_token and refresh_token.startswith("mock_refresh_"):
+                    # Issue new tokens
+                    access_token = f"oauth2_demo_token_{secrets.token_hex(8)}"
+                    new_refresh_token = f"mock_refresh_{secrets.token_hex(16)}"
+
+                    # Add to valid tokens
+                    VALID_OAUTH2_TOKENS[access_token] = {
+                        "user_id": "user_001",
+                        "scopes": ["read", "write", "admin"],
+                        "expires_at": time.time() + 3600,
+                    }
+
+                    return JSONResponse(
+                        {
+                            "access_token": access_token,
+                            "token_type": "Bearer",
+                            "expires_in": 3600,
+                            "refresh_token": new_refresh_token,
+                            "scope": "read write admin",
+                        }
+                    )
+                else:
+                    return JSONResponse(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "Invalid refresh token",
+                        },
+                        status_code=400,
+                    )
+
+            # Handle authorization code grant
+            if grant_type != "authorization_code":
+                return JSONResponse(
+                    {
+                        "error": "unsupported_grant_type",
+                        "error_description": f"Grant type '{grant_type}' not supported",
+                    },
+                    status_code=400,
+                )
+
+            if not code:
+                return JSONResponse(
+                    {
+                        "error": "invalid_request",
+                        "error_description": "code is required",
+                    },
+                    status_code=400,
+                )
+
+            # Validate the authorization code
+            auth_data = OAUTH_AUTH_CODES.get(code)
+            if not auth_data:
+                return JSONResponse(
+                    {
+                        "error": "invalid_grant",
+                        "error_description": "Invalid or expired authorization code",
+                    },
+                    status_code=400,
+                )
+
+            # Check if code has expired
+            if time.time() > auth_data["expires_at"]:
+                del OAUTH_AUTH_CODES[code]
+                return JSONResponse(
+                    {
+                        "error": "invalid_grant",
+                        "error_description": "Authorization code has expired",
+                    },
+                    status_code=400,
+                )
+
+            # Remove used code (single use)
+            del OAUTH_AUTH_CODES[code]
+
+            # Generate tokens
+            access_token = f"oauth2_demo_token_{secrets.token_hex(8)}"
+            refresh_token = f"mock_refresh_{secrets.token_hex(16)}"
+
+            # Add the new access token to valid tokens
+            VALID_OAUTH2_TOKENS[access_token] = {
+                "user_id": auth_data["user_id"],
+                "scopes": auth_data["scope"].split(),
+                "expires_at": time.time() + 3600,
+            }
+
+            print(f"[OAuth] Token issued: {access_token[:20]}...")
+
+            return JSONResponse(
+                {
+                    "access_token": access_token,
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                    "refresh_token": refresh_token,
+                    "scope": auth_data["scope"],
+                }
+            )
+
+        # Combine MCP SSE app with OAuth routes
+        routes = [
+            Route("/mcp/oauth/authorize", oauth_authorize, methods=["GET"]),
+            Route("/mcp/oauth/token", oauth_token, methods=["POST"]),
+            Mount("/", app=sse_app),  # Mount SSE app at root for /sse and /messages
+        ]
+
+        middleware = [
+            Middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+        ]
+
+        app = Starlette(routes=routes, middleware=middleware)
+
         print(
             f"Starting {SERVER_NAME} with SSE transport on http://0.0.0.0:{args.port}"
         )
-        # Get the SSE app from FastMCP and serve it with uvicorn
-        app = mcp.sse_app()
+        print("OAuth endpoints available at:")
+        print("  - GET  /mcp/oauth/authorize")
+        print("  - POST /mcp/oauth/token")
         uvicorn.run(app, host="0.0.0.0", port=args.port)
     else:
         print(f"Starting {SERVER_NAME} with stdio transport")

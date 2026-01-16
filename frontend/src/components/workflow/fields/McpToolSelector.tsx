@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, RefreshCw, Search } from 'lucide-react';
-import { connectorService } from '@/lib/api/services/connector';
-import { Label } from '@/components/ui/label';
+import { useState } from 'react';
 
 interface Tool {
     name: string;
@@ -16,61 +15,32 @@ interface Tool {
 interface McpToolSelectorProps {
     value: string[];
     onChange: (value: string[]) => void;
-    connectorId?: string; // We use connectorId (slug) for API calls if needed, but here we need the ID/Slug for execute
-    config: any; // Current form values to configure the connector
-    credentialId?: string;
     label?: string;
     required?: boolean;
     error?: string;
+    // Shared tools state from parent
+    tools?: Tool[];
+    loading?: boolean;
+    fetchError?: string | null;
+    onFetchTools?: () => void;
 }
 
 export default function McpToolSelector({
     value = [],
     onChange,
-    connectorId,
-    config,
-    credentialId,
     label = "Tools",
     required = false,
-    error
+    error,
+    tools = [],
+    loading = false,
+    fetchError,
+    onFetchTools
 }: McpToolSelectorProps) {
-    const [tools, setTools] = useState<Tool[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [fetchError, setFetchError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [hasFetched, setHasFetched] = useState(false);
 
     // Initial value might be null/undefined
     const selectedTools = Array.isArray(value) ? value : [];
-
-    const fetchTools = async () => {
-        if (!connectorId) return;
-
-        setLoading(true);
-        setFetchError(null);
-
-        try {
-            // Internal action 'list_tools'
-            const result = await connectorService.executeAction(
-                connectorId,
-                "list_tools",
-                { ...config, ignore_filtering: true },
-                credentialId
-            );
-
-            if (result && result.tools) {
-                setTools(result.tools);
-                setHasFetched(true);
-            } else {
-                throw new Error("Invalid response format");
-            }
-        } catch (err: any) {
-            console.error("Failed to fetch tools:", err);
-            setFetchError(err.message || "Failed to fetch tools");
-        } finally {
-            setLoading(false);
-        }
-    };
+    const hasFetched = tools.length > 0 || fetchError !== undefined;
 
     // Filter tools based on search
     const filteredTools = tools.filter(tool =>
@@ -106,20 +76,22 @@ export default function McpToolSelector({
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchTools}
-                    disabled={loading}
-                    className="h-7 text-xs"
-                >
-                    {loading ? (
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    ) : (
-                        <RefreshCw className="mr-2 h-3 w-3" />
-                    )}
-                    {hasFetched ? "Refresh Tools" : "Fetch Tools"}
-                </Button>
+                {onFetchTools && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onFetchTools}
+                        disabled={loading}
+                        className="h-7 text-xs"
+                    >
+                        {loading ? (
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        ) : (
+                            <RefreshCw className="mr-2 h-3 w-3" />
+                        )}
+                        {hasFetched ? "Refresh Tools" : "Fetch Tools"}
+                    </Button>
+                )}
             </div>
 
             {fetchError && (

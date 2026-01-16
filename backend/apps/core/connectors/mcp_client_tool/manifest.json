@@ -84,6 +84,20 @@
                 "ui:widget": "switch"
             },
             {
+                "name": "access_token",
+                "type": "string",
+                "required": false,
+                "description": "OAuth Access Token (obtained after authorization)",
+                "hidden": true
+            },
+            {
+                "name": "refresh_token",
+                "type": "string",
+                "required": false,
+                "description": "OAuth Refresh Token (for token renewal)",
+                "hidden": true
+            },
+            {
                 "name": "server_url",
                 "type": "string",
                 "required": false,
@@ -128,10 +142,6 @@
                     "tool_name"
                 ],
                 "properties": {
-                    "endpoint": {
-                        "type": "string",
-                        "description": "Server Endpoint (URL for HTTP/SSE, Command for Stdio)"
-                    },
                     "transport": {
                         "type": "string",
                         "enum": [
@@ -139,8 +149,36 @@
                             "http-streamable",
                             "sse"
                         ],
-                        "default": "stdio",
+                        "default": "sse",
                         "description": "Transport protocol"
+                    },
+                    "endpoint": {
+                        "type": "string",
+                        "description": "MCP Server URL",
+                        "ui:showIf": {
+                            "transport": [
+                                "sse",
+                                "http-streamable"
+                            ]
+                        }
+                    },
+                    "server_command": {
+                        "type": "string",
+                        "description": "Command to start the MCP server (e.g., npx, python)",
+                        "ui:showIf": {
+                            "transport": [
+                                "stdio"
+                            ]
+                        }
+                    },
+                    "server_args": {
+                        "type": "string",
+                        "description": "Arguments for the server command (space-separated)",
+                        "ui:showIf": {
+                            "transport": [
+                                "stdio"
+                            ]
+                        }
                     },
                     "authentication": {
                         "type": "string",
@@ -193,8 +231,10 @@
                     }
                 },
                 "ui:order": [
-                    "endpoint",
                     "transport",
+                    "endpoint",
+                    "server_command",
+                    "server_args",
                     "authentication",
                     "credential_id",
                     "tools_selection",
