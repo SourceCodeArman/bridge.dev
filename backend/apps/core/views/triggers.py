@@ -4,21 +4,22 @@ Trigger-related views.
 ViewSets for Trigger model and WebhookTriggerView.
 """
 
-from rest_framework import viewsets, status
+from django.core.exceptions import ValidationError
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from django.core.exceptions import ValidationError
 
 from apps.accounts.permissions import IsWorkspaceMember
 from apps.common.logging_utils import get_logger
+
 from ..models import Trigger
-from ..serializers import TriggerSerializer, ManualTriggerSerializer
 from ..orchestrator import RunOrchestrator
-from ..utils import generate_idempotency_key, validate_webhook_signature
-from ..tasks import execute_workflow_run
+from ..serializers import ManualTriggerSerializer, TriggerSerializer
 from ..supabase_trigger_handler import trigger_manager
+from ..tasks import execute_workflow_run
+from ..utils import generate_idempotency_key
 
 logger = get_logger(__name__)
 
@@ -250,14 +251,20 @@ class WebhookTriggerView(APIView):
             request: Django request object
             webhook_id: UUID string of the webhook (stored in node data)
         """
+        import base64
+        import json
+        import re
+
         try:
             # Find workflow with this webhook_id in its definition
             workflow_version = None
             webhook_node = None
 
             # Look for active workflows with current_version
+            # Optimized query to reduce DB hits
             from ..models import Workflow
 
+            # TODO: Improve this lookup with a direct mapping or cache
             active_workflows = Workflow.objects.filter(
                 is_active=True, current_version__isnull=False
             ).select_related("current_version")
@@ -268,13 +275,7 @@ class WebhookTriggerView(APIView):
                 nodes = definition.get("nodes", [])
 
                 for node in nodes:
-                    node_data = node.get("data", {})
-                    # Check if this is a webhook node with matching ID
-                    # The node's id field is the webhook_id (React Flow node ID)
                     node_id = node.get("id")
-
-                    # Check if node matches the requested Webhook ID.
-                    # We allow any node to be triggered if the ID matches, supporting Custom Connectors.
                     if str(node_id) == str(webhook_id):
                         workflow_version = version
                         webhook_node = node
@@ -291,19 +292,103 @@ class WebhookTriggerView(APIView):
 
             # Get webhook configuration from node data
             node_data = webhook_node.get("data", {})
+            # Merge 'config' and top-level fields for backward compatibility
             webhook_config = node_data.get("config", {})
 
-            # Validate HTTP method
-            # Check in config first, then in node data directly (for different storage patterns)
-            # Default to GET per webhook manifest default
-            configured_method = (
-                webhook_config.get("http_method")
-                or webhook_config.get("method")
-                or node_data.get("http_method")
-                or node_data.get("method")
-                or "GET"  # Default from webhook manifest
-            ).upper()
+            # Helper to get config value from either location
+            def get_config(key, default=None):
+                return webhook_config.get(key) or node_data.get(key) or default
 
+            # --- 1. IP Whitelist ---
+            ip_whitelist = get_config("ip_whitelist")
+            if ip_whitelist:
+                # Get client IP
+                client_ip = request.META.get("REMOTE_ADDR")
+                # Handle X-Forwarded-For if behind proxy
+                x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+                if x_forwarded_for:
+                    client_ip = x_forwarded_for.split(",")[0].strip()
+
+                allowed_ips = [
+                    ip.strip() for ip in ip_whitelist.split(",") if ip.strip()
+                ]
+                if client_ip not in allowed_ips:
+                    logger.warning(f"Webhook {webhook_id} blocked IP: {client_ip}")
+                    return Response(
+                        {"status": "error", "message": "IP not authorized"},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            # --- 2. Ignore Bots ---
+            if get_config("ignore_bots"):
+                user_agent = request.META.get("HTTP_USER_AGENT", "")
+                # Common bot patterns
+                bot_pattern = re.compile(
+                    r"(bot|spider|crawl|slurp|facebook)", re.IGNORECASE
+                )
+                if bot_pattern.search(user_agent):
+                    logger.info(f"Webhook {webhook_id} ignored bot: {user_agent}")
+                    # Return 200 to satisfy the bot, but don't trigger workflow
+                    return Response(
+                        {"status": "ignored", "message": "Bot request ignored"},
+                        status=status.HTTP_200_OK,
+                    )
+
+            # --- 3. Authentication ---
+            auth_type = get_config("authentication", "None")
+
+            if auth_type == "Basic Auth":
+                auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+                auth_user = get_config("auth_username")
+                auth_pass = get_config("auth_password")
+
+                if not auth_header.startswith("Basic "):
+                    return Response(
+                        {"status": "error", "message": "Missing Authorization header"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                        headers={"WWW-Authenticate": 'Basic realm="Webhook"'},
+                    )
+
+                try:
+                    encoded_credentials = auth_header.split(" ")[1]
+                    decoded_credentials = base64.b64decode(encoded_credentials).decode(
+                        "utf-8"
+                    )
+                    username, password = decoded_credentials.split(":", 1)
+
+                    if username != auth_user or password != auth_pass:
+                        return Response(
+                            {"status": "error", "message": "Invalid credentials"},
+                            status=status.HTTP_401_UNAUTHORIZED,
+                            headers={"WWW-Authenticate": 'Basic realm="Webhook"'},
+                        )
+                except Exception:
+                    return Response(
+                        {"status": "error", "message": "Invalid Authorization header"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+
+            elif auth_type == "Header Auth":
+                header_name = get_config("auth_header_name")
+                header_value = get_config("auth_header_value")
+
+                # Convert header name to Django META format (HTTP_HEADER_NAME)
+                meta_key = (
+                    f"HTTP_{header_name.upper().replace('-', '_')}"
+                    if header_name
+                    else ""
+                )
+
+                if not meta_key or request.META.get(meta_key) != header_value:
+                    return Response(
+                        {"status": "error", "message": "Invalid Authentication Header"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+
+            # --- 4. Method Check ---
+            configured_method = (
+                get_config("http_method") or get_config("method") or "GET"
+            ).upper()
             if request.method != configured_method:
                 return Response(
                     {
@@ -313,43 +398,60 @@ class WebhookTriggerView(APIView):
                     status=status.HTTP_405_METHOD_NOT_ALLOWED,
                 )
 
-            secret = webhook_config.get("secret")
-
-            # Validate webhook signature if configured
+            # --- 5. Verify Signature (Legacy Secret) ---
+            secret = get_config("secret")
             if secret:
                 signature = request.META.get("HTTP_X_WEBHOOK_SIGNATURE", "")
+                # Only check signature if it's explicitly set (backward compatibility)
+                # Or if we want to enforce it strictly? implementation_plan didn't specify strictness
+                # but previous code enforced it. Let's keep enforcement.
                 if not signature:
                     return Response(
                         {"status": "error", "message": "Missing webhook signature"},
                         status=status.HTTP_401_UNAUTHORIZED,
                     )
-
                 try:
+                    from ..utils import validate_webhook_signature
+
                     if not validate_webhook_signature(request.body, signature, secret):
                         return Response(
                             {"status": "error", "message": "Invalid webhook signature"},
                             status=status.HTTP_401_UNAUTHORIZED,
                         )
                 except Exception as e:
-                    logger.error(
-                        f"Error validating webhook signature: {str(e)}",
-                        exc_info=e,
-                        extra={"webhook_id": str(webhook_id)},
-                    )
+                    logger.error(f"Error validating webhook signature: {str(e)}")
                     return Response(
                         {"status": "error", "message": "Error validating signature"},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     )
 
-            # Prepare webhook payload
+            # --- 6. Payload Preparation ---
+            # Handle Raw Body
+            is_raw_body = get_config("raw_body")
+
+            body_data = request.data
+
+            if is_raw_body:
+                # If raw body requested, try to give the raw bytes or string
+                try:
+                    body_data = request.body.decode("utf-8")
+                except:
+                    # If binary, keep as bytes (might fail JSON serialization later if not handled)
+                    # Use field_name_binary_data if configured?
+                    # For now, let's just decode to string or list of bytes if needed.
+                    # Safe default: string representation
+                    body_data = str(request.body)
+
             payload = {
                 "method": request.method,
                 "headers": dict(request.headers),
-                "body": request.data,
+                "body": body_data,
                 "query_params": dict(request.GET),
             }
 
             # Generate idempotency key
+            from ..utils import generate_idempotency_key
+
             idempotency_key = generate_idempotency_key(
                 trigger_id=str(webhook_id), payload=payload
             )
@@ -360,110 +462,78 @@ class WebhookTriggerView(APIView):
                 workflow_version=workflow_version,
                 trigger_type="webhook",
                 input_data=payload,
-                triggered_by=None,  # Webhooks are not user-initiated
+                triggered_by=None,
                 idempotency_key=idempotency_key,
                 check_limits=True,
             )
 
-            # Get the respond option from webhook config (default: "Immediately")
-            respond_option = (
-                webhook_config.get("respond")
-                or node_data.get("respond")
-                or "Immediately"
-            )
+            # --- 7. Respond Options ---
+            respond_option = get_config("respond", "Immediately")
 
-            # Debug logging for respond option
-            logger.info(
-                f"Webhook respond option: '{respond_option}'",
-                extra={
-                    "webhook_id": str(webhook_id),
-                    "respond_option": respond_option,
-                    "webhook_config": webhook_config,
-                    "node_data_keys": list(node_data.keys()),
-                },
-            )
-
-            # Handle different respond options
-            if respond_option == "Using Respond to Webhook Node":
-                # Placeholder for future implementation
-                # Still execute the workflow in the background
-                execute_workflow_run.delay(str(run.id))
-
-                return Response(
-                    {
-                        "status": "error",
-                        "data": {"run_id": str(run.id)},
-                        "message": "Feature not yet implemented: 'Using Respond to Webhook Node' option is coming soon. Workflow has been triggered in the background.",
-                    },
-                    status=status.HTTP_501_NOT_IMPLEMENTED,
-                )
-
-            elif respond_option == "When Last Node Finishes":
-                # Execute synchronously and return the outputs
+            if respond_option == "When Last Node Finishes":
+                # Execute synchronously
                 from ..tasks import execute_workflow_run_sync
 
                 result = execute_workflow_run_sync(str(run.id))
 
-                logger.info(
-                    f"Webhook executed workflow {workflow_version.workflow.id} sync via webhook {webhook_id}",
-                    extra={
-                        "webhook_id": str(webhook_id),
-                        "workflow_id": str(workflow_version.workflow.id),
-                        "run_id": str(run.id),
-                        "run_status": result.get("status"),
-                    },
-                )
-
-                # Filter outputs to exclude the webhook trigger step
+                # Filter inputs/trigger step
                 outputs = result.get("outputs", {})
                 filtered_outputs = {
-                    step_id: step_output
-                    for step_id, step_output in outputs.items()
-                    if step_id != str(webhook_id)  # Exclude the trigger node
+                    k: v for k, v in outputs.items() if k != str(webhook_id)
                 }
 
-                # Determine the response status code based on run status
                 run_status = result.get("status")
-                http_status = status.HTTP_200_OK
-                if run_status == "failed":
-                    http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-
-                # Format response with clean structure
-                response_status = "success" if run_status == "completed" else "error"
-
-                return Response(
-                    {
-                        "status": response_status,
-                        "data": {
-                            "run_id": str(run.id),
-                            "outputs": filtered_outputs,
-                        },
-                        "message": f"Workflow executed with status: {response_status}",
-                    },
-                    status=http_status,
+                response_body = {
+                    "status": "success" if run_status == "completed" else "error",
+                    "data": filtered_outputs,
+                }
+                status_code = (
+                    status.HTTP_200_OK
+                    if run_status == "completed"
+                    else status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-            else:
-                # Default: "Immediately" - respond immediately, execute in background
+                return Response(response_body, status=status_code)
+
+            elif respond_option == "Using Respond to Webhook Node":
+                # FUTURE: Wait for specific node response. For now, background it.
+                from ..tasks import execute_workflow_run
+
+                execute_workflow_run.delay(str(run.id))
+                return Response(
+                    {
+                        "status": "accepted",
+                        "message": "Workflow started (Respond Node not implemented yet)",
+                    },
+                    status=status.HTTP_202_ACCEPTED,
+                )
+
+            else:  # "Immediately"
+                # Custom Response Logic
+                from ..tasks import execute_workflow_run
+
                 execute_workflow_run.delay(str(run.id))
 
-                logger.info(
-                    f"Webhook triggered workflow {workflow_version.workflow.id} async via webhook {webhook_id}",
-                    extra={
-                        "webhook_id": str(webhook_id),
-                        "workflow_id": str(workflow_version.workflow.id),
-                        "run_id": str(run.id),
-                    },
-                )
+                # Custom Response Code
+                custom_code = get_config("response_code", 200)
 
-                return Response(
-                    {
-                        "status": "success",
-                        "data": {"run_id": str(run.id)},
-                        "message": "Webhook received and workflow run created",
-                    },
-                    status=status.HTTP_201_CREATED,
-                )
+                # Custom Response Data
+                custom_data_raw = get_config("response_data", "success")
+                # Try to parse custom data as JSON if it looks like it
+                try:
+                    custom_data = json.loads(custom_data_raw)
+                except:
+                    custom_data = {"message": custom_data_raw}  # Wrap simple string
+
+                # Custom Headers
+                custom_headers = {}
+                headers_config = get_config("response_headers", [])
+                if isinstance(headers_config, list):
+                    for header in headers_config:
+                        if isinstance(header, dict) and "name" in header:
+                            custom_headers[header["name"]] = header.get("value", "")
+
+                return Response(custom_data, status=custom_code, headers=custom_headers)
 
         except ValidationError as e:
             return Response(
