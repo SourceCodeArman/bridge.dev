@@ -62,6 +62,58 @@
                         "description": "Authentication",
                         "displayName": "Authentication"
                     },
+                    "auth_username": {
+                        "name": "auth_username",
+                        "type": "string",
+                        "description": "Username",
+                        "displayName": "Username",
+                        "ui": {
+                            "showIf": {
+                                "authentication": [
+                                    "Basic Auth"
+                                ]
+                            }
+                        }
+                    },
+                    "auth_password": {
+                        "name": "auth_password",
+                        "type": "password",
+                        "description": "Password",
+                        "displayName": "Password",
+                        "ui": {
+                            "showIf": {
+                                "authentication": [
+                                    "Basic Auth"
+                                ]
+                            }
+                        }
+                    },
+                    "auth_header_name": {
+                        "name": "auth_header_name",
+                        "type": "string",
+                        "description": "Header Name",
+                        "displayName": "Header Name",
+                        "ui": {
+                            "showIf": {
+                                "authentication": [
+                                    "Header Auth"
+                                ]
+                            }
+                        }
+                    },
+                    "auth_header_value": {
+                        "name": "auth_header_value",
+                        "type": "string",
+                        "description": "Header Value",
+                        "displayName": "Header Value",
+                        "ui": {
+                            "showIf": {
+                                "authentication": [
+                                    "Header Auth"
+                                ]
+                            }
+                        }
+                    },
                     "respond": {
                         "type": "string",
                         "enum": [
@@ -96,12 +148,6 @@
                         "description": "IP(s) Whitelist",
                         "displayName": "IP(s) Whitelist",
                         "placeholder": "e.g. 127.0.0.1"
-                    },
-                    "no_response_body": {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "No Response Body",
-                        "displayName": "No Response Body"
                     },
                     "raw_body": {
                         "type": "boolean",
