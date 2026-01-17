@@ -210,6 +210,19 @@
                             404,
                             500
                         ],
+                        "enumNames": [
+                            "200 - OK",
+                            "201 - Created",
+                            "202 - Accepted",
+                            "204 - No Content",
+                            "301 - Moved Permanently",
+                            "302 - Found (Redirect)",
+                            "400 - Bad Request",
+                            "401 - Unauthorized",
+                            "403 - Forbidden",
+                            "404 - Not Found",
+                            "500 - Internal Server Error"
+                        ],
                         "default": 200,
                         "description": "Response Code",
                         "displayName": "Response Code"

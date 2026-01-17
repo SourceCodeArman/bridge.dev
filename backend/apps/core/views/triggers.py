@@ -605,6 +605,12 @@ class WebhookTriggerView(APIView):
                         if isinstance(header, dict) and "name" in header:
                             custom_headers[header["name"]] = header.get("value", "")
 
+                # Handle 204 No Content - MUST not have a body
+                if int(custom_code) == 204:
+                    return Response(
+                        status=status.HTTP_204_NO_CONTENT, headers=custom_headers
+                    )
+
                 return Response(custom_data, status=custom_code, headers=custom_headers)
 
         except ValidationError as e:
