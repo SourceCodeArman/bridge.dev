@@ -83,6 +83,13 @@ const mcpAuthFields: Record<string, string[]> = {
     'multiple-headers': ['headers_json', 'allowed_domains_mode', 'allowed_domains'],
 };
 
+// Webhook auth field mapping - show only relevant fields for each auth type
+const webhookAuthFields: Record<string, string[]> = {
+    'Basic Auth': ['_auth_type', 'username', 'password'],
+    'Header Auth': ['_auth_type', 'header_name', 'header_value'],
+    'JWT Auth': ['_auth_type', 'jwt_secret'],
+};
+
 export function CreateCredentialModal({ open, onOpenChange, initialConnectorId, authType: requestedAuthType }: CreateCredentialModalProps) {
     const [selectedConnectorId, setSelectedConnectorId] = useState<string>("");
     const queryClient = useQueryClient();
@@ -112,16 +119,26 @@ export function CreateCredentialModal({ open, onOpenChange, initialConnectorId, 
     const connectorAuthType = authConfig?.type;
     const authFields = authConfig?.fields || [];
 
-    // Filter visible fields based on auth type (for MCP) and hidden status
+    // Filter visible fields based on auth type (for MCP and Webhook) and hidden status
     const visibleFields = useMemo(() => {
         let fields = authFields.filter((f: any) => !f.hidden);
 
+        // MCP connector auth field filtering
         if (selectedConnector?.slug === 'mcp-client-tool' && requestedAuthType) {
             const allowedFieldNames = mcpAuthFields[requestedAuthType];
             if (allowedFieldNames) {
                 fields = fields.filter((f: any) => allowedFieldNames.includes(f.name));
             }
         }
+
+        // Webhook connector auth field filtering
+        if (selectedConnector?.slug === 'webhook' && requestedAuthType) {
+            const allowedFieldNames = webhookAuthFields[requestedAuthType];
+            if (allowedFieldNames) {
+                fields = fields.filter((f: any) => allowedFieldNames.includes(f.name));
+            }
+        }
+
         return fields;
     }, [authFields, selectedConnector, requestedAuthType]);
 

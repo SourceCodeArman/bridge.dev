@@ -364,8 +364,8 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
 
                             {connector && (
                                 <div className="space-y-4 p-0.5">
-                                    {/* Credential Selector - Hide for MCP tool which has custom placement */}
-                                    {connector.manifest?.auth_config && connector.manifest.auth_config.type !== 'none' && connector.slug !== 'mcp-client-tool' && (
+                                    {/* Credential Selector - Hide for connectors with custom placement */}
+                                    {connector.manifest?.auth_config && connector.manifest.auth_config.type !== 'none' && connector.slug !== 'mcp-client-tool' && connector.slug !== 'webhook' && (
                                         <CredentialSelector
                                             value={credentialId}
                                             onChange={handleCredentialChange}

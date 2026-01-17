@@ -16,35 +16,73 @@
         "type": "custom",
         "fields": [
             {
+                "name": "_auth_type",
+                "type": "string",
+                "required": true,
+                "description": "Authentication Type",
+                "enum": [
+                    "Basic Auth",
+                    "Header Auth",
+                    "JWT Auth"
+                ]
+            },
+            {
                 "name": "username",
                 "type": "string",
                 "required": false,
-                "description": "Username for Basic Auth"
+                "description": "Username for Basic Auth",
+                "ui:showIf": {
+                    "_auth_type": [
+                        "Basic Auth"
+                    ]
+                }
             },
             {
                 "name": "password",
                 "type": "password",
                 "required": false,
-                "description": "Password for Basic Auth"
+                "description": "Password for Basic Auth",
+                "ui:showIf": {
+                    "_auth_type": [
+                        "Basic Auth"
+                    ]
+                }
             },
             {
                 "name": "header_name",
                 "type": "string",
                 "required": false,
                 "description": "Header Name for Header Auth",
-                "default": "X-Auth-Token"
+                "default": "X-Auth-Token",
+                "ui:showIf": {
+                    "_auth_type": [
+                        "Header Auth"
+                    ]
+                }
             },
             {
                 "name": "header_value",
                 "type": "string",
                 "required": false,
-                "description": "Header Value (Token) for Header Auth"
+                "description": "Header Value (Token) for Header Auth",
+                "ui:widget": "token-generator",
+                "ui:showIf": {
+                    "_auth_type": [
+                        "Header Auth"
+                    ]
+                }
             },
             {
                 "name": "jwt_secret",
                 "type": "string",
                 "required": false,
-                "description": "JWT Secret Key for JWT Auth"
+                "description": "JWT Secret Key for JWT Auth",
+                "ui:widget": "token-generator",
+                "ui:showIf": {
+                    "_auth_type": [
+                        "JWT Auth"
+                    ]
+                }
             }
         ]
     },
