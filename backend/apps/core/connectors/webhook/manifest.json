@@ -30,6 +30,25 @@
             "description": "Receive and parse incoming webhook request",
             "input_schema": {
                 "type": "object",
+                "ui:order": [
+                    "http_method",
+                    "path",
+                    "authentication",
+                    "auth_username",
+                    "auth_password",
+                    "auth_header_name",
+                    "auth_header_value",
+                    "jwt_secret",
+                    "respond",
+                    "response_code",
+                    "response_data",
+                    "response_headers",
+                    "allowed_origins",
+                    "ip_whitelist",
+                    "ignore_bots",
+                    "raw_body",
+                    "field_name_binary_data"
+                ],
                 "properties": {
                     "http_method": {
                         "type": "string",
@@ -56,7 +75,8 @@
                         "enum": [
                             "None",
                             "Basic Auth",
-                            "Header Auth"
+                            "Header Auth",
+                            "JWT Auth"
                         ],
                         "default": "None",
                         "description": "Authentication",
@@ -104,6 +124,18 @@
                         "ui:showIf": {
                             "authentication": [
                                 "Header Auth"
+                            ]
+                        },
+                        "ui:widget": "token-generator"
+                    },
+                    "jwt_secret": {
+                        "name": "jwt_secret",
+                        "type": "string",
+                        "description": "JWT Secret Key",
+                        "displayName": "JWT Secret",
+                        "ui:showIf": {
+                            "authentication": [
+                                "JWT Auth"
                             ]
                         },
                         "ui:widget": "token-generator"
