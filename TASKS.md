@@ -618,9 +618,9 @@ This section tracks all system-provided connectors, their available actions, and
     - [x] Ignore Bots (Checkbox Input)
     - [x] IP Whitelist (Text Input)
     - [x] Response Code (Selector)
-    - [ ] Response Data (Text Input)
+    - [x] Response Data (Text Input)
     - [x] Authentication (Selector)
-    - [ ] Allowed Origins (Text Input)
+    - [x] Allowed Origins (Text Input)
     - [ ] Response Headers (Text Input -> Add Header button with rows of headers)
     - [ ] Field Name Binary Data (Text Input)
 
