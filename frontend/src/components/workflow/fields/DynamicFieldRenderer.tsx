@@ -220,7 +220,7 @@ export default function DynamicFieldRenderer({
                 label={label}
                 required={required}
                 error={error}
-                description={schema.description}
+                fieldName={fieldName}
             />
         );
     }

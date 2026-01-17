@@ -619,9 +619,8 @@ This section tracks all system-provided connectors, their available actions, and
     - [ ] IP Whitelist (Text Input)
     - [ ] Response Code (Selector)
     - [ ] Response Data (Text Input)
-    - [ ] Authentication (Selector)
+    - [x] Authentication (Selector)
     - [ ] Allowed Origins (Text Input)
-    - [ ] No Response Body (Checkbox Input)
     - [ ] Response Headers (Text Input -> Add Header button with rows of headers)
     - [ ] Field Name Binary Data (Text Input)
 
