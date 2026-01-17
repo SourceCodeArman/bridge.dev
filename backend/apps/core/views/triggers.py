@@ -480,21 +480,26 @@ class WebhookTriggerView(APIView):
                     )
 
             # --- 6. Payload Preparation ---
-            # Handle Raw Body
+            # Handle Raw Body - check FIRST before accessing request.data
             is_raw_body = get_config("raw_body")
 
-            body_data = request.data
-
             if is_raw_body:
-                # If raw body requested, try to give the raw bytes or string
+                # If raw body requested, use request.body directly (bypasses DRF parsing)
                 try:
                     body_data = request.body.decode("utf-8")
                 except Exception:
-                    # If binary, keep as bytes (might fail JSON serialization later if not handled)
-                    # Use field_name_binary_data if configured?
-                    # For now, let's just decode to string or list of bytes if needed.
-                    # Safe default: string representation
+                    # If binary, keep as string representation
                     body_data = str(request.body)
+            else:
+                # Normal mode - let DRF parse the body (JSON, form data, etc.)
+                try:
+                    body_data = request.data
+                except Exception:
+                    # Fallback to raw body if parsing fails
+                    try:
+                        body_data = request.body.decode("utf-8")
+                    except Exception:
+                        body_data = str(request.body)
 
             payload = {
                 "method": request.method,
