@@ -604,7 +604,7 @@ This section tracks all system-provided connectors, their available actions, and
     - [x] Body (Text Input -> Add Body button with rows of headers)
     - [x] Method (Dynamic Selector)
     - [x] Params (Text Input -> Add Param button with rows of headers)
-    - [x] Headers (Text Input -> Add Header button with rows of headers)
+    - [x] Headers (Header Builder Component)
     - [x] Timeout (Integer Input)
 
 #### Webhook Trigger (`webhook`)
@@ -621,7 +621,7 @@ This section tracks all system-provided connectors, their available actions, and
     - [x] Response Data (Text Input)
     - [x] Authentication (Selector)
     - [x] Allowed Origins (Text Input)
-    - [ ] Response Headers (Text Input -> Add Header button with rows of headers)
+    - [x] Response Headers (Header Builder Component)
     - [ ] Field Name Binary Data (Text Input)
 
 ---
@@ -765,7 +765,7 @@ This section tracks all system-provided connectors, their available actions, and
     - [x] Body (Text Input -> Add Body button with rows of headers)
     - [x] Method (Dynamic Selector)
     - [x] Params (Text Input -> Add Param button with rows of headers)
-    - [x] Headers (Text Input -> Add Header button with rows of headers)
+    - [x] Headers (Header Builder Component)
     - [x] Timeout (Integer Input)
 
 #### MCP Client (`mcp-client-tool`)

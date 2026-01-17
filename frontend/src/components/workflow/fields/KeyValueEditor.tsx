@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface KeyValuePair {
     id: string; // Unique ID for React keys
@@ -97,7 +97,7 @@ export default function KeyValueEditor({
     const removeRow = (id: string) => {
         if (pairs.length === 1) {
             // Clear the only row instead of removing it
-            const clearedPairs = [{ id: pairs[0].id, key: '', value: '' }];
+            const clearedPairs = [{ id: pairs[0]!.id, key: '', value: '' }];
             setPairs(clearedPairs);
             emitChange(clearedPairs);
         } else {

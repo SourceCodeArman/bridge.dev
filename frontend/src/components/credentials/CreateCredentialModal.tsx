@@ -304,7 +304,7 @@ export function CreateCredentialModal({ open, onOpenChange, initialConnectorId, 
                                                     control={control}
                                                     rules={{ required: field.required }}
                                                     render={({ field: { value, onChange } }) => (
-                                                        <HeaderBuilder value={value} onChange={onChange} />
+                                                        <HeaderBuilder value={value} onChange={onChange} height="220px" />
                                                     )}
                                                 />
                                             </div>
