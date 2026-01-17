@@ -135,7 +135,8 @@ export function CreateCredentialModal({ open, onOpenChange, initialConnectorId, 
         if (selectedConnector?.slug === 'webhook' && requestedAuthType) {
             const allowedFieldNames = webhookAuthFields[requestedAuthType];
             if (allowedFieldNames) {
-                fields = fields.filter((f: any) => allowedFieldNames.includes(f.name));
+                // Filter to allowed fields, excluding _auth_type since it's auto-populated
+                fields = fields.filter((f: any) => allowedFieldNames.includes(f.name) && f.name !== '_auth_type');
             }
         }
 
@@ -185,9 +186,15 @@ export function CreateCredentialModal({ open, onOpenChange, initialConnectorId, 
             setValue("connector_id", String(selectedConnector.slug), { shouldValidate: true, shouldDirty: true });
             // Only autoset name if generic
             setValue("name", `${selectedConnector.display_name} Credential`);
-            setValue("credentials", {});
+
+            // Pre-populate _auth_type for webhook connector when authType is passed
+            if (selectedConnector.slug === 'webhook' && requestedAuthType) {
+                setValue("credentials", { _auth_type: requestedAuthType });
+            } else {
+                setValue("credentials", {});
+            }
         }
-    }, [selectedConnector, setValue]);
+    }, [selectedConnector, setValue, requestedAuthType]);
 
 
 

@@ -25,7 +25,6 @@ export default function TokenGeneratorField({
     label,
     required = false,
     error,
-    description,
 }: TokenGeneratorFieldProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -56,9 +55,6 @@ export default function TokenGeneratorField({
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </Label>
-            {description && (
-                <p className="text-xs text-muted-foreground">{description}</p>
-            )}
             <div className="flex gap-2">
                 <Input
                     type="text"
