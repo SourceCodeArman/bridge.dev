@@ -411,8 +411,8 @@ export default function NodeConfigPanel({ selectedNode, onClose, onUpdateNode, o
 
                                                     return properties.map(([fieldName, fieldSchema]: [string, any]) => {
                                                         if (fieldName === 'step_context') return null;
-                                                        // Hide credential_id from dynamic fields unless it's MCP tool which handles it properly
-                                                        if (fieldName === 'credential_id' && connector.slug !== 'mcp-client-tool') return null;
+                                                        // Hide credential_id from dynamic fields unless it's MCP tool or webhook which handle it properly
+                                                        if (fieldName === 'credential_id' && connector.slug !== 'mcp-client-tool' && connector.slug !== 'webhook') return null;
 
                                                         const isRequired = selectedAction.input_schema.required?.includes(fieldName) || false;
 

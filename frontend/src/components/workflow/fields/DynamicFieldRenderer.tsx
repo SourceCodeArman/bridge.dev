@@ -305,16 +305,14 @@ export default function DynamicFieldRenderer({
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
-                )}
+
                 <div className="flex gap-2">
                     <Input
                         id={fieldName}
                         type="text"
                         value={webhookUrl}
                         readOnly
-                        className="bg-muted font-mono text-sm"
+                        className="bg-background font-mono text-sm"
                     />
                     <button
                         type="button"
@@ -342,9 +340,6 @@ export default function DynamicFieldRenderer({
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
-                )}
                 <Select value={value || schema.default || ''} onValueChange={onChange}>
                     <SelectTrigger id={fieldName} className="bg-background border-border">
                         <SelectValue placeholder={`Select ${label.toLowerCase()}`} className="text-muted-foreground" />
@@ -378,9 +373,7 @@ export default function DynamicFieldRenderer({
                             {label}
                             {required && <span className="text-destructive ml-1">*</span>}
                         </Label>
-                        {schema.description && (
-                            <p className="text-xs text-muted-foreground">{schema.description}</p>
-                        )}
+
                     </div>
                     <Switch
                         checked={value ?? schema.default ?? false}
@@ -404,9 +397,7 @@ export default function DynamicFieldRenderer({
                         {required && <span className="text-destructive ml-1">*</span>}
                     </Label>
                 </div>
-                {schema.description && (
-                    <p className="text-xs text-foreground ml-6">{schema.description}</p>
-                )}
+
                 {error && <p className="text-sm text-destructive ml-6">{error}</p>}
             </div>
         );
@@ -454,9 +445,7 @@ export default function DynamicFieldRenderer({
                             className="w-20 h-7 text-sm text-right border-0 shadow-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                     </div>
-                    {schema.description && (
-                        <p className="text-xs text-muted-foreground">{schema.description}</p>
-                    )}
+
                     <div className="pt-1">
                         <Slider
                             value={[typeof currentValue === 'number' ? currentValue : parseFloat(currentValue) || 1]}
@@ -482,9 +471,7 @@ export default function DynamicFieldRenderer({
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
-                )}
+
                 <Input
                     id={fieldName}
                     type="number"
@@ -527,9 +514,7 @@ export default function DynamicFieldRenderer({
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
-                )}
+
                 <Textarea
                     id={fieldName}
                     value={typeof value === 'string' ? value : JSON.stringify(value || schema.default || (fieldType === 'array' ? [] : {}), null, 2)}
@@ -567,9 +552,7 @@ export default function DynamicFieldRenderer({
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                {schema.description && (
-                    <p className="text-xs text-muted-foreground">{schema.description}</p>
-                )}
+
                 <Textarea
                     id={fieldName}
                     value={value ?? schema.default ?? ''}
@@ -588,9 +571,7 @@ export default function DynamicFieldRenderer({
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </Label>
-            {schema.description && (
-                <p className="text-xs text-muted-foreground">{schema.description}</p>
-            )}
+
             <Input
                 id={fieldName}
                 type={isPassword ? 'password' : 'text'}
