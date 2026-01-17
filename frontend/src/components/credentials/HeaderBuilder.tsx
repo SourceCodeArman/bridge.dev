@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface HeaderBuilderProps {
-    value: string;
-    onChange: (value: string) => void;
+    value: string | any[];
+    onChange: (value: string | any[]) => void;
+    format?: 'json_string' | 'array_of_objects';
+    height?: string;
 }
 
 interface HeaderPair {
@@ -13,45 +15,66 @@ interface HeaderPair {
     value: string;
 }
 
-export function HeaderBuilder({ value, onChange }: HeaderBuilderProps) {
+export function HeaderBuilder({ value, onChange, format = 'json_string', height }: HeaderBuilderProps) {
     const [headers, setHeaders] = useState<HeaderPair[]>([]);
 
     // Initialize from value prop
     useEffect(() => {
         try {
             if (value) {
-                const parsed = JSON.parse(value);
-                const pairs = Object.entries(parsed).map(([k, v]) => ({
-                    key: k,
-                    value: String(v)
-                }));
-                // Only update if different to avoid cycles
-                setHeaders(prev => {
-                    const prevJson = JSON.stringify(prev.reduce((acc, h) => {
-                        if (h.key) acc[h.key] = h.value;
-                        return acc;
-                    }, {} as Record<string, string>));
-                    const newJson = JSON.stringify(parsed);
-                    return prevJson === newJson ? prev : pairs;
-                });
+                if (format === 'array_of_objects' && Array.isArray(value)) {
+                    const pairs = value.map((item: any) => ({
+                        key: item.name || "",
+                        value: item.value || ""
+                    }));
+                    // Simple deep compare to avoid infinite loop
+                    setHeaders(prev => {
+                        const prevJson = JSON.stringify(prev);
+                        const newJson = JSON.stringify(pairs);
+                        return prevJson === newJson ? prev : pairs;
+                    });
+                } else if (format === 'json_string' && typeof value === 'string') {
+                    const parsed = JSON.parse(value);
+                    const pairs = Object.entries(parsed).map(([k, v]) => ({
+                        key: k,
+                        value: String(v)
+                    }));
+                    setHeaders(prev => {
+                        const prevJson = JSON.stringify(prev.reduce((acc, h) => {
+                            if (h.key) acc[h.key] = h.value;
+                            return acc;
+                        }, {} as Record<string, string>));
+                        const newJson = JSON.stringify(parsed);
+                        return prevJson === newJson ? prev : pairs;
+                    });
+                }
             } else if (headers.length === 0) {
                 // Initialize with one empty row if empty
                 setHeaders([{ key: "", value: "" }]);
             }
         } catch (e) {
-            // If invalid JSON, just reset or ignore
             if (headers.length === 0) setHeaders([{ key: "", value: "" }]);
         }
-    }, [value]);
+    }, [value, format]);
 
     const updateHeaders = (newHeaders: HeaderPair[]) => {
         setHeaders(newHeaders);
-        // Convert to object for storage
-        const headerObj = newHeaders.reduce((acc, { key, value }) => {
-            if (key) acc[key] = value;
-            return acc;
-        }, {} as Record<string, string>);
-        onChange(JSON.stringify(headerObj));
+
+        if (format === 'array_of_objects') {
+            const arrayOutput = newHeaders
+                .map(h => ({
+                    name: h.key,
+                    value: h.value
+                }));
+            onChange(arrayOutput);
+        } else {
+            // Convert to object for storage
+            const headerObj = newHeaders.reduce((acc, { key, value }) => {
+                if (key) acc[key] = value;
+                return acc;
+            }, {} as Record<string, string>);
+            onChange(JSON.stringify(headerObj));
+        }
     };
 
     const addHeader = () => {
@@ -60,7 +83,7 @@ export function HeaderBuilder({ value, onChange }: HeaderBuilderProps) {
 
     const removeHeader = (index: number) => {
         const newHeaders = headers.filter((_, i) => i !== index);
-        if (newHeaders.length === 0) newHeaders.push({ key: "", value: "" }); // Always keep one? Or allow empty.
+        if (newHeaders.length === 0) newHeaders.push({ key: "", value: "" });
         updateHeaders(newHeaders);
     };
 
@@ -74,7 +97,7 @@ export function HeaderBuilder({ value, onChange }: HeaderBuilderProps) {
 
     return (
         <div className="space-y-2">
-            <div className="space-y-2 h-[220px] overflow-y-auto pr-2">
+            <div className={`space-y-2 h-[${height}] overflow-y-auto pr-2`}>
                 {headers.map((header, index) => (
                     <div key={index} className="flex gap-2 items-start">
                         <div className="flex-1">

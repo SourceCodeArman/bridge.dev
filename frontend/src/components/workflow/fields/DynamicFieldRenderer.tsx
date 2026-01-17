@@ -1,3 +1,4 @@
+import { HeaderBuilder } from '@/components/credentials/HeaderBuilder';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ interface JSONSchemaProperty {
     'ui:range-pair'?: string;
     'ui:widget'?: string;
     'ui:showIf'?: Record<string, string[]>;
+    properties?: Record<string, JSONSchemaProperty>;
 }
 
 interface DynamicFieldRendererProps {
@@ -511,6 +513,29 @@ export default function DynamicFieldRenderer({
                 valuePlaceholder={fieldName === 'headers' ? 'Header Value' : fieldName === 'params' ? 'Value' : 'Value'}
             />
         );
+    }
+
+    // Handle array fields that are lists of key-value objects (e.g. headers)
+    if (fieldType === 'array' && schema.items && !Array.isArray(schema.items) && schema.items.type === 'object') {
+        const itemProps = schema.items.properties || {};
+        // Check if it has name/value structure
+        if ('name' in itemProps && 'value' in itemProps) {
+            return (
+                <div className="space-y-2">
+                    <Label htmlFor={fieldName}>
+                        {label}
+                        {required && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <HeaderBuilder
+                        value={value}
+                        onChange={onChange}
+                        format="array_of_objects"
+                        height=""
+                    />
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                </div>
+            );
+        }
     }
 
     // Handle object/array fields (JSON editor)
