@@ -18,6 +18,7 @@ import McpToolNameSelector from './McpToolNameSelector';
 import McpToolSelector from './McpToolSelector';
 import SlackChannelSelector from './SlackChannelSelector';
 import UrlWithParamsField from './UrlWithParamsField';
+import TokenGeneratorField from './TokenGeneratorField';
 
 interface JSONSchemaProperty {
     type: string | string[];

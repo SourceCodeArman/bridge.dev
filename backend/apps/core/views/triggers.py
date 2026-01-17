@@ -385,6 +385,36 @@ class WebhookTriggerView(APIView):
                         status=status.HTTP_401_UNAUTHORIZED,
                     )
 
+            elif auth_type == "JWT Auth":
+                import jwt
+
+                jwt_secret = get_config("jwt_secret")
+                auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+
+                if not auth_header.startswith("Bearer "):
+                    return Response(
+                        {
+                            "status": "error",
+                            "message": "Missing or invalid Authorization header. Expected: Bearer <token>",
+                        },
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+
+                token = auth_header.split(" ")[1]
+                try:
+                    # Verify the JWT token
+                    jwt.decode(token, jwt_secret, algorithms=["HS256"])
+                except jwt.ExpiredSignatureError:
+                    return Response(
+                        {"status": "error", "message": "Token has expired"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+                except jwt.InvalidTokenError as e:
+                    return Response(
+                        {"status": "error", "message": f"Invalid token: {str(e)}"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+
             # --- 4. Method Check ---
             configured_method = (
                 get_config("http_method") or get_config("method") or "GET"

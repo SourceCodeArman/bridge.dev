@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RefreshCw } from 'lucide-react';
+import { Check, Copy, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 
 interface TokenGeneratorFieldProps {
@@ -28,15 +28,26 @@ export default function TokenGeneratorField({
     description,
 }: TokenGeneratorFieldProps) {
     const [isGenerating, setIsGenerating] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const handleGenerate = () => {
         setIsGenerating(true);
-        // Small delay for visual feedback
         setTimeout(() => {
             const token = generateSecureToken(32);
             onChange(token);
             setIsGenerating(false);
         }, 150);
+    };
+
+    const handleCopy = async () => {
+        if (!value) return;
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            // Clipboard failed
+        }
     };
 
     return (
@@ -56,6 +67,16 @@ export default function TokenGeneratorField({
                     placeholder="Enter token or generate one"
                     className="font-mono text-sm"
                 />
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopy}
+                    disabled={!value}
+                    title="Copy to clipboard"
+                >
+                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
                 <Button
                     type="button"
                     variant="outline"
