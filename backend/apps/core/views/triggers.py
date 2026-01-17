@@ -534,6 +534,18 @@ class WebhookTriggerView(APIView):
             # --- 7. Respond Options ---
             respond_option = get_config("respond", "Immediately")
 
+            # --- CORS Handling ---
+            allowed_origins_str = get_config("allowed_origins", "")
+            cors_headers = {}
+            if allowed_origins_str:
+                request_origin = request.META.get("HTTP_ORIGIN")
+                allowed_origins = [o.strip() for o in allowed_origins_str.split(",")]
+
+                if "*" in allowed_origins:
+                    cors_headers["Access-Control-Allow-Origin"] = "*"
+                elif request_origin and request_origin in allowed_origins:
+                    cors_headers["Access-Control-Allow-Origin"] = request_origin
+
             if respond_option == "When Last Node Finishes":
                 # Execute synchronously
                 from ..tasks import execute_workflow_run_sync
@@ -557,7 +569,7 @@ class WebhookTriggerView(APIView):
                     else status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-                return Response(response_body, status=status_code)
+                return Response(response_body, status=status_code, headers=cors_headers)
 
             elif respond_option == "Using Respond to Webhook Node":
                 # FUTURE: Wait for specific node response. For now, background it.
@@ -570,6 +582,7 @@ class WebhookTriggerView(APIView):
                         "message": "Workflow started (Respond Node not implemented yet)",
                     },
                     status=status.HTTP_202_ACCEPTED,
+                    headers=cors_headers,
                 )
 
             else:  # "Immediately"
@@ -598,7 +611,7 @@ class WebhookTriggerView(APIView):
                 }
 
                 # Custom Headers
-                custom_headers = {}
+                custom_headers = cors_headers.copy()
                 headers_config = get_config("response_headers", [])
                 if isinstance(headers_config, list):
                     for header in headers_config:
