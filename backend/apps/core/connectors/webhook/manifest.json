@@ -16,10 +16,35 @@
         "type": "custom",
         "fields": [
             {
-                "name": "secret",
+                "name": "username",
+                "type": "string",
+                "required": false,
+                "description": "Username for Basic Auth"
+            },
+            {
+                "name": "password",
                 "type": "password",
                 "required": false,
-                "description": "Optional secret for webhook signature verification"
+                "description": "Password for Basic Auth"
+            },
+            {
+                "name": "header_name",
+                "type": "string",
+                "required": false,
+                "description": "Header Name for Header Auth",
+                "default": "X-Auth-Token"
+            },
+            {
+                "name": "header_value",
+                "type": "string",
+                "required": false,
+                "description": "Header Value (Token) for Header Auth"
+            },
+            {
+                "name": "jwt_secret",
+                "type": "string",
+                "required": false,
+                "description": "JWT Secret Key for JWT Auth"
             }
         ]
     },
@@ -34,11 +59,7 @@
                     "http_method",
                     "path",
                     "authentication",
-                    "auth_username",
-                    "auth_password",
-                    "auth_header_name",
-                    "auth_header_value",
-                    "jwt_secret",
+                    "credential_id",
                     "respond",
                     "response_code",
                     "response_data",
@@ -82,63 +103,18 @@
                         "description": "Authentication",
                         "displayName": "Authentication"
                     },
-                    "auth_username": {
-                        "name": "auth_username",
+                    "credential_id": {
                         "type": "string",
-                        "description": "Username",
-                        "displayName": "Username",
+                        "description": "Select a credential with your authentication secrets",
+                        "displayName": "Credential",
+                        "ui:widget": "credential-selector",
                         "ui:showIf": {
                             "authentication": [
-                                "Basic Auth"
-                            ]
-                        }
-                    },
-                    "auth_password": {
-                        "name": "auth_password",
-                        "type": "password",
-                        "description": "Password",
-                        "displayName": "Password",
-                        "ui:showIf": {
-                            "authentication": [
-                                "Basic Auth"
-                            ]
-                        }
-                    },
-                    "auth_header_name": {
-                        "name": "auth_header_name",
-                        "type": "string",
-                        "description": "Header Name",
-                        "displayName": "Header Name",
-                        "default": "X-Auth-Token",
-                        "ui:showIf": {
-                            "authentication": [
-                                "Header Auth"
-                            ]
-                        }
-                    },
-                    "auth_header_value": {
-                        "name": "auth_header_value",
-                        "type": "string",
-                        "description": "Header Value (Token)",
-                        "displayName": "Header Value",
-                        "ui:showIf": {
-                            "authentication": [
-                                "Header Auth"
-                            ]
-                        },
-                        "ui:widget": "token-generator"
-                    },
-                    "jwt_secret": {
-                        "name": "jwt_secret",
-                        "type": "string",
-                        "description": "JWT Secret Key",
-                        "displayName": "JWT Secret",
-                        "ui:showIf": {
-                            "authentication": [
+                                "Basic Auth",
+                                "Header Auth",
                                 "JWT Auth"
                             ]
-                        },
-                        "ui:widget": "token-generator"
+                        }
                     },
                     "respond": {
                         "type": "string",

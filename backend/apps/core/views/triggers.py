@@ -337,10 +337,33 @@ class WebhookTriggerView(APIView):
             # --- 3. Authentication ---
             auth_type = get_config("authentication", "None")
 
+            # Fetch and decrypt credential if authentication requires it
+            credential_data = {}
+            if auth_type != "None":
+                credential_id = get_config("credential_id")
+                if credential_id:
+                    try:
+                        from ..encryption import get_encryption_service
+                        from ..models import Credential
+
+                        credential = Credential.objects.get(id=credential_id)
+                        encryption = get_encryption_service()
+                        credential_data = encryption.decrypt_dict(
+                            credential.encrypted_data
+                        )
+                    except Credential.DoesNotExist:
+                        logger.warning(
+                            f"Credential {credential_id} not found for webhook {webhook_id}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to decrypt credential for webhook {webhook_id}: {e}"
+                        )
+
             if auth_type == "Basic Auth":
                 auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-                auth_user = get_config("auth_username")
-                auth_pass = get_config("auth_password")
+                auth_user = credential_data.get("username", "")
+                auth_pass = credential_data.get("password", "")
 
                 if not auth_header.startswith("Basic "):
                     return Response(
@@ -369,8 +392,8 @@ class WebhookTriggerView(APIView):
                     )
 
             elif auth_type == "Header Auth":
-                header_name = get_config("auth_header_name")
-                header_value = get_config("auth_header_value")
+                header_name = credential_data.get("header_name", "X-Auth-Token")
+                header_value = credential_data.get("header_value", "")
 
                 # Convert header name to Django META format (HTTP_HEADER_NAME)
                 meta_key = (
@@ -388,7 +411,7 @@ class WebhookTriggerView(APIView):
             elif auth_type == "JWT Auth":
                 import jwt
 
-                jwt_secret = get_config("jwt_secret")
+                jwt_secret = credential_data.get("jwt_secret", "")
                 auth_header = request.META.get("HTTP_AUTHORIZATION", "")
 
                 if not auth_header.startswith("Bearer "):
@@ -465,7 +488,7 @@ class WebhookTriggerView(APIView):
                 # If raw body requested, try to give the raw bytes or string
                 try:
                     body_data = request.body.decode("utf-8")
-                except:
+                except Exception:
                     # If binary, keep as bytes (might fail JSON serialization later if not handled)
                     # Use field_name_binary_data if configured?
                     # For now, let's just decode to string or list of bytes if needed.
@@ -552,7 +575,7 @@ class WebhookTriggerView(APIView):
                 # Try to parse custom data as JSON if it looks like it
                 try:
                     custom_data = json.loads(custom_data_raw)
-                except:
+                except Exception:
                     custom_data = {"message": custom_data_raw}  # Wrap simple string
 
                 # Custom Headers
