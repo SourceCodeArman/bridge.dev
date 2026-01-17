@@ -613,7 +613,7 @@ This section tracks all system-provided connectors, their available actions, and
   - [~] Receive Webhook
     - [x] Path (Disabled Text Field with Copy Button)
     - [x] Respond (Selector)
-    - [ ] Raw Body (Checkbox Input)
+    - [x] Raw Body (Checkbox Input)
     - [x] Method (Selector)
     - [ ] Ignore Bots (Checkbox Input)
     - [ ] IP Whitelist (Text Input)

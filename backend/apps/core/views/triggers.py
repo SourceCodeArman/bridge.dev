@@ -491,15 +491,20 @@ class WebhookTriggerView(APIView):
                     # If binary, keep as string representation
                     body_data = str(request.body)
             else:
-                # Normal mode - let DRF parse the body (JSON, form data, etc.)
+                # Strict mode - only accept content types DRF can parse (JSON, form data)
                 try:
                     body_data = request.data
                 except Exception:
-                    # Fallback to raw body if parsing fails
-                    try:
-                        body_data = request.body.decode("utf-8")
-                    except Exception:
-                        body_data = str(request.body)
+                    # Return 415 Unsupported Media Type with helpful message
+                    content_type = request.content_type or "unknown"
+                    return Response(
+                        {
+                            "status": "error",
+                            "message": f"Unsupported content type: {content_type}",
+                            "hint": "Enable 'Raw Body' in webhook settings to accept non-JSON content types like text/plain or XML.",
+                        },
+                        status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    )
 
             payload = {
                 "method": request.method,
@@ -583,6 +588,14 @@ class WebhookTriggerView(APIView):
                     custom_data = json.loads(custom_data_raw)
                 except Exception:
                     custom_data = {"message": custom_data_raw}  # Wrap simple string
+
+                # DEBUG: Add captured payload info for testing
+                custom_data["_debug"] = {
+                    "raw_body_enabled": is_raw_body,
+                    "body_type": type(body_data).__name__,
+                    "body_preview": str(body_data)[:200] if body_data else None,
+                    "run_id": str(run.id),
+                }
 
                 # Custom Headers
                 custom_headers = {}
