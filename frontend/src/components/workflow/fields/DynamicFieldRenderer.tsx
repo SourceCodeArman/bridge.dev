@@ -213,6 +213,19 @@ export default function DynamicFieldRenderer({
         );
     }
 
+    if (schema['ui:widget'] === 'token-generator') {
+        return (
+            <TokenGeneratorField
+                value={value}
+                onChange={onChange}
+                label={label}
+                required={required}
+                error={error}
+                description={schema.description}
+            />
+        );
+    }
+
     // Handle legacy custom UI components
     if (schema['ui:component'] === 'google_calendar_selector') {
         return (
