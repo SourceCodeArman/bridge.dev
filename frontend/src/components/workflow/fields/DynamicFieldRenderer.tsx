@@ -17,8 +17,8 @@ import KeyValueEditor from './KeyValueEditor';
 import McpToolNameSelector from './McpToolNameSelector';
 import McpToolSelector from './McpToolSelector';
 import SlackChannelSelector from './SlackChannelSelector';
-import UrlWithParamsField from './UrlWithParamsField';
 import TokenGeneratorField from './TokenGeneratorField';
+import UrlWithParamsField from './UrlWithParamsField';
 
 interface JSONSchemaProperty {
     type: string | string[];
@@ -160,7 +160,8 @@ export default function DynamicFieldRenderer({
 
     // Handle custom UI components
     if (schema['ui:widget'] === 'credential-selector') {
-        const isVisible = allValues?.authentication && allValues.authentication !== 'none';
+        const authValue = allValues?.authentication?.toLowerCase();
+        const isVisible = authValue && authValue !== 'none';
 
         if (!isVisible) return null;
 
