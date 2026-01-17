@@ -106,7 +106,9 @@ export default function DynamicFieldRenderer({
     if (showIfCondition && allValues) {
         for (const [dependentField, allowedValues] of Object.entries(showIfCondition)) {
             const currentValue = allValues[dependentField];
-            if (!allowedValues.includes(currentValue)) {
+            // Cast allowedValues to array and check if current value is included
+            const allowedArray = Array.isArray(allowedValues) ? allowedValues : [allowedValues];
+            if (!allowedArray.includes(currentValue)) {
                 return null;
             }
         }
@@ -160,11 +162,6 @@ export default function DynamicFieldRenderer({
 
     // Handle custom UI components
     if (schema['ui:widget'] === 'credential-selector') {
-        const authValue = allValues?.authentication?.toLowerCase();
-        const isVisible = authValue && authValue !== 'none';
-
-        if (!isVisible) return null;
-
         return (
             <CredentialSelector
                 value={value}
