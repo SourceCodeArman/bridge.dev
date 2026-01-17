@@ -25,6 +25,7 @@ interface JSONSchemaProperty {
     description?: string;
     default?: any;
     enum?: string[];
+    enumNames?: string[];
     minimum?: number;
     maximum?: number;
     pattern?: string;
@@ -334,24 +335,30 @@ export default function DynamicFieldRenderer({
 
     // Handle enum fields (dropdown)
     if (schema.enum) {
+        const enumValues = schema.enum;
+        const enumNames = schema.enumNames || enumValues; // Use enumNames if available, otherwise use enum values
         return (
             <div className="space-y-2">
                 <Label htmlFor={fieldName}>
                     {label}
                     {required && <span className="text-destructive ml-1">*</span>}
                 </Label>
-                <Select value={value || schema.default || ''} onValueChange={onChange}>
+                <Select value={String(value ?? schema.default ?? '')} onValueChange={(v) => {
+                    // Convert back to original type (number for integer enums)
+                    const originalValue = enumValues.find((e: any) => String(e) === v);
+                    onChange(originalValue !== undefined ? originalValue : v);
+                }}>
                     <SelectTrigger id={fieldName} className="bg-background border-border">
                         <SelectValue placeholder={`Select ${label.toLowerCase()}`} className="text-muted-foreground" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border-border">
-                        {schema.enum.map((option) => (
+                        {enumValues.map((option: any, index: number) => (
                             <SelectItem
                                 key={option}
-                                value={option}
+                                value={String(option)}
                                 className="text-foreground hover:bg-card focus:bg-card"
                             >
-                                {option}
+                                {enumNames[index] || option}
                             </SelectItem>
                         ))}
                     </SelectContent>
