@@ -584,9 +584,9 @@ This section tracks all system-provided connectors, their available actions, and
 #### Slack (`slack`)
 - **Auth Type**: OAuth 2.0
 - **Actions**:
-  - [~] Send Message
+  - [x] Send Message
     - [x] Text (Text Input)
-    - [~] Channel (Text Input -> Dynamic Selector)
+    - [x] Channel (Text Input -> Dynamic Selector)
     - [x] Blocks (Text Input)
     - [x] Thread Ts (Text Input)
   - [x] List Channels
