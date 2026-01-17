@@ -622,7 +622,7 @@ This section tracks all system-provided connectors, their available actions, and
     - [x] Authentication (Selector)
     - [x] Allowed Origins (Text Input)
     - [x] Response Headers (Header Builder Component)
-    - [ ] Field Name Binary Data (Text Input)
+    - [x] Field Name for Binary Data (Text Input)
 
 ---
 

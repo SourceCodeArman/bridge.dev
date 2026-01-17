@@ -255,6 +255,7 @@ class WebhookTriggerView(APIView):
         import base64
         import json
         import re
+        import traceback
 
         try:
             # Find workflow with this webhook_id in its definition
@@ -613,18 +614,38 @@ class WebhookTriggerView(APIView):
                 # Custom Headers
                 custom_headers = cors_headers.copy()
                 headers_config = get_config("response_headers", [])
+
                 if isinstance(headers_config, list):
                     for header in headers_config:
                         if isinstance(header, dict) and "name" in header:
-                            custom_headers[header["name"]] = header.get("value", "")
+                            key = str(header.get("name", "")).strip()
+                            value = str(header.get("value", "")).strip()
+                            # Prevent newline injection which can cause 500s in some WSGI servers
+                            if key and "\n" not in key and "\r" not in key:
+                                # Newlines in values are also problematic for headers
+                                custom_headers[key] = value.replace("\n", "").replace(
+                                    "\r", ""
+                                )
+
+                logger.debug(
+                    f"Webhook {webhook_id} responding with {custom_code}. Headers: {custom_headers}"
+                )
 
                 # Handle 204 No Content - MUST not have a body
-                if int(custom_code) == 204:
+                try:
+                    status_code = int(float(custom_code))
+                except (ValueError, TypeError):
+                    logger.error(
+                        f"Invalid response code {custom_code}, defaulting to 200"
+                    )
+                    status_code = 200
+
+                if status_code == 204:
                     return Response(
                         status=status.HTTP_204_NO_CONTENT, headers=custom_headers
                     )
 
-                return Response(custom_data, status=custom_code, headers=custom_headers)
+                return Response(custom_data, status=status_code, headers=custom_headers)
 
         except ValidationError as e:
             return Response(
@@ -637,6 +658,7 @@ class WebhookTriggerView(APIView):
                 exc_info=e,
                 extra={"webhook_id": str(webhook_id)},
             )
+            traceback.print_exc()
             return Response(
                 {
                     "status": "error",
