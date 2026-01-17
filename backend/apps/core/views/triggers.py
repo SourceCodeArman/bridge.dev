@@ -226,6 +226,7 @@ class WebhookTriggerView(APIView):
     Path: /api/v1/core/webhook/{webhook_id}/
     """
 
+    authentication_classes = []  # Skip default JWT auth - we handle auth ourselves
     permission_classes = []  # Public endpoint for webhooks
 
     def get(self, request, webhook_id):
